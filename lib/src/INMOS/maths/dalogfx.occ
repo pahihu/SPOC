@@ -1,0 +1,223 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE NORMALISE64 "NORMALISE64%O"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DALOG "DALOG%c"
+#PRAGMA TRANSLATE DALOG10 "DALOG10%c"
+#PRAGMA TRANSLATE NORMALISE64 "NORMALISE64%c"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DALOG "DLOG%f"
+#PRAGMA TRANSLATE DALOGP "DLOGP%f"
+#PRAGMA TRANSLATE DALOGPP "DLOGPP%f"
+#PRAGMA TRANSLATE DALOG10 "DLOG10%f"
+#PRAGMA TRANSLATE DALOG10P "DLOG10P%f"
+#PRAGMA TRANSLATE DALOG10PP "DLOG10PP%f"
+#PRAGMA TRANSLATE NORMALISE64 "NORMALISE64%f"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  DALOG
+REAL64 FUNCTION DALOG (VAL REAL64 X)
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL ManMask IS (Done << DRealExpSh) - Done :
+    -- C1 + C2 = ln(2) to extra precision
+    VAL REAL64 C1 RETYPES #3FE6300000000000(INT64) :
+    VAL REAL64 C2 RETYPES #BF2BD0105C610CA8(INT64) :
+    VAL INT64 X.i RETYPES X :
+    --}}}
+    IF
+      --{{{  special cases
+      (X.i /\ (~(MOSTNEG INT64))) > DRealInf -- X is NaN
+        RWork := X  -- transmit NaN
+      (X.i <= Dzero) OR (X.i = DRealInf) -- X negative or Inf
+        RWork := Dundefined.NaN
+      --}}}
+      TRUE
+        INT64 XWork :
+        INT N :
+        SEQ
+          --{{{  split X into exponent and fixed-point fraction
+          VAL [2] INT PartX RETYPES X.i :
+          INT discard :
+          N, discard := SHIFTLEFT (0, PartX[1], DRealShift + 1)
+          XWork := X.i /\ ManMask
+          IF
+            N = 0
+              --{{{  X is denormalised, so normalise and adjust N accordingly
+              INT64 N1 :
+              SEQ
+                INT64 Discard :
+                N1, XWork, Discard := NORMALISE64 (XWork, Dzero)
+                N := ((DRealShift - DRealXcess) + 2) - (INT N1)
+                XWork := (XWork /\ (~(MOSTNEG INT64))) >> 1
+              --}}}
+            TRUE
+              --{{{  adjust N and make X fixed-point fraction
+              SEQ
+                N := N + (1 - DRealXcess)
+                XWork := XWork << (DRealShift - 1)
+              --}}}
+          --}}}
+          SEQ
+            --{{{  Reduced Log
+            VAL Half IS #4000000000000000(INT64) :
+            VAL Quarter IS Half >> 1 :
+            VAL C0 IS #1A827999FCEF3242(INT64) : -- SQRT(0.5)-0.5 in fixed point
+            INT64 ZDen :
+            SEQ
+              IF
+                XWork > C0
+                  SEQ
+                    ZDen := (XWork >> 1) + (Half + Quarter)
+                    XWork := XWork - Half
+                TRUE
+                  SEQ
+                    N := N - 1
+                    ZDen := (XWork >> 1) + Half
+              IF
+                XWork = Dzero
+                  RWork := DZero
+                TRUE
+                  INT64 W, V, Q :
+                  SEQ
+                    W := FracDiv64 (XWork, ZDen)
+                    W := FracMult64 (W, W)
+                    V := FracDiv64 (Quarter, ZDen)
+                    Q := V + FracMult64 (V,
+                             FracMult64 (W,
+                             FracDiv64 (FracMult64 (W, #FEDCAC780E9D9C67(INT64)) +
+                                                       #0711CD5B0DF62619(INT64),
+                                        FracMult64 (W,
+                                        FracMult64 (W, #0200000000000000(INT64)) +
+                                                       #E3601317016B3536(INT64)) +
+                                                       #599D2F771756F958(INT64)) +
+                                                       #0091A399B1493FEA(INT64)))
+                    IF
+                      Q = Dzero
+                        RWork := DZero
+                      TRUE
+                        RWork := IncExp64(ReFloat64 (Q) * ReFloat64 (XWork), 2)
+            --}}}
+            --{{{  construct result
+            IF
+              N = 0
+                SKIP
+              TRUE
+                VAL RealN IS REAL64 ROUND N :
+                RWork := ( RWork + (RealN * C2)) + (RealN * C1)
+            --}}}
+    RESULT RWork
+:
+--}}}
+--{{{  DALOG10
+REAL64 FUNCTION DALOG10 (VAL REAL64 X)
+  -- NB : This function requires DALOG to be in scope.
+  REAL64 Log :
+  VALOF
+    VAL DRealInf IS #7FF00000(INT) :
+    VAL REAL64 LogE RETYPES #3FDBCB7B1526E50E(INT64) :
+    SEQ
+      Log := DALOG (X)
+      IF
+        [2]INT Log.i RETYPES Log :
+        (Log.i[1]/\DRealInf) = DRealInf -- NLog is NaN
+          SKIP
+        TRUE
+          Log := Log * LogE
+    RESULT Log
+:
+--}}}
+#ifdef FORTRAN
+--{{{  DALOGP/DALOGPP
+-- This 'P' version exists for when the FORTRAN intrinsic DALOG is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DALOGP.  When DALOGP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DALOGP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value.  The occam calling convention is to pass REAL64
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DALOGP( VAL INT dummy, VAL REAL64 X ) IS DALOG( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DALOGPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DALOG( X )
+:
+#endif
+--}}}
+--{{{  DALOG10P/DALOG10PP
+-- This 'P' version exists for when the FORTRAN intrinsic DALOG10 is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DALOG10P.  When DALOG10P is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DALOG10P has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value.  The occam calling convention is to pass REAL64
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DALOG10P( VAL INT dummy, VAL REAL64 X ) IS DALOG10( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DALOG10PP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DALOG10( X )
+:
+#endif
+--}}}
+#endif

@@ -1,0 +1,346 @@
+--{{{  File banner
+-- @(#)=====================================================
+-- @(#)  Project : GPMIMD ESPRIT P5404
+-- @(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+-- @(#)            University of Southampton
+--  
+-- @(#)    Title : Simulated iserver
+-- @(#)   System : Occam 2 C
+-- @(#) Filename : spserver.occ
+-- @(#)  Version : 1.1
+-- @(#)     Date : 12/10/93
+-- @(#)====================================================
+--}}}
+
+#INCLUDE "hostio.inc"
+
+--{{{  definitions
+#H #if (defined USE_SOCKETS || defined USE_NONBLOCKING_SOCKETS)
+#H   extern int  ServeBuffer  (char *, short*);
+#H   extern void ServeSockets (int, int);
+#H   #include <sys/types.h>
+#H   #include <sys/socket.h>
+#H   #include <stdio.h>
+#H   #include <errno.h>
+
+#H   static int occam_to_iserver[2];
+#H   static int iserver_to_occam[2];
+#H   #define reader_end 0
+#H   #define writer_end 1
+#H #else
+#H   extern void HostBegin();
+#H   extern void HostEnd();
+#H #endif
+
+--}}}
+--{{{  PROC spoc.iserver (CHAN OF ANY fs, ts)
+PROC spoc.iserver (CHAN OF ANY fs, ts)
+
+  CHAN OF SP fs RETYPES fs :
+  CHAN OF SP ts RETYPES ts :
+  VAL sizeof.int16 IS 2 :
+  BOOL serving:
+  BOOL flag :
+  INT16 length:
+  [sp.max.packet.size]BYTE buffer :
+  --{{{  PROC wait.socket ()
+  PROC wait.socket ()
+  
+    SEQ
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      #C WAITSOCKET (iserver_to_occam[reader_end]);
+      #C #endif
+  
+      -- WAITSOCKET acts like a procedure call return
+  
+      -- Ensure that this procedure is not ATOMIC
+      BOOL true :
+      SEQ
+	true := TRUE
+	IF
+	  true
+	    SKIP
+	  TRUE
+	    CHAN OF INT c :
+	    c ! 0
+  :
+  --}}}
+  --{{{  PROC open.session ()
+  PROC open.session ()
+    SEQ
+      #C #if (defined USE_SOCKETS || defined USE_NONBLOCKING_SOCKETS)
+      #C {
+      #C   static int identity = -1;
+      #C   if (identity < 0)
+      #C   {
+      #C     #ifdef linux
+      #C     if (socketpair(AF_UNIX,SOCK_STREAM,0,iserver_to_occam) < 0 || 
+      #C         socketpair(AF_UNIX,SOCK_STREAM,0,occam_to_iserver) < 0)
+      #C     #else
+      #C     if (pipe (iserver_to_occam) < 0 ||
+      #C         pipe (occam_to_iserver) < 0)
+      #C     #endif
+      #C     {
+      #C       fprintf(stderr,"Could not open stream socket pairs\n");
+      #C       exit(1);
+      #C     }
+      #C     if ((identity = fork()) == -1)
+      #C     {
+      #C       fprintf(stderr,"Could not create iserver\n");
+      #C       exit(1);
+      #C     }
+      #C     else if (identity == 0)
+      #C     {
+      #C       ServeSockets (iserver_to_occam[writer_end], occam_to_iserver[reader_end]);
+      #C       close(iserver_to_occam[reader_end]);
+      #C       close(iserver_to_occam[writer_end]);
+      #C       close(occam_to_iserver[reader_end]);
+      #C       close(occam_to_iserver[writer_end]);
+      #C       exit(0);
+      #C     }
+      #C     #ifdef USE_NONBLOCKING_SOCKETS
+      #C     else
+      #C       EnableSocket (iserver_to_occam[reader_end]);
+      #C     #endif
+      #C   }
+      #C }
+      #C #else
+      #C HostBegin();
+      #C #endif
+  :
+  --}}}
+  --{{{  PROC close.session ()
+  PROC close.session ()
+    SEQ
+      #C #if (defined USE_SOCKETS || defined USE_NONBLOCKING_SOCKETS)
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      #C DisableSocket(iserver_to_occam[reader_end]);
+      #C #endif
+      #C close(iserver_to_occam[reader_end]);
+      #C close(iserver_to_occam[writer_end]);
+      #C close(occam_to_iserver[reader_end]);
+      #C close(occam_to_iserver[writer_end]);
+      #C #else
+      #C HostEnd();
+      #C #endif
+  :    
+  --}}}
+  --{{{  PROC iserver ([]BYTE buffer, INT16 length)
+  PROC iserver ([]BYTE buffer, INT16 length)
+    INT16 len:
+    VAL max.size IS SIZE buffer :
+    SEQ
+      #C #if (defined USE_SOCKETS || defined USE_NONBLOCKING_SOCKETS)
+      #C errno = 0;
+      #C while (($len = write(occam_to_iserver[writer_end], (char *) &$length, 2)) <= 0)
+      #C   if (errno != EAGAIN && errno != EINTR)
+      #C   {
+      #C     fprintf(stderr,"Error writing length to client socket (errno %d)\n", errno);
+      #C     exit(1);
+      #C   }
+      #C   else
+      #C     errno = 0;
+      #C if ($len != 2)
+      #C   {
+      #C     fprintf(stderr,"Error - Only wrote %d out of %d bytes\n", $len, 2);
+      #C     exit(1);
+      #C   }
+      #C while (($len = write(occam_to_iserver[writer_end], (char *) &$buffer+2, (int) $length)) <= 0)
+      #C   if (errno != EAGAIN && errno != EINTR)
+      #C   {
+      #C     fprintf(stderr,"Error writing packet to client socket (errno %d)\n", errno);
+      #C     exit(1);
+      #C   }
+      #C   else
+      #C     errno = 0;
+      #C if ($len != $length)
+      #C   {
+      #C     fprintf(stderr,"Error - Only wrote %d out of %d bytes\n", $len, $length);
+      #C     exit(1);
+      #C   }
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      wait.socket ()
+      #C #endif
+      #C while (($len = read(iserver_to_occam[reader_end], (char *) &$length, 2)) <= 0)
+      #C   if (errno != EAGAIN && errno != EINTR)
+      #C   {
+      #C     fprintf(stderr,"Error reading length from client socket (errno %d)\n", errno);
+      #C     exit(1);
+      #C   }
+      #C   else
+      #C     errno = 0;
+      #C if ($len != 2)
+      #C   {
+      #C     fprintf(stderr,"Error - Only read %d out of %d bytes\n", $len, 2);
+      #C     exit(1);
+      #C   }
+      #C if ($length == 0 || $length > $max.size-2)
+      #C {
+      #C   fprintf(stderr,"Error reading from client socket - bad length (%d bytes)\n", $length);
+      #C   exit(1);
+      #C }
+      #C while (($len = read(iserver_to_occam[reader_end], (char *) &$buffer+2, (int) $length)) <= 0)
+      #C   if (errno != EAGAIN && errno != EINTR)
+      #C   {
+      #C     fprintf(stderr,"Error reading packet from client socket (errno %d)\n",errno);
+      #C     exit(1);
+      #C   }
+      #C   else
+      #C     errno = 0;
+      #C if ($len != $length)
+      #C   {
+      #C     fprintf(stderr,"Error - Only read %d out of %d bytes\n", $len, $length);
+      #C     exit(1);
+      #C   }
+      #C #else
+      #C ServeBuffer((char*) &$buffer, (short*) &$length);
+      #C #endif
+  :
+  --}}}
+  
+  SEQ
+    serving := TRUE
+
+    open.session ()
+
+    WHILE serving
+      SEQ
+	ts ? length :: [buffer FROM sizeof.int16 FOR sp.max.packet.data.size]
+
+	IF
+	  buffer[2] = sp.exit.tag
+	    serving := FALSE
+	  TRUE
+	    SKIP
+
+	iserver (buffer, length)
+
+	fs ! length :: [buffer FROM sizeof.int16 FOR INT length]
+
+    close.session()
+:
+--}}}
+--{{{  PROC spoc.aserver (CHAN OF ANY fs, ts)
+PROC spoc.aserver (CHAN OF ANY fs, ts)
+  --{{{  PROC wait.socket ()
+  PROC wait.socket ()
+  
+    SEQ
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      #C WAITSOCKET (fileno(stdin));
+      #C #endif
+  
+      -- WAITSOCKET acts like a procedure call return
+  
+      -- Ensure that this procedure is not ATOMIC
+      BOOL true :
+      SEQ
+	true := TRUE
+	IF
+	  true
+	    SKIP
+	  TRUE
+	    CHAN OF INT c :
+	    c ! 0
+  :
+  --}}}
+  --{{{  PROC aserver.out(VAL []BYTE buffer, VAL INT length)
+  PROC aserver.out(VAL []BYTE buffer, VAL INT length)
+    SEQ
+      VAL []BYTE lenbytes RETYPES length :    
+      SEQ
+	#C { 
+	#C   int res, count=0;
+	#C   while (count<sizeof(INT)) 
+	#C   {
+	#C     res = write(fileno(stdout), &$lenbytes + count, sizeof(INT)-count);
+	#C     if (res>0) count += res;
+	#C   }
+	#C }
+      #C {
+      #C   int res, count=0;
+      #C   while (count<$length)
+      #C   {
+      #C     res = write(fileno(stdout),$buffer + count, $length-count);
+      #C     if (res>0) count += res;
+      #C   }
+      #C }
+      #C #ifdef COMMENT_OUT      
+      #C fprintf(stderr,"SEND: %d packet ",$length);
+      #C { int i; for (i=0;i<$length;i++) fprintf(stderr,"%02x",$buffer[i]); }
+      #C fprintf(stderr,"\n");
+      #C #endif
+  :
+  --}}}
+  --{{{  PROC aserver.in([]BYTE buffer,INT length)
+  PROC aserver.in([]BYTE buffer,INT length)
+    SEQ
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      wait.socket()
+      #C #endif
+      []BYTE lenbytes RETYPES length :
+      SEQ
+	#C { 
+	#C   int res, count=0;
+	#C   while (count<sizeof(INT)) 
+	#C   {
+	#C     res = read(fileno(stdin), &$lenbytes + count, sizeof(INT)-count);
+	#C     if (res>0) count += res;
+	#C   }
+	#C }
+      #C {
+      #C   int res, count=0;
+      #C   while (count<$length)
+      #C   {
+      #C     res = read(fileno(stdin), (& $buffer) + count, $length-count);
+      #C     if (res>0) count += res;
+      #C   }
+      #C }
+      #C #ifdef COMMENT_OUT
+      #C fprintf(stderr,"RECV: %d packet\n",$length);      
+      #C #endif
+  :
+  --}}}
+  --{{{  PROC open.session ()
+  PROC open.session ()
+    SEQ
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      #C   EnableSocket (fileno(stdin));
+      #C #endif
+  :
+  --}}}
+  --{{{  PROC close.session ()
+  PROC close.session ()
+    SEQ
+      #C #ifdef USE_NONBLOCKING_SOCKETS
+      #C   DisableSocket(fileno(stdin));
+      #C #endif
+  :    
+  --}}}
+
+  PROTOCOL AS IS INT::[]BYTE :
+  VAL MAX.ASERVER.PACKET.SIZE IS 1024:
+  CHAN OF AS fs RETYPES fs :
+  CHAN OF AS ts RETYPES ts :
+  SEQ
+    open.session()
+    PAR
+      INT length:
+      [MAX.ASERVER.PACKET.SIZE]BYTE buffer :
+      SEQ
+	length := 1
+	WHILE length <> 0
+	  SEQ
+	    ts ? length :: buffer
+	    aserver.out (buffer, length)
+      INT length:
+      [MAX.ASERVER.PACKET.SIZE]BYTE buffer :
+      SEQ
+	length := 1
+	WHILE length <> 0
+	  SEQ
+	    aserver.in(buffer,length)
+	    fs ! length :: buffer 
+    close.session()
+:
+--}}}

@@ -1,0 +1,136 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE ACOS "ACOS%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ACOS "ACOS%f"
+#PRAGMA TRANSLATE ACOSP "ACOSP%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL32 FUNCTION ACOS (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    --{{{  reduced arcsine
+    REAL32 FUNCTION ReducedASin (VAL REAL32 X, XSqr)
+      INT G :
+      VALOF
+        VAL INT XSq.i RETYPES XSqr :
+        SEQ
+          IF
+            XSq.i = 0
+              SEQ
+                G := FIX (X)
+                G := FRACMUL (G, G)
+            TRUE
+              G := FIX (XSqr)
+        RESULT X + (X * ReFloat (FracDiv (FRACMUL (FRACMUL (#FA3D395C,
+                                                            G) + #0AAAA8CB, G),
+            FRACMUL (FRACMUL (#0B6BD1AA, G) + #C0A1493C, G) + #40000000)))
+    :
+    --}}}
+    --{{{  definitions
+    -- threshold for asin(x) = x is 2 ** (-Manbits/2) see C&W p177.
+    VAL Eps  IS #39800000(INT) :
+    VAL INT X.I RETYPES X :
+    VAL INT XW.i IS X.I /\ (~(MOSTNEG INT)) :
+    VAL REAL32 XWork RETYPES XW.i :  -- XWork = |X|
+    --}}}
+    IF
+      XW.i > RealInf -- X is NaN
+        RWork := X  -- transmit NaN
+      XW.i > unity
+        RWork := undefined.NaN
+      XW.i = unity
+        --{{{  result depends on sign
+        IF
+          X.I < 0
+            RWork := Pi
+          TRUE
+            RWork := Zero
+        --}}}
+      XW.i > Half
+        --{{{  reduce argument & compute result
+        REAL32 Y, G :
+        SEQ
+          G := IncExp(One - XWork, -1)
+          Y := IncExp(SQRT (G), 1)
+          IF
+            INT Y.i RETYPES Y :
+            Y.i < Eps
+              REAL32 Y RETYPES Y.i :
+              RWork := Y
+            TRUE
+              RWork := ReducedASin (Y, G)
+          IF
+            X.I < 0
+              RWork := Pi - RWork
+            TRUE
+              SKIP
+        --}}}
+      TRUE
+        --{{{  remaining case
+        SEQ
+          IF
+            XW.i < Eps
+              RWork := XWork
+            TRUE
+              RWork := ReducedASin (XWork, Zero)
+          IF
+            X.I < 0
+              RWork := PiBy2 + RWork
+            TRUE
+              RWork := PiBy2 - RWork
+        --}}}
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  ACOSP
+REAL32 FUNCTION ACOSP( VAL INT dummy, VAL INT X )
+
+  -- ACOSP exists for when the FORTRAN intrinsic ACOS is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ACOSP.  When ACOSP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ACOSP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for ACOSP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT ACOS( Xtemp )
+:
+--}}}
+#endif
+

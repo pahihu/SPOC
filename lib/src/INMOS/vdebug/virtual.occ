@@ -1,0 +1,298 @@
+--{{{  virtual channel procedures (and support) (T8/TA/T2)
+#OPTION "E V W"    --  see README or ELSE for the rest !
+
+--{{{  #PRAGMA TRANSLATEs
+#ifdef OCCAM
+#PRAGMA TRANSLATE VIRTUAL.IO "VIRTUAL.IO%"
+#PRAGMA TRANSLATE VIRTUAL.IN "VIRTUAL.IN%"
+#PRAGMA TRANSLATE VIRTUAL.OUT "VIRTUAL.OUT%"
+#PRAGMA TRANSLATE VIRTUAL.OUT.BYTE "VIRTUAL.OUT.BYTE%"
+#PRAGMA TRANSLATE VIRTUAL.OUT.WORD "VIRTUAL.OUT.WORD%"
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#else
+#ifdef C
+#PRAGMA TRANSLATE VIRTUAL.IO "VIRTUAL.IO%"
+#PRAGMA TRANSLATE VIRTUAL.IN "VIRTUAL.IN%"
+#PRAGMA TRANSLATE VIRTUAL.OUT "VIRTUAL.OUT%"
+#PRAGMA TRANSLATE VIRTUAL.OUT.BYTE "VIRTUAL.OUT.BYTE%"
+#PRAGMA TRANSLATE VIRTUAL.OUT.WORD "VIRTUAL.OUT.WORD%"
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE VIRTUAL.IO "VIRTUAL.IO%"
+#PRAGMA TRANSLATE VIRTUAL.IN "VIRTUAL.IN%"
+#PRAGMA TRANSLATE VIRTUAL.OUT "VIRTUAL.OUT%"
+#PRAGMA TRANSLATE VIRTUAL.OUT.BYTE "VIRTUAL.OUT.BYTE%"
+#PRAGMA TRANSLATE VIRTUAL.OUT.WORD "VIRTUAL.OUT.WORD%"
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#endif
+#endif
+#endif
+--}}}
+
+--{{{  library references
+#INCLUDE "txhdr.inc"       -- no.priorities
+#INCLUDE "kernapp.inc"     -- addresses of the channels and semaphores
+#INCLUDE "semhdr.inc"      -- semaphore.size
+#INCLUDE "virthdr.inc"     -- protocol to VLE
+#USE     "semprocs.lib"    -- semaphore procedures
+--}}}  
+
+--{{{  README or ELSE !
+--  NONE OF THESE MUST USE VECTOR SPACE !!!! (enforced in the code)
+
+--  Nigel:  1 Dec 1989
+--         13 Feb 1990    Converted to proper ASM and changed to channel
+--                        pointers
+
+--  Must be built with:  oc -zv -x -e -w -v {-t8, -ta, -t2}
+
+--                       -zv = do i/o NOT by call (ie. normal)
+--                       -x  = universal error mode
+--                       -e  = disable compiler libraries
+--                       -w  = full ASM code insertion
+--                       -v  = disable separate vector space
+--}}}  
+
+--{{{  VIRTUAL.IO   -- Used by the routines below
+PROC VIRTUAL.IO (VAL INT channel.address, message.length, message.address, id)
+  --{{{  info
+  -- The Link.s slot of the workspace is used for two uses here,
+  -- In the semaphore processes, wait and signal, it is used to build
+  -- a queue of processes waiting on the semaphore, along with the
+  -- PLACEd front and back pointers.
+  -- Once the process has stopped waiting, and has the non-shareable resource
+  -- (the channel command), the Link.s slot is marked with NotProcess.p,
+  -- and then changed to StopMark.p (%5) just before descheduling.
+  -- This is so that the virtual links engine that is responsible for
+  -- resheduling us when the virtual channel io has completed can
+  -- tell if we have actually descheduled ourselves, or if we are still
+  -- descheduled from the output on the command channel, in which case we
+  -- are on the run queue.
+  -- This is necessary to prevent the run queue being totally corrupted,
+  -- which would happen if it was tried to put us on the run queue twice.
+  --}}}  
+  --{{{  constants to do with process rescheduling
+  VAL INT p.link       IS 0 :
+  VAL INT p.iptr       IS 1 :
+  VAL INT p.jniptr     IS 2 :
+  VAL INT p.jncount    IS 3 :
+  VAL INT p.wptr       IS 4 :
+  
+  VAL INT process.size IS 5 :
+  --}}}  
+  --{{{  locals : -- Wdesc, restart.process, [] process
+  -- parameters passed to message handler
+  INT Wdesc, restart.process, current.priority :
+  
+  -- This holds the workspace of the process to be run after io complete
+  [process.size]INT process :
+  PLACE process IN WORKSPACE :
+  --}}}  
+  SEQ
+    --{{{  set current.priority
+    ASM
+      LDPRI
+      ST current.priority
+    --}}}  
+    --{{{  set Wdesc, needed for command !
+    ASM
+      LDLP 0    --  get Wptr
+      LDPRI
+      OR
+      ST Wdesc
+    --}}}  
+    --{{{  set up restart.process address
+    ASM
+      LD ADDRESSOF process[p.jniptr]
+      LDPRI
+      OR
+      ST restart.process
+    --}}}  
+    --{{{  set up process to be restarted when IO complete
+    INT Wptr :
+    INT Iptr :
+    SEQ
+      ASM
+        --{{{  calc Wptr
+        LDLP 0
+        ST Wptr
+        --}}}  
+        --{{{  calc Iptr
+        LDLABELDIFF :restart - :here
+        LDPI        -- make absolute address
+        
+        :here
+        ST Iptr
+        --}}}  
+    
+      process[p.wptr]    := Wptr
+      process[p.jncount] := 2
+      process[p.jniptr]  := Iptr
+    --}}}  
+    --{{{  send parameters to message handler
+    --{{{  pointer table :
+    INT   pointer.table.word.index :
+    PLACE pointer.table.word.index AT kern.pt.ptr.offset :
+    
+    [(MOSTPOS INT) / 2] INT all.mem :
+    PLACE                   all.mem AT 0 :
+    
+    VAL [kern.pt.size]INT pointer.table IS
+        [all.mem FROM pointer.table.word.index FOR kern.pt.size] :
+    --}}}  
+    --{{{  semaphore :
+    -- This is re-declared so that the compiler doesn't put in overlap checks
+    -- or object to the previous VAL abbreviation
+    [(MOSTPOS INT) / 2] INT all.mem :
+    PLACE                   all.mem AT 0 :
+    
+    [semaphore.size]INT this.priority.semaphore RETYPES [all.mem FROM
+                      pointer.table [kern.pt.vle.sem.word.index] +
+                      (current.priority TIMES semaphore.size) FOR semaphore.size] :
+    --}}}  
+    SEQ
+      SEMAPHORE.WAIT (this.priority.semaphore)
+    
+      --{{{  temporary packet
+      -- Create this temporary like this so that we can force it into workspace
+      -- The effect will be identical to that of creating the array on the fly
+      [6]INT temporary.packet :
+      PLACE  temporary.packet IN WORKSPACE :
+      --}}}  
+      SEQ
+        --{{{  form temporary packet
+        temporary.packet [0] := id
+        temporary.packet [1] := channel.address /\ (-2)
+        temporary.packet [2] := message.length
+        temporary.packet [3] := message.address
+        temporary.packet [4] := Wdesc
+        temporary.packet [5] := restart.process
+        --}}}  
+        --{{{  send it to VLE
+        INT this.priority.app.to.vle.pointer :    --  a channel pointer no less !
+        SEQ
+          --{{{  get this.priority.app.to.vle.pointer
+          --{{{  CHAN app.to.vle: how it used to be
+          --  can't do this now coz channels are now pointers !
+          
+          --[(MOSTPOS INT) / 2] CHAN OF VIRTUAL.LINK.PACKET all.chans :
+          --PLACE all.chans AT 0 :
+          
+          --CHAN OF VIRTUAL.LINK.PACKET this.priority.app.to.vle IS
+          --  all.chans [pointer.table [kern.pt.vle.chan.word.index] + current.priority]:
+          --}}}  
+          
+          [(MOSTPOS INT) / 2]INT all.chan.mem :
+          PLACE                  all.chan.mem AT 0 :
+          
+          SEQ
+            ASM
+              LD ADDRESSOF all.chan.mem[pointer.table[kern.pt.vle.chan.word.index] +
+                                        current.priority]
+          
+              ST this.priority.app.to.vle.pointer
+          --}}}  
+        
+          CHAN OF VIRTUAL.LINK.PACKET this.priority.app.to.vle RETYPES
+                                      this.priority.app.to.vle.pointer :
+          SEQ
+            this.priority.app.to.vle ! temporary.packet
+        --}}}  
+    
+      SEMAPHORE.SIGNAL (this.priority.semaphore)
+    --}}}  
+    --{{{  deschedule until message complete
+    -- terminate a pseudo PAR, only continue when message handler has
+    -- completed the requested virtual IO transaction
+    ASM
+      LD ADDRESSOF process[p.jniptr]
+      ENDP
+    
+      :restart
+      LDL (p.wptr - p.jniptr)    --  get old Wptr
+      GAJW
+    --}}}  
+:
+--}}}  
+
+--{{{  VIRTUAL.IN
+PROC VIRTUAL.IN (VAL INT message.length, chan.address, message.address)
+  IF
+    --{{{  virtual channel
+    (chan.address /\ 1) <> 0
+      VIRTUAL.IO (chan.address, message.length, message.address, av.input.message)
+    --}}}  
+    --{{{  real channel
+    TRUE
+      ASM
+        LDABC message.length, chan.address, message.address
+        IN
+    --}}}  
+:
+--}}}  
+--{{{  VIRTUAL.OUT
+PROC VIRTUAL.OUT (VAL INT message.length, chan.address, message.address)
+  IF
+    --{{{  virtual channel
+    (chan.address /\ 1) <> 0
+      VIRTUAL.IO (chan.address, message.length, message.address, av.output.message)
+    --}}}  
+    --{{{  real channel
+    TRUE
+      ASM
+        LDABC message.length, chan.address, message.address
+        OUT
+    --}}}  
+:
+--}}}  
+--{{{  VIRTUAL.OUT.BYTE
+PROC VIRTUAL.OUT.BYTE (VAL BYTE message.byte, VAL INT chan.address)
+  IF
+    --{{{  virtual channel
+    (chan.address /\ 1) <> 0
+      INT message.address :
+      SEQ
+        --{{{  get address of byte
+        ASM
+          LD ADDRESSOF message.byte
+          ST message.address
+        --}}}  
+    
+        VIRTUAL.IO (chan.address, 1, message.address, av.output.message)
+    --}}}  
+    --{{{  real channel
+    TRUE
+      ASM
+        LDABC 1, chan.address, ADDRESSOF message.byte
+        OUT
+    --}}}  
+:
+--}}}  
+--{{{  VIRTUAL.OUT.WORD
+PROC VIRTUAL.OUT.WORD (VAL INT message.word, chan.address)
+  IF
+    --{{{  virtual channel
+    (chan.address /\ 1) <> 0
+      INT message.address :
+      SEQ
+        --{{{  get address of word
+        ASM
+          LD ADDRESSOF message.word
+          ST message.address
+        --}}}  
+    
+        VIRTUAL.IO (chan.address, my.bpw, message.address, av.output.message)
+    --}}}  
+    --{{{  real channel
+    TRUE
+      ASM
+        LDABC my.bpw, chan.address, ADDRESSOF message.word
+        OUT
+    --}}}  
+:
+--}}}  
+--}}}  

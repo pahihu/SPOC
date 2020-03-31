@@ -1,0 +1,195 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE ATAN "ATAN%c"
+#PRAGMA TRANSLATE ATAN2 "ATAN2%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ATAN "ATAN%f"
+#PRAGMA TRANSLATE ATAN2 "ATAN2%f"
+#PRAGMA TRANSLATE ATANP "ATANP%f"
+#PRAGMA TRANSLATE ATAN2P "ATAN2P%f"
+#endif
+#endif
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  ATAN
+REAL32 FUNCTION ATAN (VAL REAL32 X)
+
+  REAL32 Result :
+  VALOF
+    --{{{  Reduced ArcTan
+    REAL32 FUNCTION ReducedATan (VAL REAL32 X)
+      REAL32 RWork :
+      VALOF
+        --{{{  definitions and variables
+        -- Threshold for atan(x) = x is 2 ** (-ManBits/2), see C&W p200.
+        VAL REAL32 TwoSubR3 RETYPES #3E8930A3(INT32) : -- 2 - sqrt(3)
+        VAL REAL32 PiBy6 RETYPES #3F060A92(INT32) :
+        VAL A  IS  7.320508076E-1(REAL32) :
+        VAL R3 IS  1.732050808(REAL32) :
+        VAL P1 IS -5.090958253E-2(REAL32) :
+        VAL P0 IS -4.708325141E-1(REAL32) :
+        VAL Q0 IS  1.412500740(REAL32) :
+        REAL32 XWork :
+        BOOL Reduced :
+        --}}}
+        SEQ
+          --{{{  further reduce argument
+          IF
+            X > TwoSubR3
+              SEQ
+                Reduced := TRUE
+                XWork :=  ((((A * X) - Half) - Half) + X) / (R3 + X)
+            TRUE
+              SEQ
+                Reduced := FALSE
+                XWork := X
+          --}}}
+          SEQ
+            --{{{  compute rational
+            VAL G IS XWork * XWork :
+            RWork := (((((P1 * G) + P0) * G) / (G + Q0)) * XWork) + XWork
+            --}}}
+            IF
+              Reduced
+                RWork := RWork + PiBy6
+              TRUE
+                SKIP
+        RESULT RWork
+    :
+    --}}}
+    IF
+      NOTFINITE (X)
+        --{{{  Infs and NaNs
+        INT order :
+        SEQ
+          order := IEEECOMPARE (X, Zero)
+          CASE order
+            less.than
+              Result := - PiBy2
+            greater.than
+              Result :=  PiBy2
+            is.nan
+              Result := X -- transmit NaN
+        --}}}
+      --{{{  definitions
+      -- For X > XMax, PiBy2 - (1/X) = PiBy2 to machine precision.
+      VAL REAL32 XMax RETYPES #4B800000(INT32) :
+      VAL XWork IS ABS (X) :
+      --}}}
+      IF
+        XWork > XMax
+          --{{{  + or - Pi/2
+          IF
+            X < Zero
+              Result := - PiBy2
+            TRUE
+              Result := PiBy2
+          --}}}
+        XWork > One
+          --{{{  reduce argument and compute
+          IF
+            X < Zero
+              Result := (ReducedATan (One/XWork) - PiBy2.err) - PiBy2
+            TRUE
+              Result := PiBy2 + (PiBy2.err - ReducedATan (One/XWork))
+          --}}}
+        X < Zero
+          Result := - ReducedATan (XWork)
+        TRUE
+          Result := ReducedATan (XWork)
+    RESULT Result
+:
+--}}}
+--{{{  ATAN2
+REAL32 FUNCTION ATAN2 (VAL REAL32 U, V)
+
+  REAL32 Result :
+  VALOF
+    --{{{  definitions
+    VAL U.compared.with.zero IS IEEECOMPARE (U, Zero) :
+    VAL V.compared.with.zero IS IEEECOMPARE (V, Zero) :
+    --}}}
+    IF
+      (U.compared.with.zero = is.nan) OR (V.compared.with.zero = is.nan)
+        -- incorporates precedence rule for NaNs
+        Result := REAL32OP (U, Add, V)
+      NOTFINITE (U) AND NOTFINITE (V)
+        Result := undefined.NaN
+      U.compared.with.zero = equal.to
+        --{{{  depends on V
+        IF
+          V.compared.with.zero = equal.to
+            Result := undefined.NaN
+          V.compared.with.zero = greater.than
+            Result := PiBy2
+          TRUE
+            Result := - PiBy2
+        --}}}
+      U.compared.with.zero = greater.than
+        -- NB V/U may overflow, and so must not be 'checked'
+        Result := ATAN (REAL32OP (V, Div, U))
+      V.compared.with.zero = less.than
+        Result := ATAN (ABS (REAL32OP(V, Div, U))) - Pi
+      TRUE
+        Result := Pi - ATAN (ABS (REAL32OP(V, Div, U)))
+    RESULT Result
+:
+--}}}
+#ifdef FORTRAN
+--{{{  ATANP
+REAL32 FUNCTION ATANP( VAL INT dummy, VAL INT X )
+
+  -- ATANP exists for when the FORTRAN intrinsic ATAN is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ATANP.  When ATANP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ATANP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for ATANP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT ATAN( Xtemp )
+:
+--}}}
+--{{{  ATAN2P
+REAL32 FUNCTION ATAN2P( VAL INT dummy, VAL INT X, Y )
+
+  -- ATAN2P exists for when the FORTRAN intrinsic ATAN2 is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ATAN2P.  When ATAN2P is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ATAN2P has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its arguments
+  -- which are in fact pointers to the true arguments.
+  -- We use INTs as arguments for ATAN2P because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp, Ytemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+      LD       Y
+      LDNL     0
+      ST       Ytemp
+    RESULT ATAN2( Ytemp, Xtemp ) -- note the swap of parameters, due to occam
+                                 -- and FORTRAN having opposite parameter order
+                                 -- for this routine
+:
+--}}}
+#endif

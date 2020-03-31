@@ -1,0 +1,72 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "MSDOS library V1.0"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "msdos.inc"
+
+PROC dos.send.block (CHAN OF SP fs, ts, VAL INT32 location,
+                     VAL []BYTE block, INT len, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To write a block of data to host memory.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       location - the start memory address at which to write
+  --           the block of data; this address is arranged as the segment
+  --           in the top two bytes and the offset in the lower two bytes
+  --           of this parameter, both unsigned
+  -- In:       block - the data to be written, that is, (SIZE block) bytes
+  -- Out:      len - the number of bytes written
+  -- Out:      result - spr.ok if the write was successful, otherwise
+  --           takes on a value indicating what went wrong:
+  --             spr.bad.packet.size   too many bytes requested to be written:
+  --                             (SIZE block) > dos.max.send.block.buffer.size
+  --           >=spr.operation.failed  the write failed - see hostio.inc or
+  --                                   the server documentation for further
+  --                                   details
+  --}}}
+
+  IF
+    (SIZE block) > dos.max.send.block.buffer.size
+      result := spr.bad.packet.size
+    TRUE
+      [sp.max.packet.data.size]BYTE buffer :
+      INT16 temp.INT16 :
+      SEQ
+        --{{{  pack the data into the buffer (8 bytes plus data)
+        buffer [0] := sp.DOS.tag
+        buffer [1] := dos.send.block.tag
+        
+        VAL [4]BYTE b.location RETYPES location :
+        [buffer FROM 2 FOR 4] := b.location
+        
+        temp.INT16 := INT16 (SIZE block)
+        VAL [2]BYTE b.temp RETYPES temp.INT16 :
+        [buffer FROM 6 FOR 2] := b.temp
+        
+        [buffer FROM 8 FOR SIZE block] := block
+        --}}}
+        --{{{  send and receive the buffer
+        SEQ
+          INT length :
+          SEQ
+            -- Size of buffer is (SIZE block) + 8.
+            -- Add 1, then mask off bottom bit, to ensure it is even
+            length := ((SIZE block) + 9) /\ ((-1) << 1)
+            IF
+              length < sp.min.packet.data.size
+                temp.INT16 := INT16 sp.min.packet.data.size
+              TRUE
+                temp.INT16 := INT16 length
+        
+          ts ! temp.INT16 :: buffer
+          fs ? temp.INT16 :: buffer
+        --}}}
+        --{{{  unpack the data               (3 bytes)
+        result := buffer [0]
+        
+        [2]BYTE b.temp RETYPES temp.INT16 :
+        b.temp := [buffer FROM 1 FOR 2]
+        len    := INT temp.INT16
+        --}}}
+:

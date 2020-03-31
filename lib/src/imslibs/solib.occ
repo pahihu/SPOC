@@ -1,0 +1,29 @@
+--{{{  File banner
+-- @(#)=====================================================
+-- @(#)  Project : GPMIMD ESPRIT P5404
+-- @(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+-- @(#)            University of Southampton
+--  
+-- @(#)    Title : top level file for inmos solib library
+-- @(#)   System : Occam 2 C
+-- @(#) Filename : solib.occ
+-- @(#)  Version : 1.1
+-- @(#)     Date : 12/10/93
+-- @(#)====================================================
+--}}}
+#INCLUDE "hostio.inc"
+#USE "opentemp"
+#USE "exists"
+#USE "popen"
+#USE "parse"
+#USE "wstring"
+#USE "fwstring"
+#USE "wint"
+#USE "whint"
+#USE "wint64"
+#USE "whint64"
+#USE "wreal32"
+#USE "wreal64"
+#USE "readline"
+#USE "echoline"
+#USE "times"

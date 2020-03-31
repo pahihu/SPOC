@@ -1,0 +1,54 @@
+#OPTION "E W V"  -- no compiler libs, full ASMs, no vector space
+#COMMENT "Extraordinary link handling library, V1.1 08/02/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+
+PROC Reinitialise (CHAN OF ANY c)
+
+  --{{{  specification
+  -- Purpose:  To re-initialise a given channel.
+  -- Channels: c - the channel to re-initialise
+  -- Notes:    If c is a channel on a hardware link then that link's
+  --           hardware is reset.
+  --           If this routine is used on a channel on which communication
+  --           is not finished then the error flag is set, and subsequent
+  --           behaviour is undefined.
+  --}}}
+  --{{{  history
+  -- 8.2.90 - modified to use ASM rather than GUY; new version is V1.1
+  --}}}
+  --{{{  README or ELSE !
+  --  Must be built with the "zv" option on the oc command line.
+  --  zv = do i/o NOT by call to virtual link routines (ie. normal
+  --  instruction i/o)
+  --}}}  
+
+  ASM
+    LD  c     -- load the address of channel c into Areg
+    RESETCH   -- reset channel the address of which is in Areg; previous value
+              -- of channel process word put into Areg
+    MINT      -- NotProcess.p <=> value of a channel process word if
+              -- channel not in the process of communication
+    DIFF      -- check whether channel process word was NotProcess.p or not
+    CJ    :OK
+    SETERR    -- set error flag if channel was being used for communication,
+              -- i.e. if channel process word was not NotProcess.p
+    :OK
+:
+
+
+-- old code
+
+--#OPTION "E W"  -- no compiler libs, full GUYs
+--#COMMENT "Extraordinary link handling library, V1.0 31/10/88"
+--#COMMENT "(c) Copyright INMOS Limited 1988"
+--PROC Reinitialise (CHAN OF ANY c)
+--  SEQ
+--    GUY
+--      LDLP c
+--      RESETCH
+--      MINT
+--      DIFF
+--      CJ     .OK
+--      SETERR
+--      :OK
+--:

@@ -1,0 +1,282 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE DReducedASin "DReducedASin%O"
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DASIN "DASIN%c"
+#PRAGMA TRANSLATE DACOS "DACOS%c"
+#PRAGMA TRANSLATE DReducedASin "DReducedASin%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DASIN "DASIN%f"
+#PRAGMA TRANSLATE DASINP "DASINP%f"
+#PRAGMA TRANSLATE DASINPP "DASINPP%f"
+#PRAGMA TRANSLATE DACOS "DACOS%f"
+#PRAGMA TRANSLATE DACOSP "DACOSP%f"
+#PRAGMA TRANSLATE DACOSPP "DACOSPP%f"
+#PRAGMA TRANSLATE DReducedASin "DReducedASin%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  DReducedASin
+REAL64 FUNCTION DReducedASin (VAL REAL64 X, XSqr)
+
+  INT64 G :
+  --{{{  coefficients
+  VAL P IS [#FF9766ADAAEF4FFF(INT64), #03BA7F05795DDA65(INT64),
+            #F79C624E6A712879(INT64), #0555555555500220(INT64)] :
+  VAL Q IS [#009FED5E9CE81C2B(INT64), #F5BC7769772C3111(INT64),
+            #2AEE2271EED81132(INT64), #BF43E7700C68C92D(INT64),
+            #2000000000000000(INT64)] :
+  --}}}
+  VALOF
+    VAL INT64 Dzero IS 0(INT64) :
+    IF
+      VAL INT64 XSq.i RETYPES XSqr :
+      XSq.i = Dzero
+        SEQ
+          G := FIX64 (X)
+          G := FracMult64 (G, G)
+      TRUE
+        G := FIX64 (XSqr)
+    RESULT  X + (X * ReFloat64 (FracDiv64 (FracMult64 (G,
+                                           FracMult64 (G,
+                                           FracMult64 (G,
+                                           FracMult64 (G, P[0])+P[1])+
+                                                          P[2])+P[3]),
+                                           FracMult64 (G,
+                                           FracMult64 (G,
+                                           FracMult64 (G,
+                                           FracMult64 (G, Q[0])+Q[1])+
+                                                          Q[2])+Q[3])+Q[4])))
+:
+--}}}
+--{{{  DASIN
+REAL64 FUNCTION DASIN (VAL REAL64 X)
+
+  -- NB : This function requires DReducedASin to be in scope.
+  REAL64 Result :
+  VALOF
+    --{{{  definitions and variables
+    -- threshold for asin(x) = x is 2 ** (-Manbits/2) see C&W p177.
+    VAL Eps  IS #3E50000000000000(INT64) :
+    VAL INT64 X.I   RETYPES X :
+    VAL BOOL Negative IS (X.I < Dzero) :
+    VAL XW.i IS X.I /\ (~(MOSTNEG INT64)) : -- XWork = |X|
+    --}}}
+    IF
+      XW.i > DRealInf -- X is NaN
+        Result := X  -- transmit NaN
+      XW.i > Dunity
+        Result := Dundefined.NaN
+      XW.i = Dunity
+        --{{{  result depends on sign
+        IF
+          Negative
+            Result := - DPiBy2
+          TRUE
+            Result := DPiBy2
+        --}}}
+      XW.i > DHalf
+        --{{{  reduce argument & compute result
+        VAL REAL64 XWork RETYPES XW.i :
+        REAL64 Y, G, RWork :
+        SEQ
+          Y := DOne - XWork
+          IF
+            INT64 Y.i RETYPES Y :
+            Y.i < #2000000000000(INT64)
+              REAL64 Y RETYPES Y.i :
+              G := Y/DTwo
+            TRUE -- IncExp is safe
+              G := IncExp64(Y, -1)  -- divides by 2
+          Y := IncExp64(DSQRT (G), 1)
+          IF
+            INT64 Y.i RETYPES Y :
+            Y.i < Eps
+              REAL64 Y RETYPES Y.i :
+              RWork := -Y
+            TRUE
+              RWork := DReducedASin (- Y, G)
+          IF
+            Negative
+              Result := - (RWork + DPiBy2)
+            TRUE
+              Result := RWork + DPiBy2
+        --}}}
+      XW.i < Eps
+        Result := X
+      Negative
+        VAL REAL64 XWork RETYPES XW.i :
+        Result := - DReducedASin (XWork, DZero)
+      TRUE
+        VAL REAL64 XWork RETYPES XW.i :
+        Result :=  DReducedASin (XWork, DZero)
+    RESULT Result
+:
+--}}}
+--{{{  DACOS
+REAL64 FUNCTION DACOS (VAL REAL64 X)
+
+  -- NB : This function requires DReducedASin to be in scope.
+  REAL64 Result :
+  VALOF
+    --{{{  definitions and variables
+    -- threshold for asin(x) = x is 2 ** (-Manbits/2) see C&W p177.
+    VAL Eps  IS #3E50000000000000(INT64) :
+    VAL INT64 X.I   RETYPES X :
+    VAL BOOL Negative IS (X.I < Dzero) :
+    VAL XW.i IS X.I /\ (~(MOSTNEG INT64)) : -- XWork = |X|
+    --}}}
+    IF
+      XW.i > DRealInf -- X is NaN
+        Result := X  -- transmit NaN
+      XW.i > Dunity
+        Result := Dundefined.NaN
+      XW.i = Dunity
+        --{{{  result depends on sign
+        IF
+          Negative
+            Result := DPi
+          TRUE
+            Result := DZero
+        --}}}
+      XW.i > DHalf
+        --{{{  reduce argument & compute result
+        VAL REAL64 XWork RETYPES XW.i :
+        REAL64 Y, G, RWork :
+        SEQ
+          Y := DOne - XWork
+          IF
+            INT64 Y.i RETYPES Y :
+            Y.i < #2000000000000(INT64)
+              REAL64 Y RETYPES Y.i :
+              G := Y/DTwo
+            TRUE -- IncExp is safe
+              G := IncExp64(Y, -1)  -- divides by 2
+          Y := IncExp64 (DSQRT (G), 1)
+          IF
+            INT64 Y.i RETYPES Y :
+            Y.i < Eps
+              REAL64 Y RETYPES Y.i :
+              RWork := Y
+            TRUE
+              RWork := DReducedASin (Y, G)
+          IF
+            Negative
+              Result := DPi - RWork
+            TRUE
+              Result := RWork
+        --}}}
+      TRUE
+        --{{{  remaining cases
+        REAL64 RWork :
+        SEQ
+          IF
+            XW.i < Eps
+              VAL REAL64 XWork RETYPES XW.i :
+              RWork := XWork
+            TRUE
+              VAL REAL64 XWork RETYPES XW.i :
+              RWork := DReducedASin (XWork, DZero)
+          IF
+            Negative
+              Result := DPiBy2 + RWork
+            TRUE
+              Result := DPiBy2 - RWork
+        --}}}
+    RESULT Result
+:
+--}}}
+#ifdef FORTRAN
+--{{{  DASINP/DASINPP
+-- This 'P' version exists for when the FORTRAN intrinsic DASIN is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DASINP.  When DASINP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DASINP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DASINP( VAL INT dummy, VAL REAL64 X ) IS DASIN( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DASINPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DASIN( X )
+:
+#endif
+--}}}
+--{{{  DACOSP/DACOSPP
+-- This 'P' version exists for when the FORTRAN intrinsic DACOS is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DACOSP.  When DACOSP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DACOSP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the two REAL64 values. The occam calling convention is to pass REAL64s
+-- by reference, so these parameters should match already.
+
+REAL64 FUNCTION DACOSP( VAL INT dummy, VAL REAL64 X ) IS DACOS( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- come the two REAL64 values.  The occam calling convention is to pass
+-- REAL64s by reference, so these parameters should match already.
+
+PROC DACOSPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DACOS( X )
+:
+#endif
+--}}}
+#endif

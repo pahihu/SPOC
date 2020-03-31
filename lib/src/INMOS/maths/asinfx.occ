@@ -1,0 +1,127 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE ASIN "ASIN%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ASIN "ASIN%f"
+#PRAGMA TRANSLATE ASINP "ASINP%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL32 FUNCTION ASIN (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    --{{{  reduced arcsine
+    REAL32 FUNCTION ReducedASin (VAL REAL32 X, XSqr)
+      INT G :
+      VALOF
+        VAL INT XSq.i RETYPES XSqr :
+        SEQ
+          IF
+            XSq.i = 0
+              SEQ
+                G := FIX (X)
+                G := FRACMUL (G, G)
+            TRUE
+              G := FIX (XSqr)
+        RESULT X + (X * ReFloat (FracDiv (FRACMUL (FRACMUL (#FA3D395C,
+                                                            G) + #0AAAA8CB, G),
+            FRACMUL (FRACMUL (#0B6BD1AA, G) + #C0A1493C, G) + #40000000)))
+    :
+    --}}}
+    --{{{  definitions
+    -- threshold for asin(x) = x is 2 ** (-Manbits/2) see C&W p177.
+    VAL Eps          IS #39800000(INT) :
+    VAL INT X.I      RETYPES X :
+    VAL INT XW.i     IS X.I /\ (~(MOSTNEG INT)) : -- XW.i = |X|
+    VAL REAL32 XWork RETYPES XW.i :
+    --}}}
+    IF
+      XW.i > RealInf   -- X is NaN
+        RWork := X     -- transmit NaN
+      XW.i > unity
+        RWork := undefined.NaN
+      XW.i = unity
+        --{{{  result depends on sign
+        IF
+          (X.I < 0) -- negative
+            RWork := - PiBy2
+          TRUE
+            RWork := PiBy2
+        --}}}
+      XW.i > Half
+        --{{{  reduce argument & compute result
+        REAL32 Y, G :
+        SEQ
+          G := IncExp(One - XWork, -1)
+          Y := IncExp (SQRT(G), 1)
+          IF
+            INT Y.i RETYPES Y :
+            Y.i < Eps
+              REAL32 Y RETYPES Y.i :
+              RWork := - Y
+            TRUE
+              RWork := ReducedASin (- Y, G)
+          IF
+            (X.I < 0) -- negative
+              RWork := - (RWork + PiBy2)
+            TRUE
+              RWork := RWork + PiBy2
+        --}}}
+      XW.i < Eps
+        RWork := X
+      X.I < 0          -- negative
+        RWork := - ReducedASin (XWork, Zero)
+      TRUE             -- positive
+        RWork := ReducedASin (XWork, Zero)
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  ASINP
+REAL32 FUNCTION ASINP( VAL INT dummy, VAL INT X )
+
+  -- ASINP exists for when the FORTRAN intrinsic ASIN is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ASINP.  When ASINP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ASINP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for ASINP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT ASIN( Xtemp )
+:
+--}}}
+#endif

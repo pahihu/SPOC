@@ -1,0 +1,109 @@
+##############################################################################
+#
+#                Make file for occam2 toolset library msdos.lib
+#
+#                                25-Oct-90 SRH
+#
+#                  This makefile is presently set up for UNIX
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(OCCEXTRAS)
+
+
+# T2 class modules
+MSDOST2=msdos0.t2x msdos1.t2x msdos2.t2x \
+	msdos3.t2x msdos4.t2x msdos5.t2x \
+	\
+	msdos0.y2x msdos1.y2x msdos2.y2x \
+	msdos3.y2x msdos4.y2x msdos5.y2x
+
+# TA class modules
+MSDOSTA=msdos0.tax msdos1.tax msdos2.tax \
+	msdos3.tax msdos4.tax msdos5.tax \
+	\
+	msdos0.yax msdos1.yax msdos2.yax \
+	msdos3.yax msdos4.yax msdos5.yax
+
+# T8 class modules
+MSDOST8=msdos0.t8x msdos1.t8x msdos2.t8x \
+	msdos3.t8x msdos4.t8x msdos5.t8x \
+	\
+	msdos0.y8x msdos1.y8x msdos2.y8x \
+	msdos3.y8x msdos4.y8x msdos5.y8x
+
+
+#
+############################## target and rules ##############################
+#
+all: msdos.lib
+
+msdos.lib:	msdos.t2 msdos.t8 msdos.ta
+	$(LIBRARIAN) msdos.t2 msdos.t8 msdos.ta $(SWITCH)o msdos.lib $(LIBOPT)
+
+msdos.t2:	$(MSDOST2)
+	$(CONCATENATE) $(MSDOST2) $(INTO) msdos.t2
+
+msdos.ta:	$(MSDOSTA)
+	$(CONCATENATE) $(MSDOSTA) $(INTO) msdos.ta
+
+msdos.t8:	$(MSDOST8)
+	$(CONCATENATE) $(MSDOST8) $(INTO) msdos.t8
+
+
+# pattern matching rules
+#
+# note that all files depend on msdos.inc and hostio.inc also
+#
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2h
+
+%.t2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+
+%.tah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tah
+
+%.tax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+
+%.t8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8h
+
+%.t8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+
+# y versions
+%.y2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o $*.y2h
+
+%.y2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o $*.y2x
+
+%.yah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(SWITCH)y $(OCCOPT) $(SWITCH)o $*.yah
+
+%.yax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(SWITCH)y $(OCCOPT) $(SWITCH)o $*.yax
+
+%.y8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(SWITCH)y $(OCCOPT) $(SWITCH)o $*.y8h
+
+%.y8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(SWITCH)y $(OCCOPT) $(SWITCH)o $*.y8x

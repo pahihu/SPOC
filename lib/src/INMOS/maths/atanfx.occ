@@ -1,0 +1,235 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(C) Copyright inmos limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE ATAN "ATAN%c"
+#PRAGMA TRANSLATE ATAN2 "ATAN2%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ATAN "ATAN%f"
+#PRAGMA TRANSLATE ATAN2 "ATAN2%f"
+#PRAGMA TRANSLATE ATANP "ATANP%f"
+#PRAGMA TRANSLATE ATAN2P "ATAN2P%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  ATAN
+REAL32 FUNCTION ATAN (VAL REAL32 X)
+
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions
+    VAL REAL32 PiBy6     RETYPES #3F060A92(INT) :
+    VAL REAL32 PiBy2.err RETYPES #B33BBD2E(INT) :  -- -4.37113883 E-08
+    -- Threshold for atan(x) = x is 2 ** (-BitsInFrac/2), see C&W p200.
+    VAL Eps              IS #39800000(INT) :
+    -- For X > XMax, PiBy2 - (1/X) = PiBy2 to machine precision.
+    VAL XMax             IS #4B800000(INT) : -- 2^24 = 16777216.0
+    VAL INT X.I          RETYPES X :
+    VAL XW.i             IS X.I /\ (~(MOSTNEG INT)) :
+    --}}}
+    --{{{  Reduced ArcTan
+    REAL32 FUNCTION ReducedATan (VAL REAL32 X)
+      -- computes ATAN(X) where 0 < X <= 1
+      REAL32 RWork :
+      VALOF
+        --{{{  definitions and variables
+        VAL TwoSubR3 IS #3E8930A3(INT) :     -- 2 - sqrt(3) in floating point
+        VAL        A IS #6ED9EBA1(INT) :
+        VAL        B IS #376CF5D1(INT) :
+        VAL        P IS [#F97BCB78(INT), #C3BBC29B(INT)] :
+        VAL       Q0 IS #5A666981(INT) :
+        VAL INT X.i RETYPES X :
+        INT Y :
+        REAL32 XWork :
+        BOOL Reduced :
+        --}}}
+        SEQ
+          --{{{  further reduce argument
+          IF
+            X.i > TwoSubR3
+              SEQ
+                Y := FIX (IncExp(X, -1)) -- divides by 2
+                Y := FracDiv (FRACMUL (A, Y) - #20000000, (Y >> 1) + B)
+                XWork := ReFloat (Y)
+                Reduced := TRUE
+            TRUE
+              SEQ
+                Y := FIX (X)
+                XWork := X
+                Reduced := FALSE
+          --}}}
+          --{{{  approximation in primary range
+          IF
+            INT XW.i RETYPES XWork :
+            (XW.i /\ (~(MOSTNEG INT))) < Eps
+              REAL32 XWork RETYPES XW.i :
+              RWork := XWork
+            TRUE
+              INT G, RW :
+              SEQ
+                G := FRACMUL (Y, Y)
+                RW := FracDiv (FRACMUL (FRACMUL (G, P [0]) + P [1], G),
+                               ((G >> 1) \/ (G /\ (MOSTNEG INT))) + Q0)
+                RWork := (ReFloat ((RW >> 1) \/ (RW /\ (MOSTNEG INT))) * XWork) + XWork
+          --}}}
+          IF
+            Reduced
+              RWork := RWork + PiBy6
+            TRUE
+              SKIP
+        RESULT RWork
+    :
+    --}}}
+    IF
+      XW.i > RealInf -- X is NaN
+        RWork := X  -- transmit NaN
+      XW.i > XMax
+        --{{{  +/- Pi/2
+        IF
+          X.I < 0
+            RWork := - PiBy2
+          TRUE
+            RWork := PiBy2
+        --}}}
+      XW.i > unity
+        --{{{  reduce argument and compute
+        VAL REAL32 XWork RETYPES XW.i :
+        IF
+          X.I < 0
+            RWork := (ReducedATan (One / XWork) - PiBy2.err) - PiBy2
+          TRUE
+            RWork := PiBy2 + (PiBy2.err - ReducedATan (One / XWork))
+        --}}}
+      XW.i < Eps
+        RWork := X
+      TRUE
+        --{{{  compute without reduction
+        VAL REAL32 XWork RETYPES XW.i :
+        IF
+          X.I < 0
+            RWork := - ReducedATan (XWork)
+          TRUE
+            RWork := ReducedATan (XWork)
+        --}}}
+    RESULT RWork
+:
+--}}}
+--{{{  ATAN2
+REAL32 FUNCTION ATAN2 (VAL REAL32 U, V)
+
+  -- NB This function requires ATAN to be in scope.
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions
+    VAL INT V.i RETYPES V :
+    VAL INT U.i RETYPES U :  -- so that comparisons are fast
+    VAL UW.i IS U.i /\ (~(MOSTNEG INT)) :
+    VAL VW.i IS V.i /\ (~(MOSTNEG INT)) :
+    VAL REAL32 UWork RETYPES UW.i :
+    VAL REAL32 VWork RETYPES VW.i :
+    --}}}
+    IF
+      UW.i > RealInf  -- U is NaN
+        --{{{  precedence rule for NaNs
+        IF
+          UW.i > VW.i
+            RWork := U
+          TRUE
+            RWork := V
+        --}}}
+      VW.i > RealInf  -- V is NaN
+        RWork := V
+      (UW.i = RealInf) AND (VW.i = RealInf)
+        RWork := undefined.NaN
+      UW.i = 0
+        --{{{  depends on V
+        IF
+          VW.i = 0
+            RWork := undefined.NaN
+          V.i > 0
+            RWork := PiBy2
+          TRUE
+            RWork := - PiBy2
+        --}}}
+      U.i > 0
+        RWork := ATAN (REAL32OP(V, Div, U))  -- division must be unchecked
+      V.i < 0
+        RWork := ATAN (REAL32OP(VWork, Div, UWork)) - Pi
+      TRUE
+        RWork := Pi - ATAN (REAL32OP(VWork, Div, UWork))
+    RESULT RWork
+:
+--}}}
+#ifdef FORTRAN
+--{{{  ATANP
+REAL32 FUNCTION ATANP( VAL INT dummy, VAL INT X )
+
+  -- ATANP exists for when the FORTRAN intrinsic ATAN is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ATANP.  When ATANP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ATANP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for ATANP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT ATAN( Xtemp )
+:
+--}}}
+--{{{  ATAN2P
+REAL32 FUNCTION ATAN2P( VAL INT dummy, VAL INT X, Y )
+
+  -- ATAN2P exists for when the FORTRAN intrinsic ATAN2 is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ATAN2P.  When ATAN2P is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ATAN2P has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its arguments
+  -- which are in fact pointers to the true arguments.
+  -- We use INTs as arguments for ATAN2P because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp, Ytemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+      LD       Y
+      LDNL     0
+      ST       Ytemp
+    RESULT ATAN2( Ytemp, Xtemp ) -- note the swap of parameters, due to occam
+                                 -- and FORTRAN having opposite parameter order
+                                 -- for this routine
+:
+--}}}
+#endif

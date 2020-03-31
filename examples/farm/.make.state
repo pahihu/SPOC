@@ -1,0 +1,61 @@
+.MAKE_VERSION:	VERSION-1.0
+.BUILT_LAST_MAKE_RUN:
+farm:
+	gcc  farm.o -o farm loop.o controller.o worker.o /home/mbh/spoc/lib/solaris/libdblmath.a          /home/mbh/spoc/lib/solaris/libhostio.a /home/mbh/spoc/lib/solaris/libstring.a        /home/mbh/spoc/lib/solaris/libconvert.a /home/mbh/spoc/lib/solaris/libIntrinsics.a /home/mbh/spoc/lib/solaris/libspserver.a -lm   -lsocket -lnsl
+.BUILT_LAST_MAKE_RUN:
+controller.hdr:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h
+.BUILT_LAST_MAKE_RUN:
+controller.hdr:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h /usr/include/sys/ieeefp.h 
+	gcc -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g -DGENPROTO controller.c -o controller.x
+	exec ./controller.x  controller.hdr
+	rm -f controller.x
+.BUILT_LAST_MAKE_RUN:
+loop.hdr:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h
+.BUILT_LAST_MAKE_RUN:
+loop.hdr:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h /usr/include/sys/ieeefp.h 
+	gcc -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g -DGENPROTO loop.c -o loop.x
+	exec ./loop.x  loop.hdr
+	rm -f loop.x
+.BUILT_LAST_MAKE_RUN:
+controller.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h
+.BUILT_LAST_MAKE_RUN:
+controller.o:	/usr/include/sys/procset.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h
+.BUILT_LAST_MAKE_RUN:
+controller.o:	/usr/include/sys/ieeefp.h 
+	gcc -c -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g  -DUSESIGTIMER -DUSE_SOCKETS controller.c -o controller.o
+controller.c:
+	occ2c  -mi -me -l controller.occ -o controller.c
+.BUILT_LAST_MAKE_RUN:
+loop.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h
+.BUILT_LAST_MAKE_RUN:
+loop.o:	/usr/include/sys/procset.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h
+.BUILT_LAST_MAKE_RUN:
+loop.o:	/usr/include/sys/ieeefp.h 
+	gcc -c -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g  -DUSESIGTIMER -DUSE_SOCKETS loop.c -o loop.o
+loop.c:
+	occ2c  -mi -me -l loop.occ -o loop.c
+.BUILT_LAST_MAKE_RUN:
+worker.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h
+.BUILT_LAST_MAKE_RUN:
+worker.o:	/usr/include/sys/procset.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h
+.BUILT_LAST_MAKE_RUN:
+worker.o:	/usr/include/sys/ieeefp.h 
+	gcc -c -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g  -DUSESIGTIMER -DUSE_SOCKETS worker.c -o worker.o
+worker.c:
+	occ2c  -mi -me -l worker.occ -o worker.c
+.BUILT_LAST_MAKE_RUN:
+farm.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h
+.BUILT_LAST_MAKE_RUN:
+farm.o:	/usr/include/sys/procset.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h
+.BUILT_LAST_MAKE_RUN:
+farm.o:	/usr/include/sys/ieeefp.h /home/mbh/spoc/lib/solaris/spserver.hdr 
+	gcc -c -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g  -DUSESIGTIMER -DUSE_SOCKETS farm.c -o farm.o
+farm.c:
+	occ2c  -mi -me -s farm.occ -o farm.c
+.BUILT_LAST_MAKE_RUN:
+worker.hdr:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h
+.BUILT_LAST_MAKE_RUN:
+worker.hdr:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h /usr/include/sys/ieeefp.h 
+	gcc -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris -g -DGENPROTO worker.c -o worker.x
+	exec ./worker.x  worker.hdr
+	rm -f worker.x

@@ -1,0 +1,46 @@
+                       INMOS Source Releases
+
+CONDITIONS OF USE:
+
+   *************************************************************************
+   *                                                                       *
+   * These copyright sources are made available for research purposes.     *
+   * No support will be provided from INMOS for their use.  They may not   *
+   * be incorporated into any commercial products without explicit written *
+   * permission, and agreed licensing terms, from INMOS in Bristol.        *
+   *                                                                       *
+   *************************************************************************
+
+
+CONTENTS
+
+  The directory structure is as follows:
+
+  oc/
+	INMOS D7202a-oc oc compiler product sources
+
+  tds3-tds/
+	INMOS D700E TDS product in TDS sources form
+
+  tds3-toolset/
+	INMOS D700E TDS product in toolset sources form contributed
+	by Michael Poole as a conversion of the D700E product above.
+
+
+SUPPORT/WARRANTY/BUG FIXES
+
+  There is no warranty for this set of files and INMOS especially
+are not interested in bug fixes.  If you have something to contribute to
+add to these files, please contact me.
+
+
+THANKS
+
+  Thanks go to Tony Debling and Michael Poole for arranging the release
+of these files to the Transputer and occam community.
+
+
+Dave Beckett <djb1@ukc.ac.uk>
+
+Computing Laboratory, University of Kent at Canterbury, ENGLAND, CT2 7NF
+Tel: [+44] (0)227 764000 x7684  Fax: [+44] (0)227 762811

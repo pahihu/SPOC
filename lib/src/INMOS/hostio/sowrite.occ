@@ -1,0 +1,51 @@
+#COMMENT "Host i/o library, V1.1, 14/05/90"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+#USE "readwrit.lib"  -- for sp.write
+--{{{  so.write
+PROC so.write (CHAN OF SP fs, ts, VAL INT32 streamid, VAL []BYTE data,
+               INT length)
+
+  --{{{  specification
+  -- Purpose:  To write an unlimited number of bytes to a stream.
+  -- channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the open stream to
+  --           write to
+  -- In:       data - a string of bytes ALL of which are to be written to
+  --           the file
+  -- Out:      length - this gives the number of bytes written;
+  --           if length <> (SIZE data) then an error occurred
+  --}}}
+  --{{{  more information
+  -- Notes:    If more than a packet's worth of data is to be written
+  --           to a file then one cannot guarantee that all of the data
+  --           will be written to the file before any other process
+  --           accesses the same file.
+  --}}}
+  --{{{  history
+  -- Removed the unnecessary test ( result = spr.ok ) from the WHILE loop
+  -- condition since the present implementation of sp.write always returns
+  -- spr.ok; V1.1, SRH 14-May-90
+  --}}}
+
+  BOOL writing :
+  SEQ
+    writing := TRUE
+    length  := 0
+    WHILE writing AND (length < (SIZE data))
+      INT length.to.write, length.written :
+      SEQ
+        IF
+          ((SIZE data) - length) > sp.max.writebuffer.size
+            length.to.write := sp.max.writebuffer.size
+          TRUE
+            length.to.write := ((SIZE data) - length)
+
+        BYTE result :  -- a dummy for this routine
+        sp.write (fs, ts, streamid, [data FROM length FOR length.to.write],
+                  length.written, result)
+        writing := (length.to.write = length.written)
+        length  := length + length.written
+:
+--}}}so.write

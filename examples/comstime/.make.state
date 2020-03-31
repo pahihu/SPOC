@@ -1,0 +1,14 @@
+.MAKE_VERSION:	VERSION-1.0
+.BUILT_LAST_MAKE_RUN:
+comstime.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h
+.BUILT_LAST_MAKE_RUN:
+comstime.o:	/usr/include/sys/procset.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/limits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/syslimits.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/setjmp.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h
+.BUILT_LAST_MAKE_RUN:
+comstime.o:	/usr/include/sys/ieeefp.h /home/mbh/spoc/lib/solaris/spserver.hdr 
+	gcc -c -I/home/mbh/spoc/lib/solaris -DHOST=SUN4 -DOS=SUNOS -Dsolaris   -DUSESIGTIMER comstime.c -o comstime.o
+.BUILT_LAST_MAKE_RUN:
+comstime.c:
+	occ2c  -mi -me -s comstime.occ -o comstime.c
+.BUILT_LAST_MAKE_RUN:
+comstime:
+	gcc  comstime.o -o comstime /home/mbh/spoc/lib/solaris/libhostio.a /home/mbh/spoc/lib/solaris/libconvert.a   /home/mbh/spoc/lib/solaris/libIntrinsics.a /home/mbh/spoc/lib/solaris/libspserver.a -lm   -lsocket -lnsl

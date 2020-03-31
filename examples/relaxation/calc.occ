@@ -1,0 +1,489 @@
+#INCLUDE "grid.inc"
+#USE "snglmath.lib" -- maths libraries
+
+PROC calc(VAL INT myNode, toRoot, [4]CHAN OF sor inLink,outLink)
+  --{{{  PROC Calculate(VAL INT myNode, toRoot, [4]CHAN OF sor fromRx,toTX, CHAN OF sor fromControl,toControl)
+  PROC Calculate(VAL INT myNode, toRoot, [4]CHAN OF sor fromRx,toTx, CHAN OF sor fromControl,toControl)
+    VAL PosX IS (myNode-1) REM GridDim:
+    VAL PosY IS (myNode-1) / GridDim:
+  
+    [MaxArray][MaxArray]REAL32 U :
+    REAL32 Kappa,RJac,MinNorm,RJac2,Omega,MaxResid :
+    INT ArraySize, NumWorkers, Iter, AMax, OddWorker, OddNeighbour :
+    [2]INT ASize :
+    BOOL Continue, Running, Worker :
+    [4]BOOL SwapFlag:
+  
+    [MaxArray]REAL32 ABuf:
+    INT Pos :
+    INT16 Node, SNode :
+  
+    SEQ
+      --{{{  Setup variables
+      Running := FALSE
+      Continue := TRUE
+      --}}}
+      WHILE Continue
+        SEQ
+          WHILE NOT Running
+            ALT
+              fromControl?CASE
+                initial.packet; ArraySize; NumWorkers; Kappa; RJac; MinNorm
+                  --{{{  Save parameters, configure for grid size ..
+                  SEQ
+                    RJac2 := RJac * RJac
+                  
+                    -- Are we inside active grid area
+                    Worker := (PosX < NumWorkers) AND (PosY < NumWorkers)
+                  
+                    -- Some workers begin at ODD positions in the checkerboard array
+                    -- But only if the arraysize per worker is nondivisible by two
+                    -- Are we an ODD worker, and do we have ODD neighbours
+                    OddWorker := ((PosX + PosY) * ArraySize) /\ 1
+                    OddNeighbour := (((PosX + PosY) + 1) * ArraySize) /\ 1
+                  
+                    -- A few constant values
+                    AMax := ArraySize - 2        -- Size of INNER grid
+                    ASize[0] := (AMax + 1) / 2   -- Number of EVEN elements in inner grid
+                    ASize[1] := (AMax    ) / 2   -- Number of ODD elements
+                  
+                    -- Set flags for communication directions
+                    SwapFlag[LEFT] := PosX > 0
+                    SwapFlag[RIGHT] := PosX < (NumWorkers-1)
+                    SwapFlag[TOP] := PosY < (NumWorkers-1)
+                    SwapFlag[BOTTOM] := PosY > 0
+                  
+                    -- Zero Array, ready for calculations
+                    SEQ i = 0 FOR ArraySize
+                      SEQ j = 0 FOR ArraySize
+                        U[i][j] := ZERO
+                  
+                  
+                  --}}}
+                go.packet
+                  --{{{  Start Running
+                  SEQ
+                    Omega := ONE
+                    Iter := 0
+                    Running := TRUE
+                    MaxResid := ZERO
+                  --}}}
+  
+              ALT Link = 0 FOR 4
+                fromRx[Link]?CASE
+                  req.packet; Node
+                    --{{{  Upload array to master
+                    SEQ i = 1 FOR AMax
+                      toTx[toRoot]!array.packet; 0(INT16); (INT16 myNode); i; ArraySize::U[i]
+                    --}}}
+                  array.packet; Node; SNode; Pos; ArraySize::ABuf
+                    --{{{  Download array line, from master
+                    SEQ i = 0 FOR ArraySize
+                      U[Pos][i] := ABuf[i]
+                    --}}}
+          WHILE Running
+            SEQ
+              IF
+                Worker
+                  --{{{  Iterate etc
+                  [4][MaxArray]REAL32 TBuf, RBuf:
+                  REAL32 Resid:
+                  VAL Last IS ArraySize-1:
+                  VAL OddPass IS (Iter + OddWorker) /\ 1:
+                  
+                  SEQ
+                    --{{{  Do one iteration
+                    SEQ
+                      SEQ row = 0 FOR AMax               -- Each row of matrix
+                        VAL y IS (row + 1):
+                        VAL xs IS ((row+OddPass) /\ 1):      -- Alternate Odd/Even columns
+                        SEQ col = 0 FOR ASize[xs]        -- Correct number
+                          --{{{  Calculate value
+                          VAL x IS (((col * 2) + xs) + 1):
+                          SEQ
+                            Resid := (((U[y][x-1] + U[y][x+1]) + U[y-1][x]) + U[y+1][x]) - (FOUR * U[y][x])
+                            IF
+                              ABS(Resid) > MaxResid
+                                MaxResid := ABS(Resid)
+                              TRUE
+                                SKIP
+                            U[y][x] := U[y][x] + (Kappa * (Omega * (Resid / FOUR)))
+                          --}}}
+                    
+                      -- Calculate next value of omega, using Chebychev Acceleration
+                      IF
+                        Iter = 0
+                          Omega := ONE / (ONE - (HALF * RJac2))
+                        TRUE
+                          Omega := ONE / (ONE - ((QTR * RJac2) * Omega))
+                    
+                    --}}}
+                    PAR
+                      --{{{  transmit residue and recieve yes/no
+                      -- We transmit after one pass, receive reply after next pass
+                      IF
+                        (Iter /\ 1) = 0  -- Every two passes transmit residue
+                          SEQ
+                            toControl!residue.packet; (INT16 myNode); MaxResid
+                            MaxResid := ZERO
+                        TRUE  -- Next pass, receive result
+                          SEQ
+                            fromControl?CASE
+                              go.packet
+                                SKIP
+                              stop.packet
+                                Running := FALSE
+                      --}}}
+                      SEQ
+                        --{{{  Copy data to transmit buffers
+                        -- Here we copy the data we have JUST calculated to the transmit buffer
+                        -- Copy values from along each edge (not incl. border)
+                        -- We only copy the values we have just computed (alternate matrix positions)
+                        INT pos:
+                        SEQ
+                          pos := 1 + OddPass
+                          SEQ i = 0 FOR ASize[OddPass]
+                            SEQ
+                              TBuf[BOTTOM][i] := U[1][pos]
+                              TBuf[LEFT][i] := U[pos][1]
+                              pos := pos + 2
+                        
+                          pos := 1 + (((OddPass + AMax) + 1) /\ 1)
+                          SEQ i = 0 FOR ASize[OddPass]
+                            SEQ
+                              TBuf[TOP][i] := U[AMax][pos]
+                              TBuf[RIGHT][i] := U[pos][AMax]
+                              pos := pos + 2
+                        --}}}
+                        --{{{  transmit and receive results for last pass
+                        PAR side = 0 FOR 4
+                          --{{{  Tx and Rx Data
+                          INT RxSize:
+                          IF
+                            SwapFlag[side]
+                              PAR
+                                toTx[side]!swap.packet; ASize[OddPass]::TBuf[side]
+                                fromRx[side]?CASE
+                                  swap.packet; RxSize::RBuf[side]
+                                    SKIP
+                            TRUE
+                              SKIP
+                          --}}}
+                        --}}}
+                        --{{{  Copy data from Recieve buffers
+                        -- Here we copy data we have JUST received, from the previous pass
+                        -- Into the matrix edge positions, ready for the NEXT pass
+                        -- Some subtleties here, as we only copy values which have changed in the
+                        -- last pass, this is different for each pass and also has the problem that
+                        -- if the array size is ODD, we have neighbours performing the OPPOSITE
+                        -- pass to us. No problem!
+                        INT pos:
+                        SEQ
+                          pos := 1 + ((OddNeighbour + Iter) /\ 1)
+                          SEQ i = 0 FOR ASize[1-OddPass]   -- Size of neighbours transmission
+                            SEQ
+                              --{{{  Top Edge
+                              IF
+                                SwapFlag[TOP]
+                                  U[Last][pos] := RBuf[TOP][i]
+                                TRUE
+                                  SKIP
+                              --}}}
+                              --{{{  Right Edge
+                              IF
+                                SwapFlag[RIGHT]
+                                  U[pos][Last] := RBuf[RIGHT][i]
+                                TRUE
+                                  SKIP
+                              --}}}
+                              pos := pos + 2
+                        
+                          pos := 1 + ((((OddNeighbour + Iter) + AMax) + 1) /\ 1)
+                          SEQ i = 0 FOR ASize[1-OddPass]   -- Size of neighbours transmission
+                            SEQ
+                              --{{{  Left Edge
+                              IF
+                                SwapFlag[LEFT]
+                                  U[pos][0] := RBuf[LEFT][i]
+                                TRUE
+                                  SKIP
+                              --}}}
+                              --{{{  Bottom Edge
+                              IF
+                                SwapFlag[BOTTOM]
+                                  U[0][pos] := RBuf[BOTTOM][i]
+                                TRUE
+                                  SKIP
+                              --}}}
+                              pos := pos + 2
+                        --}}}
+                  --}}}
+                TRUE
+                  --{{{  Send ZERO residues for each go packet
+                  SEQ
+                    toControl!residue.packet; (INT16 myNode); ZERO
+                    fromControl?CASE
+                      go.packet
+                        SKIP
+                      stop.packet
+                        Running := FALSE
+                  --}}}
+              Iter := Iter + 1      -- Next Iteration
+  
+  :
+  
+  --}}}
+  --{{{  PROC rxMux([4]CHAN OF sor fromRx, CHAN OF sor fromMux)
+  PROC rxMux([4]CHAN OF sor fromRx, CHAN OF sor fromMux)
+    BOOL More :
+    INT16 Node, SNode :
+    REAL32 Val1,Val2,Val3 :
+    INT Dum1, Dum2, Dum3 :
+    [MaxArray]REAL32 ABuf :
+  
+    SEQ
+      More := TRUE
+      WHILE More
+        ALT Link = 0 FOR 4
+          fromRx[Link]?CASE
+            mapping.packet; Node; Dum1
+              fromMux!mapping.packet; Node; Link
+            residue.packet; Node; Val1
+              fromMux!residue.packet; Node; Val1
+            go.packet
+              fromMux!go.packet
+            stop.packet
+              fromMux!stop.packet
+            initial.packet; Dum1; Dum2; Val1; Val2; Val3
+              fromMux!initial.packet; Dum1; Dum2; Val1; Val2; Val3
+            req.packet; Node
+              fromMux!req.packet; Node
+            array.packet; Node; SNode; Dum1; Dum2::ABuf
+              fromMux!array.packet; Node; SNode; Dum1; Dum2::ABuf
+            debug.packet; Node; Dum1; Dum2; Dum3
+              fromMux!debug.packet; Node; Dum1; Dum2; Dum3
+  :
+  
+  --}}}
+  --{{{  PROC rxHandler(VAL INT myNode, CHAN OF sor fromLink,RxtoCalc,RxtoControl)
+  PROC rxHandler(VAL INT myNode, CHAN OF sor fromLink,toCalc,toControl)
+    BOOL More :
+    INT16 Node, SNode:
+    REAL32 Val1, Val2, Val3 :
+    [MaxArray]REAL32 ABuf :
+    INT Dum1, Dum2, Dum3 :
+  
+    SEQ
+      More := TRUE
+      WHILE More
+        fromLink?CASE
+          mapping.packet; Node; Dum1
+            toControl!mapping.packet; Node; Dum1
+          residue.packet; Node; Val1
+            toControl!residue.packet; Node; Val1
+          go.packet
+            toControl!go.packet
+          stop.packet
+            toControl!stop.packet
+          initial.packet; Dum1; Dum2; Val1; Val2; Val3
+            toControl!initial.packet; Dum1; Dum2; Val1; Val2; Val3
+          array.packet; Node; SNode; Dum1; Dum2::ABuf
+            SEQ
+              IF
+                (INT Node) = myNode
+                  toCalc!array.packet; Node; SNode; Dum1; Dum2::ABuf
+                TRUE
+                  toControl!array.packet; Node; SNode; Dum1; Dum2::ABuf
+          req.packet; Node
+            SEQ
+              IF
+                (INT Node) = myNode
+                  toCalc!req.packet; Node
+                TRUE
+                  toControl!req.packet; Node
+          swap.packet; Dum2::ABuf
+            toCalc!swap.packet; Dum2::ABuf
+          debug.packet; Node; Dum1; Dum2; Dum3
+            toControl!debug.packet; Node; Dum1; Dum2; Dum3
+  
+  :
+  
+  --}}}
+  --{{{  PROC Control(VAL INT myNode, toRoot, [4]CHAN OF sor toTx, CHAN OF sor fromCalc, toCalc, Control)
+  PROC Control(VAL INT myNode, toRoot, [4]CHAN OF sor toTx, CHAN OF sor fromCalc,toCalc, Control)
+    BOOL More, Bottom, MoreSent, RxCalcRes :
+    INT LeafCount, RxResCount :
+    [17]INT NodeLink :
+    [4]BOOL LinkFlag, HaveLinkRes :
+    INT16 Node, SNode :
+    INT Link, Dum1, Dum2, Dum3 :
+    REAL32 Val1, Val2, MinNorm, MaxResid :
+    [MaxArray]REAL32 ABuf:
+  
+    SEQ
+      --{{{  Initialise variables
+      More := TRUE
+      Bottom := TRUE
+      RxCalcRes := FALSE
+      MoreSent := FALSE
+      MaxResid := ZERO
+      RxResCount := 0
+      LeafCount := 0
+      SEQ i = 0 FOR 17
+        NodeLink[i] := toRoot
+      SEQ i = 0 FOR 4
+        SEQ
+          LinkFlag[i] := FALSE
+          HaveLinkRes[i] := FALSE
+      --}}}
+  
+      toTx[toRoot]!mapping.packet; (INT16 myNode); 0
+      WHILE More
+        SEQ
+          ALT
+            Control?CASE
+              --{{{  Get packets from rx links, forward or use
+              mapping.packet; Node; Link
+                --{{{
+                SEQ
+                  NodeLink[(INT Node)] := Link
+                  LinkFlag[Link] := TRUE
+                  Bottom := FALSE
+                  toTx[toRoot]!mapping.packet; Node; 0
+                  LeafCount := 0
+                  SEQ Link = 0 FOR 4
+                    IF
+                      LinkFlag[Link]
+                        LeafCount := LeafCount + 1
+                      TRUE
+                        SKIP
+                --}}}
+              initial.packet; Dum1; Dum2; Val1; Val2; MinNorm
+                SEQ
+                  PAR i = 0 FOR 4
+                    IF
+                      LinkFlag[i]
+                        toTx[i]!initial.packet; Dum1; Dum2; Val1; Val2; MinNorm
+                      TRUE
+                        SKIP
+                  toCalc!initial.packet; Dum1; Dum2; Val1; Val2; MinNorm
+              go.packet
+                SEQ
+                  PAR i = 0 FOR 4
+                    IF
+                      LinkFlag[i]
+                        toTx[i]!go.packet
+                      TRUE
+                        SKIP
+                  IF
+                    NOT MoreSent
+                      toCalc!go.packet
+                    TRUE
+                      SKIP
+              stop.packet
+                SEQ
+                  PAR i = 0 FOR 4
+                    IF
+                      LinkFlag[i]
+                        toTx[i]!stop.packet
+                      TRUE
+                        SKIP
+                  toCalc!stop.packet
+              residue.packet; Node; Val1
+                SEQ
+                  IF
+                    Val1 > MaxResid
+                      MaxResid := Val1
+                    TRUE
+                      SKIP
+                  RxResCount := RxResCount + 1
+              req.packet; Node
+                toTx[NodeLink[(INT Node)]]!req.packet; Node
+              array.packet; Node; SNode; Dum1; Dum2::ABuf
+                toTx[NodeLink[(INT Node)]]!array.packet; Node; SNode; Dum1; Dum2::ABuf
+              debug.packet; Node; Dum1; Dum2; Dum3
+                toTx[toRoot]!debug.packet; Node; Dum1; Dum2; Dum3
+    
+            fromCalc?CASE
+              --{{{  Get Calculator Residue
+              residue.packet; Node; Val1
+                SEQ
+                  IF
+                    Val1 > MaxResid
+                      MaxResid := Val1
+                    TRUE
+                      SKIP
+                  RxCalcRes := TRUE
+                  MoreSent := FALSE
+              debug.packet; Node; Dum1; Dum2; Dum3
+                toTx[toRoot]!debug.packet; Node; Dum1; Dum2; Dum3
+              --}}}
+          IF
+            (RxCalcRes) AND (RxResCount=LeafCount)
+              --{{{  Send maximum Residue to Root
+              SEQ
+                toTx[toRoot]!residue.packet; (INT16 myNode); MaxResid
+                RxResCount := 0
+                RxCalcRes := FALSE
+                MaxResid := ZERO
+                MoreSent := FALSE
+              --}}}
+            TRUE
+              SKIP
+  :
+    
+              --}}}
+  --{{{  PROC txHandler(CHAN OF sor ControltoTx,CalctoTx,toLink)
+  PROC txHandler(CHAN OF sor ControltoTx,CalctoTx,toLink)
+    BOOL More :
+    INT16 Node, SNode :
+    INT Dum1, Dum2, Dum3 :
+    REAL32 Val1, Val2, Val3:
+    [MaxArray]REAL32 ABuf:
+  
+    SEQ
+      More := TRUE
+      WHILE More
+        PRI ALT
+          ControltoTx?CASE
+            mapping.packet; Node; Dum1
+              toLink!mapping.packet; Node; Dum1
+            residue.packet; Node; Val1
+              toLink!residue.packet; Node; Val1
+            go.packet
+              toLink!go.packet
+            stop.packet
+              toLink!stop.packet
+            initial.packet; Dum1; Dum2; Val1; Val2; Val3
+              toLink!initial.packet; Dum1; Dum2; Val1; Val2; Val3
+            req.packet; Node
+              toLink!req.packet; Node
+            array.packet; Node; SNode; Dum1; Dum2::ABuf
+              toLink!array.packet; Node; SNode; Dum1; Dum2::ABuf
+            debug.packet; Node; Dum1; Dum2; Dum3
+              toLink!debug.packet; Node; Dum1; Dum2; Dum3
+  
+          CalctoTx?CASE
+            array.packet; Node; SNode; Dum1; Dum2::ABuf
+              toLink!array.packet; Node; SNode; Dum1; Dum2::ABuf
+            swap.packet; Dum2::ABuf
+              toLink!swap.packet; Dum2::ABuf
+  :
+  
+  --}}}
+
+  [4]CHAN OF sor RxtoCalc,RxtoControl,CalctoTx,ControltoTx :
+  CHAN OF sor CalctoControl,ControltoCalc :
+  CHAN OF sor RxMux:
+
+  PRI PAR   -- Make Routing processes high priority
+    PAR     -- All these are routing processes
+      Control(myNode, toRoot, ControltoTx, CalctoControl,ControltoCalc,RxMux)
+      rxMux(RxtoControl,RxMux)
+      PAR i = 0 FOR 4
+        rxHandler(myNode, inLink[i],RxtoCalc[i],RxtoControl[i])
+      PAR i = 0 FOR 4
+        txHandler(ControltoTx[i],CalctoTx[i],outLink[i])
+    Calculate(myNode, toRoot, RxtoCalc,CalctoTx,ControltoCalc,CalctoControl)
+:
+

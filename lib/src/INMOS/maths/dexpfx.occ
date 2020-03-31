@@ -1,0 +1,154 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%O"
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DEXP "DEXP%c"
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DEXP "DEXP%f"
+#PRAGMA TRANSLATE DEXPP "DEXPP%f"
+#PRAGMA TRANSLATE DEXPPP "DEXPPP%f"
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL64 FUNCTION DEXP (VAL REAL64 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL REAL64 Min.denorm RETYPES Done :
+    -- Threshold for exp(x) = 1 is 2**(-ManBits), see C&W p63.
+    VAL Eps     IS #3C90000000000000(INT64) :
+    -- XMax = 709.7827129999999442588887177407741546630859375
+    VAL XMax    IS #40862E42FF08893B(INT64) : -- a little below ln(Inf - 1)
+    VAL XMin    IS #40874385446D71D0(INT64) : -- just more than -ln(smallest real)
+    VAL IBit    IS Done << DRealExpSh :
+    VAL ManMask IS (Done << DRealExpSh) - Done :
+    VAL ExpMask IS ~ManMask :
+    VAL PosMask IS ~(MOSTNEG INT64) :
+    VAL REAL64 InvLn2 RETYPES #3FF71547652B82FE(INT64) : -- 1/log(2)
+    VAL REAL64 C1     RETYPES #3FE6300000000000(INT64) : -- C1 + C2 = ln(2)
+    VAL REAL64 C2     RETYPES #BF2BD0105C610CA8(INT64) :
+    VAL INT64  X.i    RETYPES X :  -- so we can do faster comparisons
+    VAL PosX IS X.i /\ PosMask :
+    --}}}
+    IF
+      --{{{  special cases
+      (PosX > DRealInf) -- NaN
+        RWork := X
+      (X.i > XMax)
+        RWork := DRInf
+      (PosX > XMin) -- X must be negative if true
+        --{{{  alternative responses
+        -- Result := Min.denorm  -- alternative
+        -- Result := Dinexact.NaN
+        --}}}
+        RWork := DZero -- underflow
+      PosX < Eps
+        RWork := DOne
+      --}}}
+      TRUE
+        VAL N  IS INT64 ROUND (X * InvLn2) : -- integer part of X/ln2
+        VAL XN IS REAL64 ROUND N :
+        REAL64 XWork :
+        SEQ
+          XWork := (X - (XN * C1)) - (XN * C2) -- higher precision remainder
+          --{{{  reduced exp
+          VAL Half IS #4000000000000000(INT64) :
+          INT64 G, Z :
+          SEQ
+            G := FIX64 (XWork)
+            Z := FracMult64 (G, G)
+            G := FracMult64 (G, FracMult64 (Z,
+                                FracMult64 (Z, #00008A95237AC6E2(INT64)) +
+                                               #00E387237D9FB701(INT64)) +
+                                               #1FFFFFFFFFFFFFBF(INT64))
+            RWork := ReFloat64 (FracDiv64 (G, (FracMult64 (Z,
+                                FracMult64 (Z, #00103F996FDE3807(INT64)) +
+                                #071C639C50946CAB(INT64)) + Half) - G) + Half)
+          --}}}
+          --{{{  construct result
+          INT64 RWork.i RETYPES RWork :
+          INT64 RExp :
+          SEQ
+            RExp := (RWork.i >> DRealExpSh) + (N + Done)
+            IF
+              RExp <= Dzero
+                --{{{  produce denormalised output
+                VAL shift IS 1 - (INT RExp) :
+                INT64 M :
+                SEQ
+                  RWork.i, M := SHIFTRIGHT64 ((RWork.i/\ManMask)\/IBit, Dzero, shift)
+                  IF
+                    M >= Dzero
+                      SKIP
+                    (M <> (MOSTNEG INT64)) OR ((RWork.i /\ Done) = Done)
+                      RWork.i := RWork.i + Done
+                    TRUE
+                      SKIP
+                --}}}
+              TRUE
+                RWork.i := (RWork.i /\ ManMask) \/ (RExp << DRealExpSh)
+          --}}}
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  DEXPP/DEXPPP
+-- This 'P' version exists for when the FORTRAN intrinsic DEXP is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DEXPP.  When DEXPP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DEXPP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value.  The occam calling convention is to pass REAL64
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DEXPP( VAL INT dummy, VAL REAL64 X ) IS DEXP( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DEXPPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DEXP( X )
+:
+#endif
+--}}}
+#endif

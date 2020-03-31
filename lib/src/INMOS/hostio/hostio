@@ -1,0 +1,60 @@
+#############################################################################
+#
+#           Make file for the occam2 toolset library hostio.lib
+#
+#                             25-Oct-90 SRH
+#
+#               This makefile is presently set up for UNIX
+#
+#############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+MOVE=mv
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+
+
+# The library is built in two stages, first without the y option on the
+# oc command line, then with.  We must be careful to remove splib.lib and
+# solib.lib because they will have different contents for the two parts
+# of hostio.lib, but have the same name ( because they are explicitly #USEd
+# in the sources ), and similarly we must delete all object files.  All we
+# want from the first stage are the T2, TA and T8 sub-libraries, which we
+# must rename because they have only part of the final contents.
+
+
+#
+############################## target and rules ##############################
+#
+all:
+	$(MAKE) $(SWITCH)f hostio.mkf
+	$(DELETE) splib.lib
+	$(DELETE) solib.lib
+	$(DELETE) readwrit.lib
+	$(DELETE) *.t?h
+	$(DELETE) *.t?x
+	$(MOVE) hostio.t2 host.t2
+	$(MOVE) hostio.ta host.ta
+	$(MOVE) hostio.t8 host.t8
+	$(MAKE) $(SWITCH)f hostio.mkf OCCEXTRAS=$(SWITCH)y
+	$(DELETE) splib.lib
+	$(DELETE) solib.lib
+	$(DELETE) readwrit.lib
+	$(DELETE) *.t?h
+	$(DELETE) *.t?x
+	$(MOVE) hostio.t2 host.y2
+	$(MOVE) hostio.ta host.ya
+	$(MOVE) hostio.t8 host.y8
+	$(CONCATENATE) host.t2 host.y2 $(INTO) hostio.t2
+	$(CONCATENATE) host.ta host.ya $(INTO) hostio.ta
+	$(CONCATENATE) host.t8 host.y8 $(INTO) hostio.t8
+	$(DELETE) host.t?
+	$(DELETE) host.y?
+	$(LIBRARIAN) hostio.t2 hostio.t8 hostio.ta $(LIBOPT) $(SWITCH)o hostio.lib

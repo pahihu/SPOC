@@ -1,0 +1,276 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attribute grammer for conversion to C
+||@(#)   System : OCCAM 2 C
+||@(#) Filename : cstuff.ag
+||@(#)  Version : 1.3
+||@(#)     Date : 7/22/93
+\*@(#)====================================================*/
+/*}}}*/
+
+/*{{{  MODULE TypeChkTree*/
+MODULE CStuff
+
+EVAL CoutAg
+
+GLOBAL
+{
+  /*{{{  void writetVUsage(tVUsage a)*/
+  void writetVUsage(tVUsage a)
+  {
+    fprintf(yyf,"A="); 
+    if (a & xxAtomic) fprintf(yyf,"y");
+    else fprintf(yyf,"n");
+  
+    fprintf(yyf,",L=");
+    if ((a & (xxLRead | xxLWrite))==0) fprintf(yyf,"None");
+    if (a & xxLRead) fprintf(yyf,"Rd");
+    if (a & xxLWrite) fprintf(yyf,"Wr");
+  
+    fprintf(yyf,",NL=");
+    if ((a & (xxNLRead | xxNLWrite))==0) fprintf(yyf,"None");
+    if (a & xxNLRead) fprintf(yyf,"Rd");
+    if (a & xxNLWrite) fprintf(yyf,"Wr");
+  }
+  /*}}}*/
+}
+
+END CStuff
+/*}}}*/
+
+/*{{{  MODULE SpecList*/
+MODULE SpecList
+
+EVAL CoutAg
+
+RULE
+
+SpecList = { DCL := 0; }.
+
+ASpec = {  DCL := { DCL = CountSpec(Spec) + Next:DCL; }; }.
+
+NoSpec = { DCL := 0; }.
+
+END SpecList
+/*}}}*/
+
+/*{{{  MODULE ProcList*/
+MODULE ProcList
+
+EVAL CoutAg
+
+IMPORT
+{
+  #include "Cout.h"
+}
+
+RULE
+
+AltList    = { SLC := 0; }.
+Guard      = { SLC := 0; }.
+ChoiceList = { SLC := 0; }.
+ProcList   = { SLC := 0; }.
+CaseList   = { SLC := 0; }.
+
+Process    = { SLC := (SpecList:DCL > 0); }.
+
+Alt        = { SLC := { SpecList:DCL+=(TLA ? ARC:0); SLC = (SpecList:DCL > 0) + AltList:SLC; }; }.
+AltRep     = { SLC := { SpecList:DCL+=(TLA ? ARC:0); SLC = (SpecList:DCL > 0) + AltList:SLC; }; }.
+
+CaseIn     = { SLC := (SpecList:DCL > 0) + CaseList:SLC; }.
+Seq        = { SLC := (SpecList:DCL > 0) + ProcList:SLC; }.
+Par        = { SLC := (SpecList:DCL > 0) + ProcList:SLC; }.
+If         = { SLC := (SpecList:DCL > 0) + ChoiceList:SLC; }.
+Case       = { SLC := (SpecList:DCL > 0) + ChoiceList:SLC; }.
+While      = { SLC := (SpecList:DCL > 0) + Process:SLC; }.
+Skip       = { SLC := (SpecList:DCL > 0); }.
+Stop       = { SLC := (SpecList:DCL > 0); }.
+Instance   = { SLC := (SpecList:DCL > 0); }.
+
+SeqRep     = { SLC := { SpecList:DCL+=CountRepDecls(Replicator);    SLC = (SpecList:DCL > 0) + Process:SLC; }; }.
+ParRep     = { SLC := { SpecList:DCL+=CountRepDecls(Replicator);    SLC = (SpecList:DCL > 0) + Process:SLC; }; }.
+IfRep      = { SLC := { SpecList:DCL+=CountRepDecls(Replicator);    SLC = (SpecList:DCL > 0) + ChoiceList:SLC; }; }.
+
+AltInput   = { SLC := Input:SLC + Process:SLC; }.
+AltTimer   = { SLC := After:SLC + Process:SLC; }.
+AltCaseIn  = { SLC := CaseIn:SLC; }.
+NoInput    = { SLC := Process:SLC; }.
+
+NoAlt      = { SLC := 0; }.
+AnAlt      = { SLC := Next:SLC + (SpecList:DCL > 0 || Guard:SLC   > 0) ; }.
+ANewAlt    = { SLC := Next:SLC + (SpecList:DCL > 0 || AltType:SLC > 0) ; }.
+
+NoChoice   = { SLC := 0; }.
+AChoice    = { SLC := Next:SLC + (SpecList:DCL > 0 || Process:SLC > 0) ; }.
+ANewIf     = { SLC := Next:SLC + (SpecList:DCL > 0 || IfType:SLC  > 0) ; }.
+
+NoProcess  = { SLC := 0; }.
+AProcess   = { SLC := Next:SLC + (Process:SLC > 0); }.
+
+NoCase     = { SLC := 0; }.
+ACase      = { SLC := Next:SLC + (SpecList:DCL > 0 || Process:SLC > 0); }.
+
+END ProcList
+/*}}}*/
+
+/*{{{  MODULE AltReplicators*/
+MODULE AltReplicators
+
+EVAL CoutAg
+
+RULE
+
+AltList    = { ARC := 0; }.
+AltType    = { ARC := 0; }.
+
+Alt        = { ARC := AltList:ARC; }.
+
+AltRep     = { ARC := CountAltRepDecls(Replicator) + AltList:ARC; }.
+
+NoAlt      = { ARC := 0; }.
+AnAlt      = { ARC := Next:ARC; }.
+ANewAlt    = { ARC := Next:ARC + AltType:ARC; }.
+
+
+Start      = { Process:TLA := Tree_IsType(Process,kAltType); }.
+DefProc    = { Process:TLA := Tree_IsType(Process,kAltType); }.
+Valof      = { Process:TLA := Tree_IsType(Process,kAltType); }.
+SeqRep     = { Process:TLA := Tree_IsType(Process,kAltType); }.
+ParRep     = { Process:TLA := Tree_IsType(Process,kAltType); }.
+While      = { Process:TLA := Tree_IsType(Process,kAltType); }.
+AltInput   = { Input:TLA   := false; }
+             { Process:TLA := Tree_IsType(Process,kAltType); }.
+AltTimer   = { After:TLA   := false; }
+             { Process:TLA := Tree_IsType(Process,kAltType); }.
+AltCaseIn  = { CaseIn:TLA  := false; }.
+NoInput    = { Process:TLA := Tree_IsType(Process,kAltType); }.
+AChoice    = { Process:TLA := Tree_IsType(Process,kAltType); }.
+ANewIf     = { IfType:TLA  := false;}.
+AProcess   = { Process:TLA := Tree_IsType(Process,kAltType); }.
+ACase      = { Process:TLA := Tree_IsType(Process,kAltType); }.
+
+/* The following line is the important one, recursing back into
+   an AltType process does NOT constitute a top-level ALT */
+
+ANewAlt    = { AltType:TLA := false; }.
+
+END AltReplicators
+/*}}}*/
+
+/*{{{  MODULE MarkDims*/
+MODULE MarkDims
+
+EVAL CoutAg
+
+RULE
+
+Array = { Type:D := D+1; }.
+String = { Type:D := 0; }.
+DeclType = { Type:D := 0; }.
+Decl = { Type:D := 0; }.
+AType = { Type:D := 0; }.
+AField = { Type:D := 0; }.
+Simple = { Type:D := 0; }.
+Counted = { Length:D := 0; Type:D := 0; }.
+Const = { Type:D := 0; }.
+Convert = { Type:D := 0; }.
+UserLiteral = { Type:D := 0; }.
+Round = { Type:D := 0; }.
+Trunc = { Type:D := 0; }.
+MostPos = { Type:D := 0; }.
+MostNeg = { Type:D := 0; }.
+BytesInType = { Type:D := 0; }.
+OffsetOf = { Type:D := 0; }.
+SizeOf = { Type:D := 0; }.
+Is = { Type:D := 0;}.
+AVal = { Type:D := 0;}.
+Val = { Type:D := 0;}.
+ValRetypes = { Type:D := 0;}.
+Retypes = { Type:D := 0;}.
+DefAFunc = { TypeList:D := 0;}.
+DefFunc = { TypeList:D := 0;}.
+DefIsFunc = { TypeList:D := 0;}.
+AFormal = { Type:D := 0;}.
+PrototypeFunc = { TypeList:D := 0;}.
+
+END MarkDims
+
+/*}}}*/
+
+/*{{{  MODULE Parent*/
+MODULE Parent
+
+EVAL CoutAg
+
+RULE
+  Start = { Process:Parent := 0; }.
+
+  DefFunc = { Valof:Parent := Sym; Formals:Parent := Sym; }.
+  DefIsFunc = { ExprList:Parent := Sym; Formals:Parent := Sym; }.
+  DefProc = { Process:Parent := Sym; Formals:Parent := Sym; }.
+  PrototypeProc = { Formals:Parent := Sym; }.
+  PrototypeFunc = { Formals:Parent := Sym; }.
+
+  Process = { SpecList:Parent :- Parent; }.
+  Valof = { Process:Parent :- Parent; }.
+
+  Array = { Expr:Parent := 0; }.
+END Parent
+
+/*}}}*/
+
+/*{{{  MODULE VarUsage*/
+MODULE VarUsage
+
+EVAL CoutAg
+
+RULE
+
+/* Process = { CHECK DEP(false,SpecList:DCL) ==> {}; }. */
+FuncCall = { CHECK false ==> { AddVUsage(Sym,xxAccess); }; }.
+Identifier = { CHECK false ==> { if (IsLVIdent(SELF)) { AddWVUsage(Sym,Parent);} else {AddRVUsage(Sym,Parent);} }; }.
+Instance = { CHECK false ==> { AddVUsage(Sym,xxAccess); }; }.
+Replicator = { CHECK DEP(false,AtomicSpec) ==> { AddVUsage(Sym,xxLWrite); if (AtomicSpec) AddVUsage(Sym,xxAtomic); }; }.
+CCode = { CHECK false ==> { MarkCCodeUsage(Code,Pos,Scope); }; }.
+
+AnId = { CHECK DEP(false,AtomicSpec) ==> { if (AtomicSpec) AddVUsage(Sym,xxAtomic); };  }.
+AFormal = { CHECK DEP(false,AtomicSpec) ==> { if (AtomicSpec) AddVUsage(Sym,xxAtomic); }; }.
+Val = { CHECK DEP(false,AtomicSpec) ==> { if (AtomicSpec) AddVUsage(Sym,xxAtomic); }; }.
+Is = { CHECK DEP(false,AtomicSpec) ==> { if (AtomicSpec) AddVUsage(Sym,xxAtomic); }; }.
+ValRetypes = { CHECK DEP(false,AtomicSpec) ==> { if (AtomicSpec) AddVUsage(Sym,xxAtomic); }; }.
+Retypes = { CHECK DEP(false,AtomicSpec) ==> { if (AtomicSpec) AddVUsage(Sym,xxAtomic); }; }.
+
+DefAFunc = { CHECK false ==> { AddVUsage(Sym,xxAtomic); }; }.
+DefAProc = { CHECK false ==> { if (IsAtomicProc(SELF)) AddVUsage(Sym,xxAtomic); }; }.
+
+
+END VarUsage
+/*}}}*/
+
+/*{{{  MODULE AtomicSpecs*/
+MODULE AtomicSpecs
+
+EVAL CoutAg
+
+RULE
+  Decl       = { IdList:AtomicSpec := AtomicSpec; }.
+  Process    = { SpecList:AtomicSpec := IsAtomic(SELF); }.
+  Valof      = { SpecList:AtomicSpec := IsAtomic(Process); }.
+  AnAlts     = { SpecList:AtomicSpec := false; }.
+  AChoices   = { SpecList:AtomicSpec := IsAtomic(SELF); }.
+  ACase      = { SpecList:AtomicSpec := false; }.
+
+  SeqRep     = { Replicator:AtomicSpec := IsAtomic(Process); }.
+  IfRep      = { Replicator:AtomicSpec := IsAtomic(SELF); }.
+  AltRep     = { Replicator:AtomicSpec := false; }.
+  ParRep     = { Replicator:AtomicSpec := true; }.
+
+  DefFunc    = { Formals:AtomicSpec := true; }.
+  DefProc    = { Formals:AtomicSpec := IsAtomicProc(SELF) && !IsParProc(SELF); }.
+END AtomicSpecs
+/*}}}*/
+

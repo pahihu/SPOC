@@ -1,0 +1,54 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#endif
+#endif
+#endif
+
+INT FUNCTION FracDiv (VAL INT Divid, Divis)
+
+  -- Assumes that overflow will not occur
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  INT ResHi, Remains, Bot :
+  VALOF
+    --{{{  Signed fixed point divide
+    SEQ
+      IF
+        Divis < 0
+          Bot :=  0 MINUS Divis
+        TRUE
+          Bot := Divis
+      IF
+        Divid < 0
+          ResHi := -Divid   -- can't allow -1 as numerator, so ok
+        TRUE
+          ResHi := Divid
+      ResHi, Remains := SHIFTRIGHT (ResHi, 0, 1)
+      ResHi, Remains := LONGDIV (ResHi, Remains, Bot)
+      Remains := Remains << 1    -- To compare 2*Rem against Divis
+      IF
+        (Remains < 0) OR (Remains > Bot) OR
+          ((Remains = Bot) AND ((ResHi /\ 1) = 1))
+          ResHi := ResHi + 1
+        TRUE
+          SKIP
+      IF
+        (Divid >< Divis) < 0
+          ResHi := 0 MINUS ResHi -- ResHi could be -1
+        TRUE
+          SKIP
+    --}}}
+    RESULT ResHi
+:

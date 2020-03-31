@@ -1,0 +1,38 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#endif
+#endif
+#endif
+
+REAL32 FUNCTION IncExp (VAL REAL32 X, VAL INT N)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 Result :
+  VALOF
+    --{{{  Increments exponent by N
+    -- This is a fast but unsafe procedure, which relies on the calling
+    -- procedure to ensure correct results.
+    VAL RealExpSh IS 23(INT) :
+    VAL INT X.i RETYPES X :
+    INT Res RETYPES Result :
+    IF
+      N < 0
+        Res := X.i - ((-N) << RealExpSh)
+      TRUE
+        Res := X.i + (N << RealExpSh)
+    --}}}
+    RESULT Result
+:

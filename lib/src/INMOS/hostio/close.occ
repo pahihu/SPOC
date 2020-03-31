@@ -1,0 +1,44 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.close
+PROC sp.close (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To close a stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the open stream to be
+  --           closed
+  -- Out:      result - equal to spr.ok if the stream closed properly;
+  --           otherwise >= spr.operation.failed - refer to hostio.inc or
+  --           iserver documentation for further details
+  -- Notes:    Before closing the stream unwritten data is flushed or any
+  --           unread buffered input is discarded.
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (5 bytes)
+    buffer [0] := sp.close.tag
+    
+    VAL [4]BYTE b.streamid RETYPES streamid :
+    [buffer FROM 1 FOR 4] := b.streamid
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 temp.INT16 :
+    fs ? temp.INT16 :: buffer
+    --}}}
+    --{{{  copy out the result           (1 byte)
+    result := buffer [0]
+    --}}}
+:
+--}}}sp.close
+--{{{  so.close
+PROC so.close (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+
+  sp.close (fs, ts, streamid, result)
+:
+--}}}so.close

@@ -1,0 +1,108 @@
+#            Make file for the FORTRAN library virtual/debug stuff
+#
+# The macros OUTNAME2, OUTNAMEA and OUTNAME8 must be supplied from the command
+# line.
+#
+# The routines for FORTRAN must not have vector space.
+#
+#                          4-Dec-90 SRH
+#
+# This makefile is presently set up for UNIX.
+
+
+OUTNAME2=
+OUTNAMEA=
+OUTNAME8=
+
+SWITCH=-
+
+# for the flexibility of passing something in from the command line
+OCCEXTRAS=
+
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d FORTRAN
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(SWITCH)u $(SWITCH)w $(SWITCH)v $(SWITCH)x $(SWITCH)zv $(OCCEXTRAS)
+
+CONCATENATE=cat
+INTO=>
+DELETE=rm
+
+DEBUGS2= debugsup.t2x virtual.t2x semprocs.t2x
+
+DEBUGSA= debugsup.tax virtual.tax semprocs.tax
+
+DEBUGS8= debugsup.t8x virtual.t8x semprocs.t8x
+
+
+# force a build
+all: virtual.lib $(OUTNAME2) $(OUTNAMEA) $(OUTNAME8)
+
+virtual.lib:	virtual.lbb virtual.t2x virtual.tax virtual.t8x semprocs.lib
+	$(LIBRARIAN) $(SWITCH)f virtual.lbb  $(SWITCH)o virtual.lib $(LIBOPT)
+
+#$(OUTNAME2):	$(DEBUGS2)
+#	$(CONCATENATE) $(DEBUGS2) $(INTO) $(OUTNAME2)
+
+$(OUTNAMEA):	$(DEBUGSA)
+	$(CONCATENATE) $(DEBUGSA) $(INTO) $(OUTNAMEA)
+
+$(OUTNAME8):	$(DEBUGS8)
+	$(CONCATENATE) $(DEBUGS8) $(INTO) $(OUTNAME8)
+
+
+semprocs.lib:	semprocs.lbb semprocs.t2x semprocs.tax semprocs.t8x
+	$(LIBRARIAN) $(SWITCH)f semprocs.lbb $(SWITCH)o semprocs.lib $(LIBOPT)
+
+
+semprocs.t2x:	semprocs.occ txhdr.inc semhdr.inc
+	$(PREPROCESSOR) semprocs.occ $(PREOPT) $(SWITCH)o semprocs.tmp
+	$(OCCAM) semprocs.tmp $(SWITCH)t2 $(SWITCH)o semprocs.t2x  $(OCCOPT)
+	$(DELETE) semprocs.tmp
+
+semprocs.tax:	semprocs.occ txhdr.inc semhdr.inc
+	$(PREPROCESSOR) semprocs.occ $(PREOPT) $(SWITCH)o semprocs.tmp
+	$(OCCAM) semprocs.tmp $(SWITCH)ta $(SWITCH)o semprocs.tax  $(OCCOPT)
+	$(DELETE) semprocs.tmp
+
+semprocs.t8x:	semprocs.occ txhdr.inc semhdr.inc
+	$(PREPROCESSOR) semprocs.occ $(PREOPT) $(SWITCH)o semprocs.tmp
+	$(OCCAM) semprocs.tmp $(SWITCH)t8 $(SWITCH)o semprocs.t8x  $(OCCOPT)
+	$(DELETE) semprocs.tmp
+
+
+debugsup.t2x:	debugsup.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib 
+	$(PREPROCESSOR) debugsup.occ $(PREOPT) $(SWITCH)o debugsup.tmp
+	$(OCCAM) debugsup.tmp $(SWITCH)t2 $(SWITCH)o debugsup.t2x  $(OCCOPT)
+	$(DELETE) debugsup.tmp
+
+debugsup.tax:	debugsup.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib 
+	$(PREPROCESSOR) debugsup.occ $(PREOPT) $(SWITCH)o debugsup.tmp
+	$(OCCAM) debugsup.tmp $(SWITCH)ta $(SWITCH)o debugsup.tax  $(OCCOPT)
+	$(DELETE) debugsup.tmp
+
+debugsup.t8x:	debugsup.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib 
+	$(PREPROCESSOR) debugsup.occ $(PREOPT) $(SWITCH)o debugsup.tmp
+	$(OCCAM) debugsup.tmp $(SWITCH)t8 $(SWITCH)o debugsup.t8x  $(OCCOPT)
+	$(DELETE) debugsup.tmp
+
+
+virtual.t2x:	virtual.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib \
+	  virthdr.inc 
+	$(PREPROCESSOR) virtual.occ $(PREOPT) $(SWITCH)o virtual.tmp
+	$(OCCAM) virtual.tmp $(SWITCH)t2 $(SWITCH)o virtual.t2x  $(OCCOPT)
+	$(DELETE) virtual.tmp
+
+virtual.tax:	virtual.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib \
+	  virthdr.inc 
+	$(PREPROCESSOR) virtual.occ $(PREOPT) $(SWITCH)o virtual.tmp
+	$(OCCAM) virtual.tmp $(SWITCH)ta $(SWITCH)o virtual.tax  $(OCCOPT)
+	$(DELETE) virtual.tmp
+
+virtual.t8x:	virtual.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib \
+	  virthdr.inc 
+	$(PREPROCESSOR) virtual.occ $(PREOPT) $(SWITCH)o virtual.tmp
+	$(OCCAM) virtual.tmp $(SWITCH)t8 $(SWITCH)o virtual.t8x  $(OCCOPT)
+	$(DELETE) virtual.tmp

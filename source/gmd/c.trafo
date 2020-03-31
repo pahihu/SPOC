@@ -1,0 +1,5710 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill, Denis Nicole and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : C generating TRAFO
+||@(#)   System : Occam 2 C
+||@(#) Filename : c.trafo
+||@(#)  Version : 1.90
+||@(#)     Date : 3/3/97
+\*@(#)====================================================*/
+/*}}}*/
+
+TRAFO Cout TREE occam
+
+/*{{{  PUBLIC*/
+PUBLIC
+  CodeSymRef
+  CShowSym
+  CountSpec CountRepDecls CountAltRepDecls
+  CodeMainEntryParameters IsASEntry
+  GenStatics
+  GenShowValue
+  OccCodeType
+  GenTypeDef
+  GenDeclStruct
+  GenCode
+  GenOccPrototypes
+  GenCPrototype
+  MapKinds
+  CalcParent CalcModule CalcHeader CalcUsage
+  IsAtomicProc IsParProc IsSTVFunction
+  IsAtomic IsLocal IsNonLocal IsPrototype
+  MarkRefParent
+  GenCGDebug
+/*}}}*/
+/*{{{  EXPORT*/
+EXPORT
+{
+  typedef enum { xxTerminateOnError, xxContinueOnError, xxStoppOnError } eErrorModes;
+  extern eErrorModes ErrorMode;
+  extern void OutputC(char *,tTree); 
+  extern void MarkCCodeUsage(tStringRef, tPosition, int);
+}
+/*}}}*/
+
+/*{{{  GLOBAL*/
+GLOBAL
+{
+/*{{{  includes*/
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include "Scanner.h"
+#include "Errors.h"
+#include "DynArray.h"
+#include "Symbol.h"
+#include "Transform.h"
+#include "Fopenenv.h"
+#include "TypeChk.h"
+/*}}}*/
+/*{{{  statics*/
+extern bool cgdebug;
+
+static bool NL = false;
+static tPosition POS= {0,0,NULL};
+static indent = 0;
+static line_count = 0;
+static char *outname;                  /* base name of generated file */
+static tTree CurProc;
+extern FILE* yyf;
+static void yyAbort(char *);
+extern void Code(tTree);
+
+static int CurrentLabel;
+
+static char M_MAIN[]="<<MAIN>>";             static int S_MAIN= sizeof(M_MAIN)-1; 
+static char M_HEADER[]="<<HEADER>>";         static int S_HEADER= sizeof(M_HEADER)-1; 
+static char M_CODE[]="<<CODE>>";             static int S_CODE= sizeof(M_CODE)-1;
+static char M_NAME[]="<<NAME>>";             static int S_NAME= sizeof(M_NAME)-1;
+static char M_PROTOTYPES[]="<<PROTOTYPES>>"; static int S_PROTOTYPES=sizeof(M_PROTOTYPES)-1;
+static char M_SWITCHES[]="<<SWITCHES>>";     static int S_SWITCHES= sizeof(M_SWITCHES)-1; 
+static char M_PARAMETERS[]="<<PARAMETERS>>"; static int S_PARAMETERS=sizeof(M_PARAMETERS)-1;
+static char M_DEBUG[]="<<DEBUG>>";           static int S_DEBUG=sizeof(M_DEBUG)-1;
+static char M_SERVERWS[]="<<SERVERWS>>";     static int S_SERVERWS=sizeof(M_SERVERWS)-1;
+
+static char PRM[] = "Param";  /* base name of parameters to library units */
+static char DIM[] = "_Dim";   /* hidden dimension extension */
+static char CHK[] = "CHK";    /* name of checking macro */
+static char RNGCHK[] = "RNGCHK";    /* name of checking macro */
+static char RNGCHKLB[] = "RNGCHKLB";    /* name of checking macro */
+static char RNGCHKUB[] = "RNGCHKUB";    /* name of checking macro */
+static char ASSIGN[] = "ASSIGN";    /* name of array copying macro */
+static char MSG_ASM[] = "MSG_ASM";
+static char MSG_ARM[] = "MSG_ARM";
+static char MSG_AIM[] = "MSG_AIM";
+static char MSG_CITL[] = "MSG_CITL";
+static char CHK_SWITCH[][20] = { "CHECK_CONVERSIONS","CHECK_INTERNALS","CHECK_ARRAYS","CHECK_RANGES" };
+static char ERR_MODES[][20] = { "TERMINATE_ON_ERROR","CONTINUE_ON_ERROR","STOPP_ON_ERROR" };
+
+static char M_SPOC_ISERVER[] = "spoc.iserver";
+static int  S_SPOC_ISERVER   = sizeof(M_SPOC_ISERVER)-1;
+
+eErrorModes ErrorMode = xxTerminateOnError;
+
+/*}}}*/
+/*{{{  static void ShowPosition()*/
+#define SetPosition(P) POS=P
+static void ShowPosition()  
+{  
+  if (IS_Mode(xxOccamLines))
+  {  
+    if (POS.File!=NULL)
+    {
+      if (IS_Mode(xxLinesAsComments))
+      {
+	fprintf(yyf,"/*line %4d \"",POS.Line);
+	WriteString(yyf,POS.File);
+	fprintf(yyf,"\"*/ ");
+      }
+      else
+      {
+	fprintf(yyf,"#line %4d \"",POS.Line);
+	WriteString(yyf,POS.File);
+	fprintf(yyf,"\"\n");
+      }  
+    }
+  }
+}
+/*}}}*/
+/*{{{  output control*/
+#undef yyWrite
+static output_text=true;
+/*{{{  static void DoNL()*/
+static void DoNL()
+{
+  if (NL==true) 
+  { 
+    int i; 
+    ShowPosition();
+    NL = false; 
+    for(i=0;i<indent;i++) fputc(' ',yyf);
+  }
+  output_text=true;
+}
+/*}}}*/
+static void Indent()     { if (!NL) fputc('\n',yyf); NL=true; indent+=2; line_count = 0;}
+static void Outdent()    { if (!NL) fputc('\n',yyf); NL=true; indent-=2; line_count = 0;}
+static void BigIndent()  { if (!NL) fputc('\n',yyf); NL=true; indent+=10; line_count = 0;}
+static void BigOutdent() { if (!NL) fputc('\n',yyf); NL=true; indent-=10; line_count = 0;}
+static void NewLine()    { if (!NL) fputc('\n',yyf); NL=true; line_count = 0;}
+static void BlankLine()  { NewLine(); fputc('\n',yyf); }
+static void ResetIndent() { NL=false; indent=0; }
+
+#define CONDWrite(b,s)   { if (b) yyWrite(s); }
+#define COND(b,s)        { if (b) s; }
+
+#define MAX_CONSTS_LINE (20)
+
+#define WriteInt(a)  {DoNL(); fprintf(yyf,"%d",(int)a);}
+
+#define WriteReal(a) {DoNL(); fprintf(yyf,"%.*e",a.RNumber.p,a.RNumber.n);} 
+#define WriteByte(a) {DoNL(); fprintf(yyf,"\'\\x%02x\'",(unsigned char)a);}
+#define WriteBool(a) {DoNL(); fputs((a)?"true":"false",yyf);}
+#define WriteStr(a)  {DoNL(); strlen(a); fputs(a,yyf);}
+#define WriteChar(a)  {DoNL(); fputc((char)a,yyf);}
+
+#define GenLabel()    WriteLabel(NewLabel())
+#define NewLabel()    (++CurrentLabel)
+#define WriteLabel(l) { /*Big*/Outdent(); DoNL(); fprintf(yyf,"CASE(%d):  ",(int)l); /*Big*/Indent(); }
+#define WriteLabelValue(l) WriteInt(l)
+
+#define yyWrite(a)   {DoNL(); fputs(a,yyf);}
+
+#define WriteId(s)    {DoNL(); WriteIdent(yyf,s);}  
+
+#define WarnNotImp(P,S)    ErrorMessageI(xxNotImplemented,xxWarning,P,xxString,S)
+#define WNYI(S,P)          MessageI("C transformation not implemented for ",xxError,P,xxString,Tree_NodeName[S->Kind])
+
+#define WriteOccSym(s) {DoNL(); WriteIdent(yyf,Symbol(s).Id);}
+
+
+/*{{{  void WriteSymSuffix(tSymbol s)*/
+void WriteSymSuffix(tSymbol s)
+{
+  if (Tree_IsType(SymbolKind(s),kPrototypeFunc))
+  {
+    tIdent Id=SymbolKind(s)->PrototypeFunc.Module;
+    if (Id!=NoIdent)
+    {
+      fputc('_',yyf);
+      WriteIdent(yyf,Id);
+    }
+  }
+  else if (Tree_IsType(SymbolKind(s),kPrototypeProc))
+  {
+    tIdent Id=SymbolKind(s)->PrototypeProc.Module;
+    if (Id!=NoIdent)
+    {
+      fputc('_',yyf);
+      WriteIdent(yyf,Id);
+    }
+  }
+  else if (Symbol(s).Depth==0)
+  {
+    fprintf(yyf,"_%s",outname);
+  }   
+  else
+    fprintf(yyf,"_%d",s);
+}
+/*}}}*/
+/*{{{  void WriteStrRef(tStringRef r)*/
+static void WriteStrRef(tStringRef r)
+{
+  #define IsPrintable(c) (((c)>=' ') && ((c)<='~'))
+  char *temp ;
+  int len = LengthSt(r) ;
+
+  DoNL();
+  if ((temp = (char*) malloc((len==0)?1:len)) == NULL)
+    yyAbort("Out of heap") ;
+  else
+    {
+      int i;
+      
+      StGetString (r,temp) ;
+
+      for (i=0;i<len;i++)
+      {
+	char c = temp[i] ;
+
+	if (c == '"')
+	  fprintf(yyf,"\\\"") ;
+	else if (c == '\\')
+	  fprintf(yyf,"\\\\") ;
+	else if (c == '\'')
+	  fprintf(yyf,"\\'") ;
+	else if (c == '\?')
+	  fprintf(yyf,"\\?") ;
+	else if (IsPrintable(c))
+	  fputc(c,yyf) ;
+	else if (c == 13)
+	  fprintf(yyf,"\\r") ;
+	else if (c == 10)
+	  fprintf(yyf,"\\n") ;
+	else if (c == '\t')
+	  fprintf(yyf,"\\t") ;
+	else
+	  fprintf(yyf,"\\x%02x",c) ;
+      }
+      free(temp) ;
+    }
+}
+/*}}}*/
+/*{{{  void WriteStaticSym(tSymbol sym)*/
+void WriteStaticSym(tSymbol sym)
+{
+  tStringRef r = GetStringRef (Symbol(sym).CId);
+  char *temp ;
+  int len = LengthSt(r) ;
+
+  DoNL() ;
+
+  if ((temp = (char*) malloc((len==0)?1:len)) == NULL)
+    yyAbort("Out of heap") ;
+  else
+    {
+      int i;
+      
+      StGetString (r,temp) ;
+
+      for (i=0;i<len;i++)
+      {
+	char c = temp[i] ;
+
+	if (c == '.')
+	  fprintf(yyf,"_") ;
+	else
+	  fputc(c,yyf) ;
+      }
+      free(temp) ;
+      WriteSymSuffix(sym);
+    }
+}
+/*}}}*/
+/*{{{  void WritetInt(tInt val,bool int64)*/
+void WritetInt(tInt val,bool int64)
+{
+  char str[24];
+  int len=0;
+  bool hex=(val > 1000000);
+
+#ifndef SUPPORT_INT64
+  int64 = false;
+#endif
+  if (!IS_Mode(xxSupportINT64)) int64=false;
+
+  /* need these to represent MOSTNEG INT correctly in C */
+  if (val==MOSTNEGINT32) { fprintf(yyf,"MOSTNEGINT32"); return; }
+  if (val==MOSTNEGINT64) { fprintf(yyf,"MOSTNEGINT64"); return; }
+
+  if (hex)
+  {
+    int digits = (int64) ? 16 : 8;
+    char hexdigits[] = "0123456789ABCDEF";
+
+    while(len < digits) { str[len++] = hexdigits[val & 15]; val = val >> 4; }
+    while(len>1 && str[len-1]=='0') --len;
+
+    fprintf(yyf,"0x");
+  }
+  else
+  {
+    bool neg=(val < 0);
+    tInt value= (neg)?-val:val;
+
+    while(len==0 || value > 0) { str[len++]='0'+(value % 10); value = value / 10; }
+    if (neg) fputc('-',yyf);
+  }
+
+  {
+    int i = 0;
+    int j=len-1;
+    char c;
+
+    while(i < j) { c = str[i]; str[i++] = str[j]; str[j--] = c; }
+  }
+  
+  str[len] = 0;
+  
+  fprintf(yyf,"%s",str);
+  if (int64 && len>8) fprintf(yyf,"LL");
+
+}
+  
+  
+/*}}}*/
+/*{{{  static void WriteSym(int s)*/
+static void WriteSym(int s)
+{
+  DoNL(); 
+  WriteIdent(yyf,Symbol(s).CId);
+  WriteSymSuffix(s);
+}
+/*}}}*/
+
+/*}}}*/
+/*{{{  access to back list in IfType*/
+#define BackIfType(I)     I->IfType.BackIfType
+#define BackChoiceList(I) I->IfType.BackChoiceList
+/*}}}*/
+/*{{{  Specification handling */
+#define TypeDepth(T) (T->Type.D)
+#define IsTopLevel(S) (Symbol(S).Depth==0)
+
+#define NeedsUnion(PL) (PL->ProcList.SLC > 1)
+#define NeedsStruct(P) (P->Process.SpecList->SpecList.DCL > 0)
+
+typedef struct
+{
+  tIdent Id;
+  tIdent PrefixId;
+  bool newSpec;
+} tSpec;
+
+static unsigned long SpecExtent = 0;
+static tSpec *SpecTable = NULL;
+static int SpecLevel;
+
+#define CurSpec() SpecTable[SpecLevel]
+
+/* OpenSSpec opens a structure scope if we are in a union and we
+   need a new level. The current scope is then a union only if
+   we were in a union before and we did not open a structure.  */
+
+#define OpenSSpec(S,b) (!OpenSpec((S) && (b),"struct") && (S))
+
+/* OpenUSpec opens a union scope if we are in a structure and we
+   need a new level. The current scope is then a union if we 
+   were in a union before or if we just opened a union.        */
+
+#define OpenUSpec(S,b) (OpenSpec(!(S) && (b),"union") || (S))
+
+void InitSpec()
+{
+  if (SpecExtent == 0)
+  {
+    SpecExtent = 20;
+    MakeArray((char**)&SpecTable,&SpecExtent,sizeof(tSpec));
+  }
+  SpecLevel = 0;
+
+  CurSpec().Id = NoIdent;
+  CurSpec().PrefixId = NoIdent;
+}
+
+bool OpenSpec(bool b,char *name)
+{
+  tIdent id = CurSpec().Id;
+  tIdent pfid = CurSpec().PrefixId;
+
+  if (b)
+  {
+    id = UniqueId(toupper(name[0]));
+
+    if (pfid)
+    {
+      pfid = PrefixId(pfid,id,'.');
+    }
+    else
+      pfid = id;
+
+    WriteStr(name); NewLine();
+    WriteStr("{"); NewLine();
+    Indent();
+    output_text=false;
+  }
+
+  if (SpecLevel>=SpecExtent) ExtendArray((char**)&SpecTable,&SpecExtent,sizeof(tSpec));
+
+  SpecLevel++;
+  CurSpec().PrefixId = pfid;
+  CurSpec().Id = id;
+  CurSpec().newSpec = b;
+  
+  return(b);
+}
+
+void CloseSpec()
+{
+  if (CurSpec().newSpec)
+  {
+    if (!output_text) { WriteStr("INT _P_dummy;"); NewLine(); }
+    Outdent();
+    WriteStr("} ");
+    WriteId(CurSpec().Id);
+    WriteStr(";"); NewLine();
+  }
+  SpecLevel--;
+}
+/*}}}*/
+/*{{{  Blocks*/
+static unsigned long BlockExtent = 0;
+static bool *BlockTable = NULL;
+static int BlockLevel;
+
+#define CurBlock BlockTable[BlockLevel]
+
+void InitBlocks()
+{
+  if (BlockExtent == 0)
+  {
+    BlockExtent = 20;
+    MakeArray((char**)&BlockTable,&BlockExtent,sizeof(bool));
+  }
+  BlockLevel = 0;
+  indent = 0;
+}
+
+#define DoBlock() { if (!CurBlock) { CurBlock = true; WriteStr("{"); Indent(); NewLine(); }} 
+
+void OpenBlock(bool b)
+{
+  if (BlockLevel>=BlockExtent) ExtendArray((char**)&BlockTable,&BlockExtent,sizeof(bool));
+
+  BlockLevel++;
+  CurBlock = b;
+}
+
+void CloseBlock()
+{
+  if (CurBlock)
+  {
+    Outdent();
+    WriteStr("}");
+    NewLine();
+  }
+  BlockLevel--;
+}
+/*}}}*/
+/*{{{  static int CalcDepth(tSymbol ThisSym)*/
+static int CalcDepth(tSymbol ThisSym)
+{
+  tSymbol S=CalcParent(SymbolKind(ThisSym));
+  int D=0;
+  if (S==NoSymbol) return 0;
+  while (Symbol(S).Depth>0)
+  {
+    if (Tree_IsType(SymbolKind(S),kDefProc)) 
+      S=SymbolKind(S)->DefProc.Parent;
+    else if (Tree_IsType(SymbolKind(S),kPrototypeProc)) 
+      S=SymbolKind(S)->PrototypeProc.Parent;
+    else if (Tree_IsType(SymbolKind(S),kDefAFunc)) 
+      S=SymbolKind(S)->DefAFunc.Parent;
+    else
+      Message("Parent is not PROC or FUNCTION",xxFatal,NoPosition);
+    D++;
+  }
+  if ( Tree_IsType(SymbolKind(ThisSym),kDefProc) ||
+       Tree_IsType(SymbolKind(ThisSym),kDefFunc) )
+    D++;
+  return D;
+}
+/*}}}*/
+/*{{{  static void DoSubstitutions(FILE *inf,char *filename, tTree Root)*/
+static void DoSubstitutions(FILE *inf,tTree Root)
+{  
+  DoNL();
+
+  while(!feof(inf))
+  {
+    char *bp, buff[128];
+    
+    bp = fgets(buff,128,inf);
+    if (bp == NULL) break;
+    while(*bp)
+    {
+      if (strncmp(bp,M_MAIN,S_MAIN)==0)
+	/*{{{  insert OuterProc name*/
+	{
+	  bp += S_MAIN;
+	  if (!IS_Mode(xxLibrary))
+	  {
+	    WriteSym(TreeRoot->Start.OuterProc);
+	  }
+	}
+	/*}}}*/
+      else if (strncmp(bp,M_PARAMETERS,S_PARAMETERS)==0)
+	/*{{{  insert parameters to outermost proc*/
+	{
+	  bp += S_PARAMETERS;
+	  if (!IS_Mode(xxLibrary))
+	  {
+	    Indent();
+	    CodeMainEntryParameters(SymbolKind(TreeRoot->Start.OuterProc));
+	    Outdent();
+	  }
+	}
+	/*}}}*/
+      else if (strncmp(bp,M_SWITCHES,S_SWITCHES)==0)
+	/*{{{  insert selected switches*/
+	{
+	  int i;
+	  
+	  bp += S_SWITCHES;
+	
+	  if (IS_Mode(xxLibrary)) { WriteStr("#define LIBRARY_UNIT"); NewLine(); }
+	  WriteStr("#define BYTES_PER_WORD 4"); NewLine();
+	
+	  if (!IS_Mode(xxSupportINT64)) { WriteStr("#define NO_INT64"); NewLine(); }
+	
+	  WriteStr("#define ");WriteStr(ERR_MODES[ErrorMode]);NewLine();
+	
+	  for (i=xxCheckConversions;i<=xxCheckRanges;i++)
+	    if (IS_Mode(i)) { WriteStr("#define ");WriteStr(CHK_SWITCH[i-xxCheckConversions]); NewLine(); }
+	
+	  if (!IS_Mode(xxOccamDebug)) { WriteStr("#define NO_DEBUG"); NewLine(); }
+	  WriteStr("#define FASTGOTOS"); NewLine();
+	  if (IS_Mode(xxSimulatedServer) && !IS_Mode(xxLibrary)) 
+	    if (IsASEntry(SymbolKind(TreeRoot->Start.OuterProc)))
+	      { WriteStr("#define USE_SPOC_ASERVER"); NewLine(); }
+	    else
+	      { WriteStr("#define USE_SPOC_ISERVER"); NewLine(); }    
+	  if (IS_Mode(xxLittleEndian)) 
+	    { WriteStr("#define SOURCE LITTLE"); NewLine(); }
+	  else 
+	    { WriteStr("#define SOURCE BIG"); NewLine(); }
+	  if (IS_Mode(xxCallF90)) { WriteStr("#define CALL_NAG_F90"); NewLine(); }
+	}
+	/*}}}*/
+      else if (strncmp(bp,M_NAME,S_NAME)==0)
+	/*{{{  insert name*/
+	{
+	  bp += S_NAME;
+	  WriteStr(outname);
+	}
+	/*}}}*/
+      else if (strncmp(bp,M_HEADER,S_HEADER) == 0)
+	/*{{{  insert structure declarations*/
+	{
+	  tTree T;
+	
+	  bp += S_HEADER;
+	  
+	  T = Root->Start.CGNext;
+	  while(T != NoTree)
+	    T = GenTypeDef(T);
+	
+	  T = Root->Start.CGNext;
+	  while(T != NoTree)
+	  {
+	    InitSpec();
+	    T = GenDeclStruct(T);
+	  }
+	  GenStatics(Root);
+	}        
+	
+	/*}}}*/
+      else if (strncmp(bp,M_CODE,S_CODE) == 0)
+	/*{{{  insert generated code*/
+	{
+	  tTree T;
+	
+	  bp += S_CODE;
+	  
+	  T = Root->Start.CGNext;
+	  while(T != NoTree)
+	    T = GenCode(T);
+	}
+	/*}}}*/
+      else if (strncmp(bp,M_PROTOTYPES,S_PROTOTYPES)==0)
+	/*{{{  insert prototypes*/
+	{ 
+	  tTree T;
+		
+	  bp += S_PROTOTYPES;
+	  if (IS_Mode(xxLibrary))
+	  {
+	    Indent();
+	    T = Root->Start.CGNext;
+	    while(T != NoTree)
+	    {
+	      T = GenCPrototype(T);
+	    }
+	  }
+	  Outdent();
+	}
+	/*}}}*/
+      else if (strncmp(bp,M_DEBUG,S_DEBUG)==0)
+	/*{{{  insert debug*/
+	{
+	  tSymbol S;
+	  bp+= S_DEBUG;
+	
+	  if (IS_Mode(xxOccamDebug))
+	  {
+	    WriteStr("#ifndef NO_DEBUG");NewLine();
+	    WriteStr("#undef SETSCOPE");NewLine();
+	    WriteStr("#define NUMSYMS ");WriteInt(OccSymSize);NewLine();
+	    /*{{{  generate Symbols table*/
+	    WriteStr("static char *Symbols[NUMSYMS]={\"");
+	    for (S=1;S<=OccSymSize;S++) 
+	    {
+	      WriteOccSym(S);
+	      if (S==OccSymSize) 
+		WriteStr("\"};")
+	      else
+		WriteStr("\",\"");
+	    } NewLine();
+	    /*}}}*/
+	    /*{{{  generate Kinds table*/
+	    WriteStr("static int Kinds[NUMSYMS]={");
+	    for (S=1;S<=OccSymSize;S++) 
+	    {
+	     
+	      WriteInt(MapKinds(SymbolKind(S),SymbolType(S),S));
+	      if (S==OccSymSize) 
+		WriteStr("};")
+	      else
+		WriteStr(",");
+	    } NewLine();
+	    /*}}}*/
+	    /*{{{  generate Scopes table*/
+	    WriteStr("static int Scopes[NUMSYMS]={");
+	    for (S=1;S<=OccSymSize;S++) 
+	    {
+	      WriteInt(Symbol(S).Scope-1);
+	      if (S==OccSymSize) 
+		WriteStr("};")
+	      else
+		WriteStr(",");
+	    } NewLine();
+	    /*}}}*/
+	    /*{{{  generate Depths table*/
+	    WriteStr("static int Depths[NUMSYMS]={");
+	    for (S=1;S<=OccSymSize;S++) 
+	    {
+	      WriteInt(CalcDepth(S));
+	      if (S==OccSymSize) 
+		WriteStr("};")
+	      else
+		WriteStr(",");
+	    } NewLine();
+	    /*}}}*/
+	    /*{{{  generate Types table*/
+	    WriteStr("static char *Types[NUMSYMS]={\"");
+	    for (S=1;S<=OccSymSize;S++) 
+	    {
+	      OccCodeType(SymbolType(S));
+	      if (S==OccSymSize) 
+		WriteStr("\"};")
+	      else
+		WriteStr("\",\"");
+	    } NewLine();
+	    /*}}}*/
+	    WriteStr("#include \"Debug.h\"");NewLine();
+	    /*{{{  ShowValue function*/
+	    WriteStr("static void *ShowValue(void *FP, int S)"); NewLine();
+	    WriteStr("{ switch(S)");Indent();
+	    WriteStr("{"); Indent();
+	    for (S=1;S<=OccSymSize;S++) 
+	    {
+	      WriteStr("case "); WriteInt(S-1); WriteStr(": "); 
+	      if (MapKinds(SymbolKind(S),SymbolType(S),S)>0 && Symbol(S).Id!=NoIdent) GenShowValue(SymbolKind(S),SymbolType(S),S);
+	      WriteStr(" break;");
+	      NewLine();
+	    } 
+	    Outdent(); WriteStr("}");
+	    Outdent(); WriteStr("}"); NewLine();  
+	    /*}}}*/
+	    /*{{{  DEBUGOCCAM function*/
+	    WriteStr("static void DEBUGOCCAM()");NewLine();
+	    WriteStr("{");Indent();
+	    WriteStr("Show(MODE,CFP);");NewLine();
+	    WriteStr("DEBUGDONE();");Outdent();
+	    WriteStr("}");NewLine();
+	    /*}}}*/
+	    WriteStr("#endif");NewLine();
+	  }
+	}
+	/*}}}*/
+      else
+	do fputc(*bp++,yyf); while(*bp && *bp!='<');
+    }
+  }
+  
+  if (ferror(inf)||fclose(inf))
+    Message("Error reading template file",xxFatal,NoPosition);
+}
+
+DoGenCodeOnly(tTree Root)
+{
+  tTree T;
+
+  InitSpec();
+  T = Root->Start.CGNext;
+  while(T != NoTree)
+    T = GenCode(T);
+}
+
+/*}}}*/
+/*{{{  static FILE *OpenTemplate(char *name)*/
+static FILE *OpenTemplate(char *name)
+{
+  return(fopenenv(name,"r",OSEARCH,ODEFAULT_LIB,NULL));
+}
+/*}}}*/
+/*{{{  void OutputC(f,t,createc)*/
+void OutputC(char *name,tTree Root)
+{
+  FILE *savef = yyf;
+  FILE *inf;
+  char *template="Occam2C.c";
+
+  inf = OpenTemplate(template);
+  if (inf == NULL) MessageI("Cannot open file ",xxFatal,NoPosition,xxString,template);
+  
+  yyf = stdout;
+  if (strcmp(name,"-") != 0)
+  {
+    char *dot = strrchr(name,'.');
+    char *slash = strrchr(name,'/');
+
+    if (slash == NULL) slash = strrchr(name,'\\');
+
+    if ((yyf=fopen(name,"w"))==NULL) MessageI("Cannot open file ",xxFatal,NoPosition,xxString,name);
+    if (dot != NULL) *dot=0;
+    if (slash == NULL) outname = name;
+    else outname = ++slash;
+  }
+  else
+    outname = "";
+
+  if (!IS_Mode(xxLibrary))
+  {
+    if (Tree_IsType(Symbol(Root->Start.OuterProc).Kind,kDefProc))
+      Symbol(Root->Start.OuterProc).Kind->DefProc.isPar = true;
+    else
+      Message("Outermost subroutine must be a PROC",xxFatal,Symbol(Root->Start.OuterProc).Kind->DefProc.Pos);
+  }
+  ResetIndent();
+  if (cgdebug)  DoGenCodeOnly(Root);
+  else DoSubstitutions(inf,Root);
+  if(ferror(yyf))
+    Message("Error writing output file",xxFatal, NoPosition);
+  if (yyf != stdout) 
+    if(fclose(yyf))
+      Message("Error writing output file",xxFatal, NoPosition);
+  if (IS_Mode(xxLibrary))
+  {
+    tTree T;
+    char *tname = (char *)malloc(strlen(outname)+10);
+
+    if (!tname) Message("Out of Heap",xxFatal,NoPosition);
+    strcpy(tname,outname); strcat(tname,".t");
+    if ((yyf=fopen(tname,"w"))==NULL) MessageI("Cannot open file ",xxFatal,NoPosition,xxString,tname);
+
+    SetPosition(NoPosition);
+    ResetIndent();
+    T = Root->Start.CGNext;
+    while(T != NoTree)
+    {
+      T = GenOccPrototypes(T);
+    }
+
+    if(ferror(yyf)||fclose(yyf))  
+      Message("Error writing output file",xxFatal, NoPosition);  
+
+  }
+  /*{{{  if (cgdebug)*/
+  if (cgdebug)
+  {
+    tTree T;
+	  
+    yyf = stdout;
+  
+    T = Root->Start.CGNext;
+    fprintf(yyf,"\nCodeGenerator Debug\n");
+  
+    while(T != NoTree)
+    {
+      T = GenCGDebug(T);
+    }
+  }
+  /*}}}*/
+  yyf = savef;
+}
+/*}}}*/
+/*{{{  void WriteCCode(tStringRef S, tPosition P, int scope)*/
+void WriteCCode(tStringRef S, tPosition P, int scope)
+{
+  int l = LengthSt(S);
+  int i=0;
+  char *str = (char*) malloc((l==0)?1:l);
+  StGetString(S,str);
+  while (i<l)
+  {
+    if (str[i]=='$')
+    {
+      tSymbol Sym;
+      int start = ++i;
+      while (isalnum(str[i])||(str[i]=='.')) i++;
+      Sym = LookupSymbolInScope(MakeIdent(&str[start],i-start),P,scope);
+      AddVUsage(Sym,xxLRead);
+      CShowSym(Symbol(Sym).Kind, Sym);
+    }
+    else 
+      WriteChar(str[i++]);
+  }
+  free(str);
+}
+/*}}}*/
+/*{{{  void MarkCCodeUsage(tStringRef S, tPosition P, int scope)*/
+void MarkCCodeUsage(tStringRef S, tPosition P, int scope)
+{
+  int l = LengthSt(S);
+  int i=0;
+  char *str = (char*) malloc((l==0)?1:l);
+  StGetString(S,str);
+  while (i<l)
+  {
+    if (str[i]=='$')
+    {
+      tSymbol Sym;
+      int start = ++i;
+      while (isalnum(str[i])||(str[i]=='.')) i++;
+      Sym = LookupSymbolInScope(MakeIdent(&str[start],i-start),P,scope);
+      AddVUsage(Sym,xxLRead);
+    }
+    else ++i;
+  }
+  free(str);
+}
+/*}}}*/
+/*{{{  Priority Defs.*/
+#define HIPRI 0
+#define LOPRI 1
+/*}}}*/
+/*{{{  static bool IsDuplicatedPrototype(tSymbol ThisSym)*/
+static bool IsDuplicatedPrototype(tSymbol ThisSym)
+{
+  tSymbol S=1;
+  tIdent M=CalcModule(SymbolKind(ThisSym));
+  while (S<=ThisSym)
+  {
+    if ((M!=NoIdent) && (SymbolKind(S)!=NULL) && 
+	(Symbol(S).Id==Symbol(ThisSym).Id) && 
+	(CalcModule(SymbolKind(S))==M) &&
+	(CalcUsage(SymbolKind(S))==xxUsed))
+      break;
+    S++;
+  }
+  return (S!=ThisSym);
+}
+
+/*}}}*/
+/*{{{  static bool IsDuplicatedHeader(tSymbol ThisSym)*/
+static bool IsDuplicatedHeader(tSymbol ThisSym)
+{
+  tSymbol S=1;
+  tStringRef H=CalcHeader(SymbolKind(ThisSym));
+  while (S<=ThisSym)
+  {
+    if ((SymbolKind(S)!=NULL) && IsPrototype(SymbolKind(S)) &&
+	(CalcHeader(SymbolKind(S))==H) &&
+	(CalcUsage(SymbolKind(S))==xxUsed))
+      break;
+    S++;
+  }
+  return (S!=ThisSym);
+}
+
+/*}}}*/
+/*{{{  static void WriteModuleHeaderName(tStringRef St)*/
+static void WriteModuleHeaderName(tStringRef St)
+{
+  int len = LengthSt(St);
+  char *temp = (char*) malloc(len+4);
+
+  if (temp==NULL)
+      Message("Out of heap",xxFatal,NoPosition) ;
+  else
+  {
+    int i = len-1;
+    StGetString (St,temp);
+    
+    while(i>1 && temp[i]!='.') --i;
+    if (i) temp[i] = 0;
+    strcat(temp,".hdr");
+
+    WriteStr(temp);
+  }
+}
+/*}}}*/
+}
+/*}}}*/
+
+/*{{{  Phase 1 : output typedefs for each generated routine*/
+/*{{{  FUNCTION  GenTypeDef(T:Tree) Tree*/
+FUNCTION  GenTypeDef(T:Tree) Tree
+
+  Start(..)         RETURN NoTree ?.
+
+  D:DefProc(_,S,..)   RETURN T->DefProc.CGNext   ?
+    "typedef struct SF_"; WriteSym(S);" tSF_"; WriteSym(S); ";"; NewLine();
+    (TreeRoot->Start.OuterProc != S);
+    .
+
+  D:DefProc(_,S,..)   RETURN T->DefProc.CGNext   ?
+    GenProcHead(D); ";"; NewLine();
+    .
+
+  D:DefFunc(_,S,..)   RETURN T->DefFunc.CGNext   ?
+    "typedef struct SF_"; WriteSym(S); " tSF_"; WriteSym(S); ";"; NewLine();
+    (TreeRoot->Start.OuterProc != S);
+    .
+
+  D:DefFunc(_,S,..)   RETURN T->DefFunc.CGNext   ?
+    GenFuncHead(D); ";"; NewLine();
+    .
+
+  PrototypeProc(_,S,..) RETURN T->PrototypeProc.CGNext ? (IsDuplicatedPrototype(S) || CalcUsage(T)!=xxUsed);.
+
+  PrototypeProc(P,S,..) RETURN T->PrototypeProc.CGNext ? (!IsDuplicatedHeader(S));
+    "#include \""; WriteModuleHeaderName(P.File); "\""; NewLine();
+    (false);
+    .
+
+  DP:PrototypeProc(_,S,F,..) RETURN T->PrototypeProc.CGNext ? (T->DefAProc.U==xxUsed); (!IsAtomicProc(DP));
+    "struct SF_";WriteSym(S);NewLine();
+    "{";Indent(); 
+    "tHeader _Header;"; NewLine(); 
+    "void *Chain;"; NewLine();
+    GenProtoFormals(F,0);NewLine();
+    GenWS(S);Outdent();
+    "};";NewLine();
+    .
+
+  PrototypeProc(..) RETURN T->PrototypeProc.CGNext ?.
+
+  PrototypeFunc(_,S,..) RETURN T->PrototypeFunc.CGNext ? (IsDuplicatedPrototype(S) || CalcUsage(T)!=xxUsed);.
+
+  PrototypeFunc(P,S,..) RETURN T->PrototypeFunc.CGNext ? (!IsDuplicatedHeader(S));
+    "#include \""; WriteModuleHeaderName(P.File); "\""; NewLine();
+    .
+
+  PrototypeFunc(..) RETURN T->PrototypeFunc.CGNext ? .
+
+  HCode(..) RETURN T->HCode.CGNext ? .
+
+PROCEDURE GenWS(tSymbol)
+  {0} ? .
+  S ? "char WS[WS_";WriteSym(S);"];";NewLine();.
+/*}}}*/
+/*{{{  PROCEDURE GenProtoFormals(Formals,int)*/
+PROCEDURE GenProtoFormals(Formals,int)
+  NoFormal() , _ ?.
+  AFormal(NF,_,_,T,S), N ? (IsTimerType(T)); GenProtoFormals(NF,N+1);.
+  AFormal(NF,_,_,T:Array,S), N ? GenProtoArrayFormal(T,N); GenProtoFormals(NF,N+1);.
+  AFormal(NF,_,_,T:UserStructTypes,S), N ? GenProtoArrayFormal(T,N); GenProtoFormals(NF,N+1);.
+  AFormal(NF,_,ByVal(),T,S), N ? CCodeType(T); " "; WriteStr(PRM);WriteInt(N); ";"; NewLine(); GenProtoFormals(NF,N+1);.
+  AFormal(NF,_,ByRef(),T,S), N ? CCodeType(T); " *"; WriteStr(PRM);WriteInt(N); ";"; NewLine(); GenProtoFormals(NF,N+1);.
+/*}}}*/
+/*{{{  PROCEDURE GenProtoArrayFormal(Type,int) */
+PROCEDURE GenProtoArrayFormal(Type,int) 
+  TT:Array(UnBound(_),T) , N ? GenProtoArrayFormal(T,N); "INT ";WriteStr(PRM);WriteInt(N);WriteStr(DIM);WriteInt(TypeDepth(TT));";";NewLine();.  
+  Array(_,T) , N ? GenProtoArrayFormal(T,N); .
+  T,N ? (IsChanType(T)); CCodeType(T); " **"; WriteStr(PRM);WriteInt(N); ";"; NewLine(); .
+  T,N ? CCodeType(T); " *"; WriteStr(PRM);WriteInt(N); ";"; NewLine(); .
+/*}}}*/
+/*}}}*/
+
+/*{{{  Phase 2 : output data structures for each generated routine*/
+/*{{{  FUNCTION  GenDeclStruct(T:Tree) Tree*/
+FUNCTION  GenDeclStruct(T:Tree) Tree
+  Start(..)         RETURN NoTree; ?.
+
+  DP:DefProc(_,S,F,P) RETURN T->DefProc.CGNext; ?
+    "struct SF_"; WriteSym(S); NewLine();
+    "{"; NewLine(); Indent();
+    "tHeader _Header;"; NewLine();
+    GenParentRef(T,S); " *Chain;"; NewLine();
+    GenDeclFormals(F,IsAtomicProc(DP) && !IsParProc(DP));
+    GenDeclProc(P,false);
+    Outdent(); "};"; NewLine(); 
+    .
+
+  DefFunc(_,S,TL,F,Valof(_,SL,P,E)) RETURN T->DefFunc.CGNext; ?
+    "struct SF_"; WriteSym(S); NewLine();
+    "{"; NewLine(); Indent();
+    "tHeader _Header;"; NewLine();
+    GenParentRef(T,S); " *Chain;"; NewLine();
+    GenDeclFormals(F,true);
+    GenDeclSpecs(SL);
+    GenDeclProc(P,false);
+    Outdent(); "};"; NewLine(); 
+    .
+
+  D:DefAFunc RETURN D->DefAFunc.CGNext ?.
+  D:DefAProc RETURN D->DefAProc.CGNext ?.
+  D:HCode(P,C) RETURN D->HCode.CGNext ?.
+  
+PROCEDURE GenParentRef(Tree,tSymbol)
+  T:DefProc,S ? (!IsTopLevel(S)); "tSF_"; WriteSym(T->DefProc.Parent);.
+  T:DefFunc,S ? (!IsTopLevel(S)); "tSF_"; WriteSym(T->DefFunc.Parent);.
+  _,_ ? "void";.
+
+/*}}}*/
+/*{{{  PROCEDURE GenDeclFormals(Formals,bool)*/
+PROCEDURE GenDeclFormals(Formals,bool)
+  NoFormal(),_ ?.
+
+  AFormal(NF,_,_,T,S),B ? (IsTimerType(T));
+    GenDeclFormals(NF,B);
+    .
+
+  AFormal(NF,_,_,_,S),B ? (IsLocal(S) && B);
+    GenDeclFormals(NF,B);
+    .
+
+  AFormal(NF,_,_,T:UserStructTypes,S),B ?
+    GenDeclArrayFormal(T,S,true);
+    GenDeclFormals(NF,B);
+    .
+
+  AFormal(NF,_,_,T:Array,S),B ?
+    GenDeclArrayFormal(T,S,true);
+    GenDeclFormals(NF,B);
+    .
+
+  AFormal(NF,_,ByVal(),T,S),B ? 
+   CCodeType(T); " "; WriteSym(S); ";"; NewLine();
+   GenDeclFormals(NF,B);
+   .
+
+  AFormal(NF,_,ByRef(),T,S),B ?
+    CCodeType(T); " *"; WriteSym(S); ";"; NewLine();
+    GenDeclFormals(NF,B);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenDeclArrayFormal(Type, tSymbol,bool)*/
+PROCEDURE GenDeclArrayFormal(Type, tSymbol,bool)
+
+  TT:Array(UnBound(_),T), S, {true} ? 
+    GenDeclArrayFormal(T,S,true); "INT ";WriteSym(S);WriteStr(DIM);WriteInt(TypeDepth(TT));";";NewLine();.
+
+  TT:Array(UnBound(_),T), S, _ ? 
+    GenDeclArrayFormal(T,S,false); .
+
+  Array(_,T), S, BL ? 
+    GenDeclArrayFormal(T,S,BL);.
+
+  T,S,BL ? (IsChanType(T));
+    CCodeType(T); " **"; WriteSym(S); ";"; NewLine();.
+
+  T,S,BL ? 
+    CCodeType(T); " *"; WriteSym(S); ";"; NewLine();.
+/*}}}*/
+
+/*{{{  PROCEDURE GenDeclProc(P:Process,bool)*/
+PROCEDURE GenDeclProc(P:Process,bool)
+
+  /* bool : Set if within the scope of a union */
+
+  /*{{{  alts and case inputs*/
+  A:Alt(_,SL,PRI,AL),S ? 
+    S := OpenSSpec(S,NeedsSpecs(SL)); 
+    GenDeclSpecs(SL);
+    GenDeclAltTypeOuter(A,S);
+    S := OpenUSpec(S,NeedsSplit(AL));
+    GenDeclList(AL,S); 
+    CloseSpec();
+    CloseSpec(); .
+  
+  A:AltRep(_,SL,PRI,Rep,AL),S	? 
+    S := OpenSSpec(S,NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclAltTypeOuter(A,S);
+    GenDeclList(AL,S); 
+    CloseSpec(); .
+  
+  CaseIn(_,SL,Ele,CL),S ?
+    S := OpenSSpec(S,NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    S := OpenUSpec(S,NeedsSplit(CL));
+    GenDeclList(CL,S); 
+    CloseSpec();
+    CloseSpec(); .
+  /*}}}*/
+
+  /*{{{  seqs and pars*/
+  Seq(_,SL,PL),S ? 
+    S := OpenSSpec(S,NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    S := OpenUSpec(S,NeedsSplit(PL)); 
+    GenDeclList(PL,S); 
+    CloseSpec(); 
+    CloseSpec(); .
+  
+  SeqRep(_,SL,Rep,Proc),S ? 
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenNLRepState(Rep); 
+    GenDeclProc(Proc,S);
+    CloseSpec(); .
+  
+  Par(_,SL,PRI,PL),S ? 
+    S := OpenSSpec(S, (NeedsSpecs(SL) || NeedsSplit(PL))); 
+    GenDeclSpecs(SL); 
+    GenDeclList(PL,S); 
+    CloseSpec(); .
+  
+  ParRep(_,SL,PRI,Rep,Proc),S ? 
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenNLRepState(Rep); 
+    GenDeclProc(Proc,S);
+    CloseSpec(); .
+  
+  Processor(_,SL,EX,ID,Proc),S ?
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclProc(Proc,S);
+    CloseSpec();
+    .
+    
+  /*}}}*/
+
+  /*{{{  control flow*/
+  If(_,SL,CL),S	? 
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    S := OpenUSpec(S, NeedsSplit(CL)); 
+    GenDeclList(CL,S); 
+    CloseSpec(); 
+    CloseSpec(); .
+  
+  IfRep(_,SL,Rep,CL),S ? 
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenNLRepState(Rep); 
+    GenDeclList(CL,S); 
+    CloseSpec(); .
+  
+  Case(_,SL,Sel,CL),S ? 
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    S := OpenUSpec(S, NeedsSplit(CL)); 
+    GenDeclList(CL,S); 
+    CloseSpec(); 
+    CloseSpec(); .
+  
+  While(_,SL,Expr,Proc),S ? 
+    S := OpenSSpec(S, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclProc(Proc,S);
+    CloseSpec(); .
+  /*}}}*/
+
+  /*{{{  instances and indivisible processes*/
+  /* The following two OpenSSpec calls contain a special-case optimization 
+     that prevents an extra level of structures. It works since it is none
+     that there are no deeper SpecLists in the tree. The general-case
+     optimization is to change all NeedsSpecs expressions to:
+  
+     (SL->SpecList.DCL > 1) || (SL->SpecList.DCL == 1 && P->Process.DCL > 0)
+  
+     but this currently seems a bit over the top. */
+  
+  I:Instance(_,SL,Sym,EL),S ? 
+    S := OpenSSpec(S, SL->SpecList.DCL > 1);
+    GenDeclSpecs(SL); 
+    CloseSpec(); .
+  
+  
+  /* Assign, Input, Output, After, Skip, Stop : */
+  
+  Process(_,SL),S ? 
+    S := OpenSSpec(S, SL->SpecList.DCL > 1); 
+    GenDeclSpecs(SL); 
+    CloseSpec(); . 
+  /*}}}*/
+/*}}}*/
+/*{{{  PROCEDURE GenDeclList(T:Tree,bool)*/
+PROCEDURE GenDeclList(T:Tree,bool)
+
+  /* bool : Set if within the scope of a union */
+
+  LOCAL { bool S2; }
+
+  /*{{{  process lists*/
+  NoProcess(),_ ? .
+  
+  AProcess(N,P),S1 ? 
+    GenDeclProc(P,S1); 
+    GenDeclList(N,S1); .
+  /*}}}*/
+
+  /*{{{  alt lists*/
+  NoAlt(),_ ? .
+  
+  AnAlt(SL,N,G),S1 ? 
+    S2 := OpenSSpec(S1, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclGuard(G,S2); 
+    CloseSpec();
+    GenDeclList(N,S1); .
+  
+  ANewAlt(SL,N,A),S1 ? 
+    S2 := OpenSSpec(S1, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclProc(A,S2); 
+    CloseSpec();
+    GenDeclList(N,S1); .
+  /*}}}*/
+
+  /*{{{  conditional lists*/
+  NoChoice(),_ ? .
+  
+  AChoice(SL,N,EL,P),S1 ? 
+    S2 := OpenSSpec(S1, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclProc(P,S2); 
+    CloseSpec();
+    GenDeclList(N,S1); .
+  
+  ANewIf(SL,N,I),S1 ? 
+    S2 := OpenSSpec(S1, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclProc(I,S2); 
+    CloseSpec();
+    GenDeclList(N,S1); .
+  /*}}}*/
+
+  /*{{{  case input lists*/
+  NoCase(),_ ? .
+  
+  ACase(N,SL,EL,P),S1 ? 
+    S2 := OpenSSpec(S1, NeedsSpecs(SL)); 
+    GenDeclSpecs(SL); 
+    GenDeclProc(P,S2); 
+    CloseSpec();
+    GenDeclList(N,S1); .
+  /*}}}*/
+/*}}}*/
+/*{{{  PROCEDURE GenDeclGuard(Guard,bool)*/
+PROCEDURE GenDeclGuard(Guard,bool)
+
+  /* bool : Set if within the scope of a union */
+
+  AltInput(_,Expr,I:Input(_,SL,_,_),Proc),S ? 
+    S := OpenSSpec(S, (NeedsSpecs(SL) || NeedsSplit(Proc)));
+    GenDeclProc(I,S);
+    GenDeclProc(Proc,S);
+    CloseSpec(); .
+
+  AltTimer(_,Expr,A:After(_,SL,_,_),Proc),S ? 
+    S := OpenSSpec(S, (NeedsSpecs(SL) || NeedsSplit(Proc)));
+    GenDeclProc(A,S);
+    GenDeclProc(Proc,S);
+    CloseSpec();.
+
+  AltCaseIn(_,Expr,CaseIn),S ? 
+    GenDeclProc(CaseIn,S) ; .
+
+  NoInput(_,Expr,Proc),S ? 
+    GenDeclProc(Proc,S); .
+/*}}}*/
+
+/*{{{  PROCEDURE GenDeclAltTypeOuter (AltType,bool)*/
+PROCEDURE GenDeclAltTypeOuter (AltType,bool)
+
+  /* bool : Set if within the scope of a union */
+
+  A:AltType(..),S1 ? (A->AltType.TLA);
+    OpenSSpec(S1, (A->AltType.ARC > 0));
+    GenDeclAltTypeInner(A);
+    CloseSpec(); .
+  A:AltType(..),S1 ? .
+/*}}}*/
+/*{{{  PROCEDURE GenDeclAltTypeInner (AltType)*/
+PROCEDURE GenDeclAltTypeInner (AltType)
+
+  Alt(_,_,_,AL) ? GenDeclAltList(AL); .
+
+  AltRep(_,_,_,R,AL) ? GenDeclAltRep(R); GenDeclAltList(AL); .
+/*}}}*/
+/*{{{  PROCEDURE GenDeclAltList (AltList)*/
+PROCEDURE GenDeclAltList (AltList)
+
+  NoAlt() ? .
+
+  AnAlt(_,N,_) ? GenDeclAltList(N) ; .
+  
+  ANewAlt(_,N,A) ? GenDeclAltTypeInner(A); GenDeclAltList(N); .
+/*}}}*/
+/*{{{  PROCEDURE GenDeclAltRep (Replicator)*/
+PROCEDURE GenDeclAltRep (Replicator)
+
+  /* Replicated ALTs require an extra variable to retain index */
+
+  R:Replicator(S,..) ?
+    "INT "; WriteSym(S); "_Alt;"; NewLine();
+     GenNLRepState(R); .
+/*}}}*/
+
+/*{{{  PROCEDURE GenNLRepState(Replicator)*/
+PROCEDURE GenNLRepState(Replicator)
+  Replicator(S,FROM,FOR) ? (!IsLocal(S)); (IsConstInt(FROM)); (IsConstInt(FOR));
+    "INT "; WriteSym(S); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+    .
+
+  Replicator(S,FROM,FOR) ? (!IsLocal(S));
+    "INT "; WriteSym(S); ";"; NewLine();
+    "INT "; WriteSym(S); "_End;"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+    .
+    
+  Replicator(..) ? .
+/*}}}*/
+/*{{{  PROCEDURE GenDeclSpecs(SpecList)*/
+PROCEDURE GenDeclSpecs(SpecList)
+  NoSpec() ?.
+  ASpec(S,N) ? GenDeclNLSpec(S); GenDeclSpecs(N);.
+
+/*}}}*/
+/*{{{  PROCEDURE GenDeclNLSpec(Spec)*/
+PROCEDURE GenDeclNLSpec(Spec)
+
+  Decl (_, Type, IdList) ? GenDeclNLIdList(Type,IdList); .
+
+  /*{{{  local state?*/
+  Val(_,_,S,..) ? (IsLocal(S));.
+  ValRetypes(_,_,S,..) ? (IsLocal(S));.
+  Retypes(_,_,S,..) ? (IsLocal(S));.
+  Is(_,_,S,..) ? (IsLocal(S));.
+  /*}}}*/
+
+  CallFrame(_, Id,S) ? (IsAtomicProc(SymbolKind(S))); .
+  CallFrame(_, Id,S) ?
+    "tSF_"; WriteSym(S); " "; WriteId(Id); ";"; NewLine(); Id := PrefixId(CurSpec().PrefixId,Id,'.'); 
+    .
+
+  ParFrame(_,TId,FId,S,Rep) ? (Rep>0);
+    "tTask "; WriteId(TId); "["; WriteInt(Rep); "]"; ";"; NewLine();
+    "tSF_"; WriteSym(S); " "; WriteId(FId); "["; WriteInt(Rep); "]"; ";"; NewLine();
+    TId := PrefixId(CurSpec().PrefixId,TId,'.');
+    FId := PrefixId(CurSpec().PrefixId,FId,'.');
+    .
+
+  ParFrame(_,TId,FId,S,Rep) ? 
+    "tTask "; WriteId(TId); ";"; NewLine();
+    "tSF_"; WriteSym(S); " "; WriteId(FId); ";"; NewLine();
+    TId := PrefixId(CurSpec().PrefixId,TId,'.');
+    FId := PrefixId(CurSpec().PrefixId,FId,'.');
+    .
+
+  DefAProc(..) ? ; .
+  DefAFunc(..) ? ; .
+  DefAPro(..) ? ; .
+  NullSpec(..) ? ; .
+
+  S ? GenSpecState(S); .
+
+/*}}}*/
+/*{{{  PROCEDURE GenDeclSym(Type,tSymbol,bool)*/
+PROCEDURE GenDeclSym(Type,tSymbol,bool)
+
+  T,S,_ ? (IsTimerType(T));
+    .
+
+  T,S,{false} ? (IsChanType(SymbolType(S)));
+    CCodeType(SymbolType(S)); " "; WriteSym(S); "_CHAN"; CCodeTypeId(SymbolType(S)); ";"; NewLine();
+    CCodeType(SymbolType(S)); " *"; WriteSym(S); CCodeTypeId(SymbolType(S)); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+  .
+
+  T,S,{false} ?
+    CCodeType(SymbolType(S)); " "; WriteSym(S); CCodeTypeId(SymbolType(S)); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+  .
+
+  T,S,_ ?
+    CCodeType(SymbolType(S)); " *"; WriteSym(S); CCodeTypeId(SymbolType(S)); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenDeclArraySym(Type, tSymbol)*/
+PROCEDURE GenDeclArraySym(Type, tSymbol)
+
+  T, S ? (IsTimerType(T));
+    .
+
+  TT:Array(UnBound(_),T), S ? 
+    "INT ";WriteSym(S);WriteStr(DIM);WriteInt(TypeDepth(TT));";";NewLine();
+    GenDeclArraySym(T,S);
+    .
+
+  TT:Array(E,T), S ? (!IsConstExpr(E));
+    "INT ";WriteSym(S);WriteStr(DIM);WriteInt(TypeDepth(TT));";";"/*SMW*/";NewLine();
+    GenDeclArraySym(T,S);
+    .
+
+  Array(_,T), S ? 
+    GenDeclArraySym(T,S);
+    .
+
+  T,S ? (IsChanType(SymbolType(S)));
+    CCodeType(SymbolType(S)); " **"; WriteSym(S); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+    .
+
+  T,S ? 
+    CCodeType(SymbolType(S)); " *"; WriteSym(S); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+    .
+/*}}}*/
+/*{{{  FUNCTION  IsZeroSizeType (Type) bool*/
+FUNCTION  IsZeroSizeType (Type) bool
+
+  /* Returns true for zero-sized types (arrays with any 0-size dimension) */
+
+  Array(EX,T) RETURN true ? ((IsConstExpr(EX)) && (ValConstInt(EX)==0)); .
+
+  Array(EX,T) RETURN IsZeroSizeType(T) ? .
+
+  _ RETURN false ? .
+/*}}}*/
+
+/*{{{  FUNCTION  NeedsSpecs (SpecList) bool*/
+FUNCTION  NeedsSpecs (SpecList) bool
+  SL RETURN (SL->SpecList.DCL > 0) ? .
+/*}}}*/
+/*{{{  FUNCTION  NeedsSplit (Tree) bool*/
+FUNCTION  NeedsSplit (Tree) bool
+  T:Process    RETURN (T->Process.SLC > 1) ? .
+  T:ProcList   RETURN (T->ProcList.SLC > 1) ? .
+  T:ChoiceList RETURN (T->ChoiceList.SLC > 1) ? .
+  T:AltList    RETURN (T->AltList.SLC > 1) ? .
+  T:Guard      RETURN (T->Guard.SLC > 1) ? .
+  T:CaseList   RETURN (T->CaseList.SLC > 1) ? .
+/*}}}*/
+
+/*{{{  PROCEDURE GenDeclNLIdList(Type,IdList)*/
+PROCEDURE GenDeclNLIdList(Type,IdList)
+  T, AnId(N, S) ? (IsLocal(S)); GenDeclNLIdList(T,N);.
+  T, AnId(N, S) ? GenDeclSym(T,S,false); GenDeclNLIdList(T,N);.
+  _, NoId() ?.
+
+/*}}}*/
+/*{{{  PROCEDURE GenSpecState(Spec)*/
+PROCEDURE GenSpecState(Spec)
+/* Routine to declare state for a Spec */
+  /*{{{  tables and strings*/
+  /*{{{  constant tables/strings*/
+  Val (Pos,T,S,EX:StringElement(..)) ? (IsConstExpr(EX)); (!IsScalarType(ExprType(EX)));
+    GenDeclArraySym (T,S) ; .
+  
+  Val (Pos,T,S,EX:ElementalExpr(..)) ? (IsConstExpr(EX)); (!IsScalarType(ExprType(EX)));
+    GenDeclArraySym (T,S) ; .
+  
+  ValRetypes (Pos,T,S,EX:StringElement(..)) ? (IsConstExpr(EX)); (!IsScalarType(T));
+    GenDeclArraySym (T,S) ; .
+  
+  ValRetypes (Pos,T,S,EX:ElementalExpr(..)) ? (IsConstExpr(EX)); (!IsScalarType(T)); (!IS_Mode(xxEmulate));
+    GenDeclArraySym (T,S) ; .
+  /*}}}*/
+  
+  Val (Pos,T,S,ElementalExpr(_,EX:Table(..))) ? 
+    GenDeclSym (T,S,false) ; .
+  
+  Val (Pos,T,S,FuncCall(_,FS,_)) ? (IsSTVFunction(SymbolKind(FS)));
+    GenDeclSym (T,S,false) ; .
+  
+  Val (Pos,T,S,ElementalExpr(_,EX:TableElement(..))) ?
+    Message("Unexpected table element",xxError,Pos) ; .
+  
+  Val (Pos,T,S,EX:StringElement(..)) ?
+    Message("Unexpected string element",xxError,Pos) ; .
+  
+  ValRetypes (Pos,T,S,ElementalExpr(_,EX:TableElement(..))) ? 
+    Message("Unexpected table retypes",xxError,Pos) ; .
+  
+  ValRetypes (Pos,T,S,EX:StringElement(..)) ? 
+    Message("Unexpected string retypes",xxError,Pos) ; .
+  
+  Is (Pos,T,S,Table(..)) ?
+    GenDeclSym (T,S,false); .
+  
+  Is (Pos,T,S,TableElement(..)) ?
+    Message("Unexpected table element",xxError,Pos) ; .
+  /*}}}*/
+
+  /*{{{  reference abbreviation*/
+  Is (_,T,S,EL) ? (IsScalarType(SymbolType(S)));
+    GenDeclSym(SymbolType(S),S,false);
+    .
+  
+  Is (_,T,S,EL) ?
+    GenDeclArraySym(SymbolType(S),S);
+    .
+  
+  Retypes (_,T,S,EL) ? (IsScalarType(T));
+    GenDeclSym(T,S,false);
+    .
+  
+  Retypes (_,T,S,EL) ? (IS_Mode(xxEmulate)); (!IsChanType(T)); 
+		       (!IsChanType(ElementType(EL))); 
+		       (RetypeSize(T)!=RetypeSize(ElementType(EL))); 
+		       (IsBoundedType(T));
+    GenDeclSym(T,S,false);
+    .
+  
+  Retypes (_,T,S,EL) ?
+    GenDeclArraySym(T,S);
+    .
+  /*}}}*/
+
+  /*{{{  value abbreviation*/
+  Val (_,T, S,EX) ? (IsScalarType(SymbolType(S))); (IsConstExpr(EX)); (!IsNewSymbol(S));.
+  
+  Val (_,T, S,EX) ? (IsScalarType(SymbolType(S)));
+    GenDeclSym(SymbolType(S),S,false);
+    .
+  
+  Val (_,T, S,EX) ? 
+   GenDeclArraySym(SymbolType(S),S); 
+   .
+  
+  ValRetypes (_,T, S,EX) ? (IsScalarType(T));
+    GenDeclSym(T,S,false);
+    .
+  
+  ValRetypes (_,T,S,EX) ? (IS_Mode(xxEmulate)); (RetypeSize(T)!=RetypeSize(ExprType(EX))); (IsBoundedType(T));
+    GenDeclSym(T,S,false);
+    .
+  
+  ValRetypes (_,T, S,EX) ? 
+    GenDeclArraySym(T,S);
+    .
+  /*}}}*/
+
+  DeclType(_,_) ? .
+
+  S:Spec(P) ? WNYI(S,P);.
+
+/*}}}*/
+
+/* The following routines must be consistent with the data structure
+   generation above so that the creation of unions and structures
+   is correct. */
+
+/*{{{  FUNCTION CountRepDecls(Replicator) int*/
+FUNCTION CountRepDecls(Replicator) int
+  Replicator(S,_,_) RETURN 0 ? (IsLocal(S)); .
+  Replicator(_,FROM,FOR) RETURN 1 ? (IsConstInt(FROM));(IsConstInt(FOR));.
+  Replicator(_,FROM,FOR) RETURN 2 ? .
+/*}}}*/
+/*{{{  FUNCTION CountAltRepDecls(Replicator) int*/
+FUNCTION CountAltRepDecls(Replicator) int
+
+  /* Replicated ALTs require an extra variable to retain index */
+
+  R RETURN CountRepDecls(R)+1 ? .
+/*}}}*/
+/*{{{  FUNCTION CountAbbrev(Type) int*/
+FUNCTION CountAbbrev(Type) int
+
+  Array(UnBound(_),T) RETURN 1 + CountAbbrev(T) ? .
+
+  Array(E,T) RETURN 1 + CountAbbrev(T) ? (!IsConstExpr(E)); .
+
+  Array(_,T) RETURN CountAbbrev(T) ? .
+
+  _ RETURN 1 ? .
+
+/*}}}*/
+/*{{{  FUNCTION CountIdList(IdList) int*/
+FUNCTION CountIdList(IdList) int
+
+  NoId()    RETURN 0 ? .
+  AnId(N,S) RETURN {(IsNonLocal(S)?CountIdList(N)+1:CountIdList(N))} ? .
+/*}}}*/
+/*{{{  FUNCTION CountDecl(Decl) int*/
+FUNCTION CountDecl(Decl) int
+
+  Decl(_,T,_)   RETURN 0 ? (IsTimerType(T)); .
+  Decl(_,T,IDS) RETURN 2*CountIdList(IDS) ? (IsChanType(T)); .
+  Decl(_,_,IDS) RETURN CountIdList(IDS) ? .
+/*}}}*/
+/*{{{  FUNCTION CountSpec (Spec) int*/
+FUNCTION CountSpec (Spec) int
+
+  DefAProc(..)     RETURN 0 ? .
+  DefAFunc(..)     RETURN 0 ? .
+
+  ParFrame(..)    RETURN 2 ? .
+  CallFrame(..)   RETURN 1 ? .
+
+  D:Decl(..)      RETURN CountDecl(D) ? .
+
+  Val(_,_,S,Expr) RETURN 0 ? (IsScalarType(SymbolType(S))); (IsConstExpr(Expr)); (!IsNewSymbol(S)); .
+
+  Is         (_,_,S,EL) RETURN {IsNonLocal(S)?CountAbbrev(SymbolType(S)):0} ? .
+  Retypes    (_,_,S,EL) RETURN {IsNonLocal(S)?CountAbbrev(SymbolType(S)):0} ? .
+  Val        (_,_,S,EX) RETURN {IsNonLocal(S)?CountAbbrev(SymbolType(S)):0} ? .
+  ValRetypes (_,_,S,EX) RETURN {IsNonLocal(S)?CountAbbrev(SymbolType(S)):0} ? .
+
+  _             RETURN 1 ? .
+/*}}}*/
+
+/*}}}*/
+
+/*{{{  Phase 3 : output code for each generated routine*/
+/*{{{  start, procs, funcs*/
+/*{{{  FUNCTION  GenCode(T: Tree) Tree*/
+FUNCTION  GenCode(T: Tree) Tree
+
+  Start(..)			RETURN NoTree; ?.
+
+  DF:DefFunc(Pos,S,TL,F,Valof(_,SL,P,EL))   	RETURN T->DefFunc.CGNext;   ?
+    SetPosition(Pos);
+    CurProc := T;
+    InitBlocks();
+    GenFuncHead(DF); NewLine();
+    GenFuncEntry(DF);
+    BeginAtomicBlock(SL,NoTree,false);
+    GenProcess(P);
+    GenFuncExit(DF);
+    EndAtomicBlock(SL);
+    GenFuncTail(DF);
+    .
+
+  DP:DefProc(Pos,S,F,P)		RETURN T->DefProc.CGNext;   ? 
+    SetPosition(Pos);
+    CurProc := T;
+    InitBlocks();
+    GenProcHead(DP); NewLine();
+    GenProcEntry(DP);
+    GenProcess(P);
+    GenProcTail(DP);
+    .
+
+  DefIsFunc(Pos,S,TL,F,EL)	RETURN T->DefIsFunc.CGNext; ?
+    WNYI(T,Pos);    
+    .
+
+  D:DefAFunc RETURN D->DefAFunc.CGNext ?.
+  D:DefAProc RETURN D->DefAProc.CGNext ?.
+  D:HCode(P,C) RETURN D->HCode.CGNext ?
+    WriteCCode(C,P,D->HCode.Scope);
+    NewLine();
+    .
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenProcHead(DP:DefProc)*/
+PROCEDURE GenProcHead(DP:DefProc)
+  LOCAL { bool comma = false; }
+
+  DefProc(_,S,F,P) ? 
+    CONDWrite(!IsTopLevel(S),"static ");
+    "void "; 
+    CONDWrite(IsInlined(DP),"inline ");
+    WriteSym(S); " (";
+    (false);
+    .
+
+  DefProc(_,S,F,P) ? (!IsAtomicProc(DP) || IsParProc(DP)); 
+    "tSF_"; WriteSym(S); " *FP)";
+    .
+
+  DefProc(_,S,F,P) ?  (NeedsChain(DP));   /* Contains non local symbol refs */
+    "tSF_"; WriteSym(DP->DefProc.Parent); " *PP";
+    comma := true;
+    (false);
+    .
+
+  DefProc(_,S,F,P) ? 
+    comma := GenFormals(F,comma);
+    CONDWrite(!comma,"void");
+    ")";
+    .
+  
+
+
+/*}}}*/
+/*{{{  PROCEDURE GenProcEntry(DefProc,tSymbol,Formals)*/
+PROCEDURE GenProcEntry(DP:DefProc)
+
+  DefProc(_,S,F,P) ? (!IsAtomicProc(DP));
+    "{"; NewLine(); Indent();
+    "while(true)"; NewLine();
+    "{"; NewLine(); Indent();
+    "switch(FP->_Header.IP)"; NewLine();
+    "{"; NewLine(); Indent();
+    CurrentLabel := -1; /*Big*/Indent();
+    GenLabel(); GenSetListScope(F);
+    .
+
+  DefProc(_,S,F,P) ? (IsParProc(DP));
+    "{"; NewLine(); Indent();
+    GenSetListScope(F);
+    .
+
+  DefProc(_,S,F,P) ? 
+    "{"; Indent(); NewLine();
+    "tSF_"; WriteSym(S); " SF;"; NewLine();
+    "tSF_"; WriteSym(S); " *FP = &SF;"; NewLine();
+    GenSetListScope(F);
+    GenNLFormals(F);
+    (NeedsChain(DP)); 
+    "FP->Chain = PP;"; NewLine();       /* Copy in chain pointer */
+    .
+
+  DefProc(..) ? . 
+
+/*}}}*/
+/*{{{  PROCEDURE GenProcTail(DP:DefProc)*/
+PROCEDURE GenProcTail(DP:DefProc)
+/* Strict ordering here ..
+   1. If we are a 'created' parallel procedure, we must stop the thread
+   2. If we are atomic, we just return (incl. 1 above)
+   3. if (!1 && !2), do a non-atomic procedure RETURN
+   4. non-atomic procedure close code
+*/
+  
+  _ ? (DP->DefProc.isPar);
+    "ENDP();";
+    (false);
+  .
+
+  _ ? (IsAtomicProc(DP)); 
+    Outdent(); "}"; NewLine();
+    BlankLine();
+  .
+
+  _ ? (!DP->DefProc.isPar);
+    "RETURN();";
+    (false);
+    .
+ 
+  _ ? 
+    /*Big*/Outdent();
+    "default: SETERR(MSG_IP);"; NewLine();
+    Outdent(); "}"; NewLine();
+    Outdent(); "}"; NewLine();
+    Outdent(); "}"; NewLine();
+    BlankLine();
+    .
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenFuncHead(DF:DefFunc)*/
+PROCEDURE GenFuncHead(DF:DefFunc)
+  LOCAL { bool comma = false; }
+
+  DefFunc(_,S,AType(_,T),F,V) ? (!IsMVFunction(DF) && !IsSTVFunction(DF));
+    CONDWrite((IsInlined(DF))||!IsTopLevel(S),"static ");
+    CCodeType(T); " "; 
+    CONDWrite(IsInlined(DF),"inline ");
+    WriteSym(S); "(";
+    (false);
+    .
+  
+  DefFunc(_,S,T,F,V) ? (IsMVFunction(DF) || IsSTVFunction(DF));
+    CONDWrite(!IsTopLevel(S),"static ");
+    "void "; 
+    CONDWrite(IsInlined(DF),"inline ");
+    WriteSym(S); "(";
+    (false);
+    .
+  
+  DefFunc(_,S,T,F,V) ? (NeedsChain(DF));  /* Contains non local symbol refs */
+    "tSF_"; WriteSym(DF->DefFunc.Parent); " *PP";
+    comma := true;
+    (false);
+    .
+
+  DefFunc(_,S,T,F,V) ?
+    comma := GenFormals(F,comma);
+    (false);
+    .
+
+  DefFunc(_,S,T,F,V) ? (IsMVFunction(DF) || IsSTVFunction(DF));
+    GenMVFormals(T,0,comma); 
+    ")";
+    .
+
+  _ ?
+    CONDWrite(!comma,"void ");
+    ")";
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE GenFuncEntry(DF:DefFunc)*/
+PROCEDURE GenFuncEntry(DF:DefFunc)
+
+  DefFunc(_,S,TL,F,_) ?
+     "{"; Indent(); NewLine();
+     (!IsMVFunction(DF) && !IsSTVFunction(DF));
+     CCodeType(TL->AType.Type); " _Result;"; NewLine();
+     (false);
+     .
+
+  DefFunc(_,S,TL,F,_) ?
+    "tSF_"; WriteSym(S); " SF;"; NewLine();
+    "tSF_"; WriteSym(S); " *FP = &SF;"; NewLine();
+    GenSetListScope(F);
+    GenNLFormals(F);
+    (NeedsChain(DF)); 
+    "FP->Chain = PP;"; NewLine();       /* Copy in chain pointer */
+    .
+
+  DefFunc(..) ? .
+  
+/*}}}*/
+/*{{{  PROCEDURE GenFuncExit(DF:DefFunc)*/
+PROCEDURE GenFuncExit(DF:DefFunc)
+
+  DefFunc(_,S,T,F,Valof(_,SL,P,EL)) ? (IsMVFunction(DF) || IsSTVFunction(DF));
+    GenMVFResult(EL,0);
+    .
+
+  DefFunc(_,S,T,F,Valof(_,SL,P,AnExpr(NoExpr(),EX))) ?
+    "_Result = "; CodeExpr(EX); ";"; NewLine();
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE GenFuncTail(DF:DefFunc)*/
+PROCEDURE GenFuncTail(DF:DefFunc)
+
+  DefFunc(_,S,T,F,Valof(_,SL,P,EL)) ? (!IsMVFunction(DF) && !IsSTVFunction(DF));
+    "return _Result;"; NewLine();
+    (false);
+    .
+
+  _ ?
+    Outdent(); "}"; NewLine();
+    BlankLine();
+    .
+ 
+/*}}}*/
+
+/*{{{  FUNCTION  GenFormals(Formals,bool) bool*/
+FUNCTION  GenFormals(Formals,bool) bool
+  LOCAL { bool comma; }
+
+  NoFormal(),B RETURN B ?.
+
+  AFormal(NF,_,_,T,S),B RETURN comma ? (IsTimerType(T));
+    comma := GenFormals(NF,false);
+    .
+
+  AFormal(NF,_,_,T:UserStructTypes,S),B RETURN true ?
+    GenArrayFormal(T,S,B);
+    GenFormals(NF,true);
+    .
+
+  AFormal(NF,_,_,T:Array,S),B RETURN true ?
+    GenArrayFormal(T,S,B);
+    GenFormals(NF,true);
+    .
+
+  AFormal(NF,_,ByVal(),T,S),B RETURN true ?
+    GenComma(B);
+    CCodeType(T); " "; WriteSym(S);
+    GenFormals(NF,true);
+    .
+
+  AFormal(NF,_,ByRef(),T,S),B RETURN true ?
+    GenComma(B);
+    CCodeType(T); " *"; WriteSym(S);
+    GenFormals(NF,true);
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE GenArrayFormal(Type, tSymbol,bool)*/
+PROCEDURE GenArrayFormal(Type, tSymbol,bool)
+
+  TT:Array(E,T),S,B ? (!IsConstExpr(E));
+    GenComma(B);
+    "INT "; WriteSym(S); WriteStr(DIM); WriteInt(TypeDepth(TT));
+    GenArrayFormal(T,S,true);
+    .
+
+  Array(_,T),S,B ? 
+    GenArrayFormal(T,S,B);
+    .
+
+  T,S,B ? (IsChanType(T));
+    GenComma(B);
+    CCodeType(T); " **"; WriteSym(S);
+    .
+
+  T,S,B ? 
+    GenComma(B);
+    CCodeType(T); " *"; WriteSym(S);
+    .
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenNLFormals(Formals)*/
+PROCEDURE GenNLFormals(Formals)
+  AFormal(NF,P,B,T,S) ? (IsTimerType(T));
+    GenNLFormals(NF);
+    .
+
+  AFormal(NF,P,B,T:Array,S) ? (IsNonLocal(S));
+    GenNLArrayFormal(T,S);
+    GenNLFormals(NF);
+    .
+
+  AFormal(NF,P,B,T,S) ? (IsNonLocal(S));
+    CodeSym(S); "="; WriteSym(S); ";"; NewLine();
+    GenNLFormals(NF);
+    .
+
+  AFormal(NF,..) ?
+    GenNLFormals(NF);
+    .
+
+  NoFormal() ? .
+
+
+/*}}}*/
+/*{{{  PROCEDURE GenNLArrayFormal(Type,tSymbol)*/
+PROCEDURE GenNLArrayFormal(Type,tSymbol)
+  FT:Array(UnBound(_),T),S ?
+    CodeSym(S); WriteStr(DIM); WriteInt(TypeDepth(FT)); "="; 
+    WriteSym(S); WriteStr(DIM); WriteInt(TypeDepth(FT)); ";"; NewLine();
+    GenNLArrayFormal(T,S) ;
+  .
+  Array(FE,T),S ?
+    GenNLArrayFormal(T,S) ;
+  .
+  T,S ?
+    CodeSym(S); "="; WriteSym(S); ";"; NewLine();
+    .
+/*}}}*/
+/*{{{  PREDICATE AnyNLFormals(Formals)*/
+PREDICATE AnyNLFormals(Formals)
+  AFormal(NF,_,_,_,S) ? (IsNonLocal(S)); .
+  AFormal(NF,_,_,_,S) ? (AnyNLFormals(NF)); .
+
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenMVFormals(TypeList,int,bool)*/
+PROCEDURE GenMVFormals(TypeList,int,bool)
+  NoType(),_,_ ?.
+
+  AType(..),_,{true} ?
+    ",";
+    (false);
+    .
+
+  AType(NT,T),N,_ ?
+    CCodeType(T);" *";WriteStr(PRM);WriteInt(N);
+    GenMVFormals(NT,N+1,true);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenMVFResult(ExprList,int)*/
+PROCEDURE GenMVFResult(ExprList,int)
+  NoExpr(),_ ?.
+  AnExpr(NE,E), N ? (!IsScalarType(ExprType(E)));
+    "ASSIGN(";WriteStr(PRM);WriteInt(N);",";CodeExpr(E);",";WriteInt(CalcTypeSize(ExprType(E)));");";NewLine();
+    GenMVFResult(NE,N+1);
+  .    
+  AnExpr(NE,E), N ? 
+    "*";WriteStr(PRM);WriteInt(N);"=";CodeExpr(E);";";NewLine();
+    GenMVFResult(NE,N+1);
+  .
+/*}}}*/
+
+/*{{{  PREDICATE NeedsChain(Tree)*/
+PREDICATE NeedsChain(Tree)
+  DP:DefProc(_,S,..) ? (UsesFreeVars(DP));  (!IsTopLevel(S)); .
+  DF:DefFunc(_,S,..) ? (UsesFreeVars(DF));  (!IsTopLevel(S)); .
+
+/*}}}*/
+/*{{{  PREDICATE UsesFreeVars(Tree)*/
+PREDICATE UsesFreeVars(Tree)
+  _ ? (IS_Mode(xxNoUsageChecking));. /* assume worst case */
+  DefProc(_,S,_,P) ? (HasReadUsage(P->Process.PUOut) || HasWriteUsage(P->Process.PUOut)); .
+  /* must pick up ExprList because IsFuncs transformed to DefFunc form */
+  DefFunc(_,S,_,_,Valof(_,_,_,E)) ? (HasReadUsage(E->ExprList.PUOut)||HasWriteUsage(E->ExprList.PUOut));.
+  DefIsFunc(_,S,_,_,E) ? (HasReadUsage(E->ExprList.PUOut)||HasWriteUsage(E->ExprList.PUOut));.
+  Par(_,_,_,PL) ? (HasReadUsage(PL->ProcList.PUOut) || HasWriteUsage(PL->ProcList.PUOut)); .
+  ParRep(_,_,_,_,P) ? (HasReadUsage(P->Process.PUOut) || HasWriteUsage(P->Process.PUOut)); .
+
+PREDICATE HasReadUsage(tParUsage)
+  NIL ? FAIL;.
+  PU ? (!IsEmpty(&PU->R));.
+  PU ? (Tree_IsType(PU->RAL,kAnAccess));.
+
+PREDICATE HasWriteUsage(tParUsage)
+  NIL ? FAIL;.
+  PU ? (!IsEmpty(&PU->W));.
+  PU ? (Tree_IsType(PU->WAL,kAnAccess));.
+
+/*}}}*/
+
+/*}}}*/
+
+/*{{{  processes*/
+/*{{{  PROCEDURE GenProcess(Process)*/
+PROCEDURE GenProcess(Process)
+  LOCAL { int le,ls,lab,endlab; }
+
+  /*{{{  sequential constructs*/
+  Assign(Pos,SL,L,R) ?
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    CodeAssign(L,R);
+    EndAtomicBlock(SL);
+    NewLine();
+    .
+    /*}}}*/
+  
+  N:CCode(Pos,SL,C) ?
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    WriteCCode(C,Pos,N->CCode.Scope);
+    EndAtomicBlock(SL);
+    NewLine();
+    .
+    /*}}}*/
+  
+  I:Instance(Pos,SL,S,EL) ?
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    GenInstance(SymbolKind(S),EL,I->Instance.Frame->CallFrame.Id);
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  W:While(Pos,SL,E,P) ? (IsAtomicProcess(W)) ;
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    "while ("; CodeExpr(E); ")" ; NewLine();
+    "{"; Indent();
+    GenProcess(P);
+    SetPosition(Pos);
+    Outdent() ; "}" ; 
+    EndAtomicBlock(SL);
+    NewLine();
+    .
+    /*}}}*/
+  
+  While(Pos,SL,E,P) ?
+    /*{{{  */
+    le := NewLabel(); ls := NewLabel();
+    BeginBlock(SL);
+    SetPosition(Pos);
+    "GOTO("; WriteLabelValue(le); ");"; NewLine();
+    WriteLabel(ls);    
+    GenProcess(P);
+    SetPosition(Pos);
+    WriteLabel(le);
+    "if ("; CodeExpr(E); ")"; NewLine();
+    "{"; Indent();
+    "GOTO("; WriteLabelValue(ls); ");";
+    Outdent(); "}"; NewLine();
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  C:Case(Pos,SL,E,CL) ? (IsAtomicProcess(C)) ;
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    "switch("; CodeExpr(E); ")"; NewLine();
+    "{"; Indent(); 
+    GenCaseAtomic(CL,false);
+    Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  C:Case(Pos,SL,E,CL) ?
+    /*{{{  */
+    lab := NewLabel();
+    BeginBlock(SL);
+    SetPosition(Pos);
+    "switch("; CodeExpr(E); ")"; NewLine();
+    "{"; NewLine();
+    Indent(); GenCaseSwitches(CL,false);
+    Outdent(); "}"; NewLine();
+    "break;"; NewLine();
+    GenCaseCode(CL,lab);
+    WriteLabel(lab);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  I:IfType(..) ? (IsAtomicProcess(I)) ;
+       /*{{{  */
+       BackIfType(I) := NIL;       /* Initial IfType has no parent    */
+       GenIfTypeAtomic(I,false);   /* Initially not inside replicator */
+       .
+       /*}}}*/
+  
+  I:IfType(..) ?
+    /*{{{  */
+    lab := NewLabel();
+    GenIfType(I,lab);
+    "SETERR(MSG_IF);"; NewLine();
+    WriteLabel(lab);
+    .
+    /*}}}*/
+  
+  Skip(Pos,SL) ? 
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  Stop(Pos,SL) ?
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    "SETERR(MSG_STOP);";
+    NewLine();
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  S:Seq(Pos,SL,PL) ? (IsAtomicProcess(S));
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    "{"; Indent(); NewLine();
+    GenProcList(PL);
+    Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  Seq(Pos,SL,PL) ?
+    /*{{{  */
+    BeginBlock(SL);
+    SetPosition(Pos);
+    GenProcList(PL);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  SeqRep(Pos,SL,Replicator(S,Fr,Fo),P) ? (IsConstExpr(Fo)); (ValConstInt(Fo) == 0);
+    .
+  
+  S:SeqRep(Pos,SL,R,P) ? (IsAtomicProcess(S));
+    /*{{{  */
+    BeginAtomicBlock(SL,R,false);
+    SetPosition(Pos);
+    GenForLoop(R);
+    "{"; Indent(); NewLine();
+    GenProcess(P);
+    Outdent(); "}"; NewLine();
+    SetPosition(Pos);
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  SeqRep(Pos,SL,R,P) ? 
+    /*{{{  */
+    BeginBlock(SL);
+    SetPosition(Pos);
+    le := GenRepStart(R);
+    ls := NewLabel();
+    WriteLabel(ls);
+    GenProcess(P);
+    SetPosition(Pos);
+    GenRepEnd(R,ls,le);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  Input(Pos,SL,E,EL) ? (IsTimerType(ElementType(E)));
+    /*{{{  */
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    GenTimerInput(EL);
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+  
+  /*}}}*/
+
+  /*{{{  concurrent constructs*/
+  After(Pos,SL,E,EX) ? 
+    BeginBlock(SL); 
+    SetPosition(Pos); 
+    lab := NewLabel();
+    "DELAY(";CodeExpr(EX);","; WriteLabelValue(lab); ");"; NewLine();
+    WriteLabel(lab);
+    EndBlock(SL); 
+  .
+  
+  Input(Pos,SL,E,EL) ? BeginBlock(SL); SetPosition(Pos); GenInput(E,ElementType(E),EL); EndBlock(SL); .
+  
+  Output(Pos,SL,E,EL) ? BeginBlock(SL); SetPosition(Pos); GenOutput(E,ElementType(E)->Chan.Protocol,EL); EndBlock(SL); .
+  
+  A:AltType(P,SL,..) ?
+    /*{{{  */
+    BeginBlock(SL);
+    SetPosition(P);
+    "ALT();"; NewLine();
+    GenEnableAltType(A) ;
+    
+    lab := NewLabel();
+    "ALTWT("; WriteLabelValue(lab); ");"; NewLine();
+    WriteLabel(lab);
+    
+    "{" ; Indent(); NewLine();
+    "BOOL TMP = false;"; NewLine();
+    GenDisableAltType(A) ;
+    GenAssignRepsAltType(A) ;
+    Outdent(); "}"; NewLine();
+    
+    "ALTEND();" ;
+    
+    endlab := NewLabel();
+    GenCodeAltType(A,endlab,NoSpec()) ;
+    WriteLabel(endlab);
+    EndBlock(SL);
+    .    
+    /*}}}*/
+  
+  CaseIn(P,SL,E,CL) ?
+    /*{{{  */
+    le := NewLabel();
+    BeginBlock(SL);
+    SetPosition(P);
+    "INPUT1("; CodeChannelElement(E,false); ",&FP->_Header.Temp.VBYTE," ; WriteLabelValue(le); ");" ; NewLine();
+    
+    WriteLabel(le);
+    le := NewLabel();
+    "switch(FP->_Header.Temp.VBYTE)"; NewLine();
+    "{"; NewLine();
+    Indent(); GenCaseInSwitches(CL);
+    Outdent(); "}"; NewLine();
+    "break;"; NewLine();
+    GenCaseInCode(CL,E,le);
+    WriteLabel(le);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  Par(P,SL,PRI,NoProcess()) ?
+    /*{{{  skip empty Par*/
+    BeginBlock(SL);
+    SetPosition(P);
+    EndBlock(SL);.
+    /*}}}*/
+  
+  PAR:Par(P,SL,PRI,PL) ? (PRI==xxPlacedPar); (UsesFreeVars(PAR)); (IS_Mode(xxNoFreeVars));
+    /*{{{  */
+    Message("PLACED PAR uses free variables",xxError,P);
+    .
+    /*}}}*/
+    
+  Par(P,SL,PRI,PL) ? (PRI==xxPlacedPar); 
+    /*{{{  */
+    lab := NewLabel();
+    BeginBlock(SL);
+    SetPosition(P);
+    GenPlacedList(PL,NoSymbol,NoTree);
+    "WAITP("; WriteLabelValue(lab); ");"; NewLine();
+    WriteLabel(lab);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  Par(P,SL,PRI,PL) ? 
+    /*{{{  */
+    lab := NewLabel();
+    BeginBlock(SL);
+    SetPosition(P);
+    GenParList(PL,{PRI ? HIPRI : LOPRI} );
+    "WAITP("; WriteLabelValue(lab); ");"; NewLine();
+    WriteLabel(lab);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  ParRep(Pos,SL,PRI,R:Replicator(S,Fr,Fo),Proc) ? (IsConstExpr(Fo)); (ValConstInt(Fo) == 0);
+    .
+  
+  PAR:ParRep(P,SL,PRI,R,Proc) ? (PRI==xxPlacedPar); (UsesFreeVars(PAR)); (IS_Mode(xxNoFreeVars));
+    /*{{{  */
+    Message("PLACED PAR uses free variables",xxError,P);
+    .
+    /*}}}*/
+  
+  ParRep(Pos,SL,PRI,R:Replicator(S,From,For),Proc) ? (PRI==xxPlacedPar);
+    /*{{{  */
+    lab := NewLabel();
+    BeginAtomicBlock(SL,R,false);
+    SetPosition(Pos);
+    GenForLoop(R);
+    "{"; Indent(); NewLine();
+    GenPlaced(Proc,S,From);
+    SetPosition(Pos);
+    Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    "WAITP("; WriteLabelValue(lab); ");"; NewLine();
+    WriteLabel(lab);
+    EndBlock(SL);
+    .
+    /*}}}*/
+  
+  ParRep(Pos,SL,PRI,R:Replicator(S,From,For),I:Instance(..)) ?
+    /*{{{  */
+    lab := NewLabel();
+    BeginAtomicBlock(SL,R,false);
+    SetPosition(Pos);
+    GenForLoop(R);
+    Indent(); NewLine();
+    (PRI==xxPriPar);
+    "if ("; CodeSym(S); "=="; WriteInt(ValConstInt(From)); ") "; NewLine();
+    "{"; Indent(); NewLine();
+    GenParProc(I,S,HIPRI,From);
+    Outdent(); "}"; NewLine();
+    SetPosition(Pos);
+    "else "; NewLine();
+    (false);
+    .
+    /*}}}*/
+  
+  ParRep(Pos,SL,PRI,R:Replicator(S,From,For),I:Instance(..)) ?
+    /*{{{  */
+    "{"; Indent(); NewLine();
+    GenParProc(I,S,LOPRI,From);
+    SetPosition(Pos);
+    Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    "WAITP("; WriteLabelValue(lab); ");"; NewLine();
+    WriteLabel(lab);
+    EndBlock(SL);
+    .
+    
+    /*}}}*/
+  
+  /*}}}*/
+
+  E:Process(P,_) ? WNYI(E,P);. 
+/*}}}*/
+/*{{{  PROCEDURE GenProcList(ProcList)*/
+PROCEDURE GenProcList(ProcList)
+  AProcess(N,P) ? GenProcess(P); GenProcList(N); .
+  NoProcess() ?.
+/*}}}*/
+/*{{{  PROCEDURE GenParList(ProcList,int)*/
+PROCEDURE GenParList(ProcList,int)
+  AProcess(Next,I:Instance(..)),Pri ?
+    GenParProc(I,NoSymbol,Pri,NoTree);
+    GenParList(Next,LOPRI);
+  .
+
+  NoProcess(),_ ? .
+
+/*}}}*/
+/*{{{  PROCEDURE GenParProc(Instance,tSymbol,int)*/
+PROCEDURE GenParProc(Instance,tSymbol,int,Expr)
+  LOCAL { tTree Frame; }
+
+  I:Instance(Pos,SL,S,EL),Index,Pri,From ? (Index!=NoSymbol);
+    GenParProcParam(Symbol(S).Kind->DefProc.Formals,EL,I->Instance.Frame->ParFrame.FId,Index,From);
+    (false);
+    .    
+
+  I:Instance(Pos,SL,S,EL),Index,Pri,From ? 
+    Frame := I->Instance.Frame;
+    SetPosition(Pos);
+    "STARTP(";
+    (false);
+    .
+
+  I:Instance(Pos,SL,S,EL),Index,Pri,From ? (Index==NoSymbol);
+    "&FP->"; WriteId(Frame->ParFrame.TId); ","; WriteSym(S);
+    ",&FP->"; WriteId(Frame->ParFrame.FId);",\""; WriteSym(Frame->CallFrame.Sym); "\","; WriteInt(Pri); ");"; NewLine();
+    .
+
+  I:Instance(Pos,SL,S,EL),Index,Pri,From ?
+    "&FP->"; WriteId(Frame->ParFrame.TId);
+    "["; CodeSymRef(Symbol(Index).Kind,Index,false); "-"; CodeExpr(From); "]";","; WriteSym(S);
+    ",&FP->"; WriteId(Frame->ParFrame.FId);
+    "["; CodeSymRef(Symbol(Index).Kind,Index,false); "-"; CodeExpr(From); "]";
+    ",\""; WriteSym(Frame->CallFrame.Sym); "\","; WriteInt(Pri); ");"; NewLine();
+    .
+
+
+/*}}}*/
+/*{{{  PROCEDURE GenPlacedList(ProcList,tSymbol)*/
+PROCEDURE GenPlacedList(ProcList,tSymbol,Expr)
+  AProcess(Next,Proc),Index,From ? GenPlaced(Proc,Index,From); GenPlacedList(Next,Index,From);.
+  NoProcess(),_,_ ? .
+/*}}}*/
+/*{{{  PROCEDURE GenPlaced(Process,tSymbol)*/
+PROCEDURE GenPlaced(Process,tSymbol,Expr)
+  LOCAL { tFrame Frame; }
+
+  Par(P,SL,PRI,PL),Index,From ?
+    /*{{{  */
+    BeginBlock(SL);
+    SetPosition(P);
+    GenPlacedList(PL,Index,From);
+    EndBlock(SL);
+    .
+    /*}}}*/
+
+  ParRep(Pos,SL,PRI,R:Replicator(S,From,For),Proc),Index,_ ? (Index == NoSymbol);
+    /*{{{  */
+    BeginAtomicBlock(SL,R,false);
+    SetPosition(Pos);
+    GenForLoop(R);
+    "{"; Indent(); NewLine();
+    GenPlaced(Proc,S,From);
+    SetPosition(Pos);
+    Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    .
+    /*}}}*/
+
+  T:ParRep(Pos,SL,PRI,R:Replicator(S,From,For),Proc),Index,_ ?
+    WNYI(T,Pos);
+    .
+
+  Processor(P,SL,EX,ID,I:Instance(Pos,_,S,EL)),Index,From ? (Index != NoSymbol);
+    GenParProcParam(Symbol(S).Kind->DefProc.Formals,EL,I->Instance.Frame->ParFrame.FId,Index,From);
+    (false);
+    .
+
+  Processor(P,SL,EX,ID,I:Instance(Pos,_,S,EL)),Index,From ?
+    Frame := I->Instance.Frame;
+    SetPosition(Pos);
+    "PLACED_STARTP("; 
+    CodePlacedExpr(EX,Index,From); ",";
+    (false);
+    .
+
+  Processor(P,_,EX,ID,I:Instance(Pos,_,S,EL)),Index,_ ? (Index==NoSymbol);
+    "&FP->"; WriteId(Frame->ParFrame.TId); ","; WriteSym(S);
+    ",&FP->"; WriteId(Frame->ParFrame.FId);",\""; WriteSym(Frame->CallFrame.Sym); "\");"; NewLine();
+    .
+
+  Processor(P,_,EX,ID,I:Instance(Pos,_,S,EL)),Index,From ?
+    "&FP->"; WriteId(Frame->ParFrame.TId);
+    "["; CodeSym(Index); "-"; CodeExpr(From); "]";","; WriteSym(S);
+    ",&FP->"; WriteId(Frame->ParFrame.FId);
+    "["; CodeSym(Index); "-"; CodeExpr(From); "]";
+    ",\""; WriteSym(Frame->CallFrame.Sym); "\");"; NewLine();
+    .
+
+  T:Process(Pos,_),_,_ ? WNYI(T,Pos); .
+/*}}}*/
+/*{{{  PROCEDURE CodePlacedExpr(EX:Expr,tSymbol)*/
+PROCEDURE CodePlacedExpr(EX:Expr,tSymbol,Expr)
+ 
+  ElementalExpr(_,Identifier(_,IS)),Index,From ?
+    CodeSym(Index); "-"; CodeExpr(From); 
+    .
+
+  Const(..),I,_ ?
+    CodeExpr(EX);
+    .
+
+  E:Expr(P),I,_ ?
+    WNYI(E,P);
+    .
+
+
+/*}}}*/
+
+PROCEDURE GenParProcParam(Formals, ExprList, tIdent, tSymbol,Expr)
+  AFormal(NF,_,ByVal(),Type,Sym),AnExpr(NE,E),FP,Index,From ? 
+    "FP->"; WriteId(FP);  "["; CodeSymRef(Symbol(Index).Kind,Index,false); "-"; CodeExpr(From); "]";
+    "."; WriteSym(Sym); "="; CodeExpr(E); ";"; NewLine();
+    .
+/*}}}*/
+
+/*{{{  alternation*/
+/*{{{  PROCEDURE GenEnableAltType(Process)*/
+PROCEDURE GenEnableAltType(Process)
+
+  Alt(_,SL,PRI,AL) ? GenEnableAltList(AL) ; .
+
+  AltRep(Pos,SL,PRI,R,AL) ?
+    SetPosition(Pos);
+    GenForLoop(R);
+    "{" ; Indent(); NewLine();
+    GenEnableAltList(AL);
+    SetPosition(Pos);
+    Outdent(); "}"; NewLine();
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenEnableAltList(AltList)*/
+PROCEDURE GenEnableAltList(AltList)
+
+  NoAlt() ? ; .
+
+  AnAlt(SL,Next,G) ?
+    BeginBlock(SL);
+    GenEnableGuard(G); 
+    GenEnableAltList(Next);
+    EndBlock(SL);
+    .
+
+  ANewAlt(SL,Next,A:AltType(_,ASL,_)) ?
+    BeginBlock(SL);
+    GenLocalInits(ASL);
+    GenEnableAltType(A);
+    GenEnableAltList(Next);
+    GenResults(ASL);
+    EndBlock(SL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenEnableGuard(Guard)*/
+PROCEDURE GenEnableGuard(Guard)
+
+  AltInput(_,Expr,Input(_,_,C,_),_) ? (IsTimer(C)) ;
+    "ENBS("; CodeExpr(Expr) ;
+    ");"   ; NewLine() ;
+    .
+
+  AltInput(_,Expr,Input(_,_,C,_),_) ?
+    "ENBC("; CodeExpr(Expr) ;
+    ","    ; CodeChannelElement(C,false) ;
+    ");"   ; NewLine() ;
+    .
+
+  AltTimer(P,Expr,After(_,_,_,E),_) ?
+    "ENBT("; CodeExpr(Expr) ;
+    ","    ; CodeExpr(E) ;
+    ");"   ; NewLine() ;
+    .
+
+  AltCaseIn(_,Expr,CaseIn(_,_,C,_)) ?
+    "ENBC("; CodeExpr(Expr) ;
+    ","    ; CodeChannelElement(C,false) ;
+    ");"   ; NewLine() ;
+    .
+
+  NoInput(_,Expr,_) ?
+    "ENBS("; CodeExpr(Expr) ;
+    ");"        ; NewLine() ;
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE GenDisableAltType(Process)*/
+PROCEDURE GenDisableAltType(Process)
+
+  Alt(_,SL,PRI,AL) ? GenDisableAltList(AL) ; .
+
+  AltRep(_,SL,PRI,R,AL) ?
+    "{" ; Indent(); NewLine();
+    "BOOL OLDTMP = TMP;"; NewLine();
+    GenForLoop(R);
+    "{" ; Indent(); NewLine();
+    GenDisableAltList(AL);
+    "if (TMP && (!OLDTMP))"; GenAltSelect(R); " = "; GenAltIndex(R); ";"; NewLine();
+    "OLDTMP=TMP;";  NewLine();
+    Outdent(); "}"; NewLine();
+    Outdent(); "}"; NewLine();
+    .
+    
+/*}}}*/
+/*{{{  PROCEDURE GenDisableAltList(AltList)*/
+PROCEDURE GenDisableAltList(AltList)
+
+  NoAlt() ? ; .
+
+  A:AnAlt(SL,Next,G) ?
+    BeginBlock(SL);
+    A->AnAlt.Label := NewLabel() ;
+    GenDisableGuard(G,A->AnAlt.Label);
+    GenDisableAltList(Next);
+    EndBlock(SL);
+    .
+
+  ANewAlt(SL,Next,A:AltType(_,ASL,_)) ?
+    BeginBlock(SL);
+    GenLocalInits(ASL);
+    GenDisableAltType(A);
+    GenDisableAltList(Next);
+    GenResults(ASL);
+    EndBlock(SL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenDisableGuard(Guard,int)*/
+PROCEDURE GenDisableGuard(Guard,int)
+
+  AltInput(_,Expr,Input(_,_,C,_),_),lab ? (IsTimer(C)) ;
+    "TMP |= ";
+    "DISS("     ; WriteLabelValue(lab) ;
+    ","         ; CodeExpr(Expr) ;
+    ");"        ; NewLine() ;
+    .
+
+  AltInput(_,Expr,Input(_,_,C,_),_),lab ?
+    "TMP |= ";
+    "DISC("     ; WriteLabelValue(lab) ;
+    ","         ; CodeExpr(Expr) ;
+    ","         ; CodeChannelElement(C,false) ;
+    ");"        ; NewLine() ;
+    .
+
+  AltTimer(_,Expr,After(_,_,_,E),_),lab ?
+    "TMP |= ";
+    "DIST("     ; WriteLabelValue(lab) ;
+    ","         ; CodeExpr(Expr) ;
+    ","         ; CodeExpr(E) ;
+    ");"        ; NewLine() ;
+    .
+
+  AltCaseIn(_,Expr,CaseIn(_,_,C,_)),lab ?
+    "TMP |= ";
+    "DISC("     ; WriteLabelValue(lab) ;
+    ","         ; CodeExpr(Expr) ;
+    ","         ; CodeChannelElement(C,false) ;
+    ");"        ; NewLine() ;
+    .
+
+  NoInput(_,Expr,_),lab ?
+    "TMP |= ";
+    "DISS("     ; WriteLabelValue(lab) ;
+    ","         ; CodeExpr(Expr) ;
+    ");"        ; NewLine() ;
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE GenAssignRepsAltType(Process)*/
+PROCEDURE GenAssignRepsAltType(Process)
+
+  Alt(_,SL,PRI,AL) ? GenAssignRepsAltList(AL) ; .
+
+  AltRep(_,SL,PRI,R,AL) ?
+    GenAltIndex(R); " = "; GenAltSelect(R); ";"; NewLine();
+    GenAssignRepsAltList(AL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenAssignRepsAltList(AltList)*/
+PROCEDURE GenAssignRepsAltList(AltList)
+
+  NoAlt() ? ; .
+
+  A:AnAlt(SL,Next,G) ?
+    GenAssignRepsAltList(Next);
+    .
+
+  ANewAlt(SL,Next,A:AltType(_,ASL,_)) ?
+    GenAssignRepsAltType(A);
+    GenAssignRepsAltList(Next);
+    .
+/*}}}*/
+
+/*{{{  FUNCTION BuildRevSpecList(SpecList,SpecList) SpecList*/
+FUNCTION BuildRevSpecList(SpecList,SpecList) SpecList
+  /*
+    Purpose : Builds a new SpecList Reversed(SL2)//SL1
+   guaranteeing not to disturb SL2
+  */
+  SL1, NoSpec() RETURN SL1;.
+  SL1, ASpec(S,Next) RETURN BuildRevSpecList(ASpec(S,SL1),Next) ;.
+ 
+/*}}}*/
+/*{{{  PROCEDURE GenCodeAltType(Process,int)*/
+PROCEDURE GenCodeAltType(Process,int,SpecList)
+
+  Alt(_,SL,PRI,AL),endlab,RSL ? GenCodeAltList(AL,endlab,RSL) ; .
+
+  AltRep(_,SL,PRI,R,AL),endlab,RSL ?
+    GenCodeAltList(AL,endlab,RSL);
+    .
+    
+/*}}}*/
+/*{{{  PROCEDURE GenCodeAltList(AltList,int)*/
+PROCEDURE GenCodeAltList(AltList,int,SpecList)
+  /* Final parameter is a concatentation of all Specs
+   * traversed to reach selected code. These must be preserved because
+   * abbreviations appropriate to the selected ALT arm must be
+   * generated AFTER discovering the ALT label
+   */
+  LOCAL { tTree UnreversedSL; }
+
+  NoAlt(),_,_ ? ; .
+
+  A:AnAlt(SL,Next,G),endlab,RSL ?
+    WriteLabel(A->AnAlt.Label) ;
+    UnreversedSL := ReverseTree(RSL);
+    GenLocalInits(UnreversedSL);
+    BeginBlock(SL);
+    GenCodeGuard(G);
+    EndBlock(SL);
+    GenResults(UnreversedSL);
+    "GOTO("; WriteLabelValue(endlab); ");" ;
+    ReverseTree(UnreversedSL);
+    GenCodeAltList(Next,endlab,RSL);
+    .
+
+  ANewAlt(SL,Next,A:AltType(_,ASL,_)),endlab,RSL ?
+    GenCodeAltType(A,endlab,BuildRevSpecList(BuildRevSpecList(RSL,SL),ASL));
+    GenCodeAltList(Next,endlab,RSL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenCodeGuard(Guard)*/
+PROCEDURE GenCodeGuard(Guard)
+  LOCAL { int lab; }
+
+  AltInput(_,_,Input(_,SL,C,EL),P) ?
+    BeginBlock(SL); 
+    GenInput(C,ElementType(C),EL);
+    GenProcess(P) ;
+    EndBlock(SL);
+  .
+  AltTimer(Pos,_,After(_,SL,T,EX),P) ?
+    BeginBlock(SL); 
+    GenProcess(P) ;
+    EndBlock(SL);
+  .
+  AltCaseIn(_,_,CaseIn(_,SL,C,CL)) ?
+    lab := NewLabel();
+    BeginBlock(SL);
+    "INPUT1("; CodeChannelElement(C,false); ",&FP->_Header.Temp.VBYTE," ; WriteLabelValue(lab); ");" ; NewLine();
+    
+    WriteLabel(lab);
+    lab := NewLabel();
+    "switch(FP->_Header.Temp.VBYTE)"; NewLine();
+    "{"; NewLine();
+    Indent(); GenCaseInSwitches(CL);
+    Outdent(); "}"; NewLine();
+    "break;"; NewLine();
+    GenCaseInCode(CL,C,lab);
+    WriteLabel(lab);
+    EndBlock(SL);
+  .
+  NoInput(_,_,P) ?
+    GenProcess(P) ;
+    .
+/*}}}*/
+/*}}}*/
+
+/*{{{  if, case, case input*/
+/*{{{  PROCEDURE GenIfType(Process,int)*/
+PROCEDURE GenIfType(Process,int)
+
+  LOCAL { int le,ls; }
+
+  P:If(Pos,SL,CL),endlab ?
+    BeginBlock(SL);
+    SetPosition(Pos);
+    GenIfList(CL,endlab);
+    EndBlock(SL);
+    .
+
+  IfRep(Pos,SL,R,CL),endlab ?
+    le := GenRepStart(R);
+    ls := NewLabel();
+    WriteLabel(ls);
+    BeginBlock(SL);
+    SetPosition(Pos);
+    GenIfList(CL,endlab);
+    GenRepEnd(R,ls,le);
+    EndBlock(SL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenIfList(ChoiceList,int)*/
+PROCEDURE GenIfList(ChoiceList,int)
+  LOCAL { int nlab; }
+
+  AChoice(SL,Next,AnExpr(NoExpr(),E:Expr(Pos)),P), endlab ?
+    nlab := NewLabel();
+    BeginBlock(SL);
+    SetPosition(Pos);
+    "if (!"; CodeExpr(E); ") GOTO("; WriteLabelValue(nlab); ");"; NewLine();
+    GenProcess(P);
+    EndBlock(SL);
+    "GOTO("; WriteLabelValue(endlab); ");"; NewLine();
+    WriteLabel(nlab);
+    GenIfList(Next,endlab);
+    .
+
+  ANewIf(SL,Next,P), endlab ?
+    BeginBlock(SL);
+    GenIfType(P,endlab);
+    GenIfList(Next,endlab);
+    EndBlock(SL);
+    .
+	
+  NoChoice(),_ ?.
+/*}}}*/
+
+/*{{{  PROCEDURE GenIfTypeAtomic(Process,bool)*/
+PROCEDURE GenIfTypeAtomic(Process,bool)
+
+  /* bool : Set if within the scope of any replicated if, clear otherwise
+	    This determines whether to generate continues or seterrs */
+
+  IF:If(Pos,SL,CL),BL ?
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    GenIfListAtomic(IF,CL,BL);
+    EndAtomicBlock(SL);
+    .
+
+  IF:IfRep(Pos,SL,R,CL),BL ?
+    BeginAtomicBlock(SL,R,false);
+    SetPosition(Pos);
+    GenForLoop(R);
+    "{"; Indent();
+    GenIfListAtomic(IF,CL,true);
+    "break;" ; NewLine();
+    Outdent(); "}"; NewLine();
+    GenForCheck(R);
+    (false) ; .
+
+  IF:IfRep(_,SL,..),BL ? (BackIfType(IF) != NIL);
+    GenIfListAtomic(BackIfType(IF),BackChoiceList(IF),BL);
+    EndAtomicBlock(SL);
+    .
+
+  IF:IfRep(_,SL,..),{false} ?
+    "{"; Indent(); "SETERR(MSG_IF);"; Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    .
+
+  IF:IfRep(_,SL,..),{true} ? 
+    "{"; Indent(); "continue;"; Outdent(); "}"; NewLine();
+    EndAtomicBlock(SL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenIfListAtomic(IfType,ChoiceList,bool)*/
+PROCEDURE GenIfListAtomic(IfType,ChoiceList,bool)
+
+  /* bool : Set if within the scope of any replicated if, clear otherwise
+	    This determines whether to generate continues or seterrs */
+
+  IF,AChoice(SL,Next,AnExpr(NoExpr(),E:Expr(Pos)),P),BL ?
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    "if ("; CodeExpr(E); ")"; NewLine();
+    "{"; Indent(); GenProcess(P); Outdent(); "}"; NewLine(); 
+    "else"; NewLine();
+    GenIfListAtomic(IF,Next,BL);
+    EndAtomicBlock(SL);
+    .
+
+  IF,ANewIf(SL,Next,P:If(Pos,_,CL)),BL ?
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    BackIfType(P)     := IF;
+    BackChoiceList(P) := Next;
+    GenIfTypeAtomic(P,BL) ;
+    EndAtomicBlock(SL);
+    .
+
+  IF,ANewIf(SL,Next,P:IfRep(Pos,_,_,CL)),BL ?
+    BeginAtomicBlock(SL,NoTree,false);
+    SetPosition(Pos);
+    BackIfType(P)     := IF;
+    BackChoiceList(P) := Next;
+    GenIfTypeAtomic(P,BL) ;
+    EndAtomicBlock(SL);
+    .
+
+  IF,NoChoice(),BL ? (BackIfType(IF) != NIL); (Tree_IsType(IF,kIf));
+    GenIfListAtomic(BackIfType(IF),BackChoiceList(IF),BL);
+    .
+
+  IF,NoChoice(),{false} ?
+    "{"; Indent(); "SETERR(MSG_IF);"; Outdent(); "}"; NewLine();
+    .
+
+  IF,NoChoice(),{true} ? 
+    "{"; Indent(); "continue;"; Outdent(); "}"; NewLine();
+    .
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenCaseSwitches(ChoiceList,bool)*/
+PROCEDURE GenCaseSwitches(ChoiceList,bool)
+  LOCAL { int nlab; }
+
+  A:AChoice(SL,Next,AnExpr(_,Default(_)),_),_ ?
+    nlab := NewLabel();
+    "default: GOTO("; WriteLabelValue(nlab); ");"; NewLine();
+    A->AChoice.Label := nlab;
+    GenCaseSwitches(Next,true);
+    .
+
+  A:AChoice(_,Next,EL,_),B ?
+    nlab := NewLabel();
+    GenCaseExprList(EL);
+    "GOTO ("; WriteLabelValue(nlab); ");"; NewLine();
+    A->AChoice.Label := nlab;
+    GenCaseSwitches(Next,B);
+    .
+
+  NoChoice(),{false} ?
+   "default: SETERR(MSG_CASE);"; NewLine();
+   .
+  NoChoice(),_ ? .
+
+/*}}}*/
+/*{{{  PROCEDURE GenCaseExprList(ExprList)*/
+PROCEDURE GenCaseExprList(ExprList)
+  AnExpr(N,E) ?
+    "case "; CodeExpr(E); ": ";
+    GenCaseExprList(N);
+    .
+  NoExpr() ?.
+/*}}}*/
+/*{{{  PROCEDURE GenCaseCode(ChoiceList,int)*/
+PROCEDURE GenCaseCode(ChoiceList,int)
+  A:AChoice(SL,Next,_,P), endlab ?
+    WriteLabel(A->AChoice.Label);
+    BeginBlock(SL);
+    GenProcess(P);
+    EndBlock(SL);
+    "GOTO("; WriteLabelValue(endlab); ");"; NewLine();
+    GenCaseCode(Next,endlab);
+    .
+
+  NoChoice(),_ ?.
+/*}}}*/
+/*{{{  PROCEDURE GenCaseAtomic(ChoiceList,bool)*/
+PROCEDURE GenCaseAtomic(ChoiceList,bool)
+
+  A:AChoice(SL,Next,AnExpr(_,Default(_)),P),_ ?
+    "default: "; NewLine();
+    BeginAtomicBlock(SL,NoTree,false);
+    GenProcess(P);
+    EndAtomicBlock(SL);
+    "break;"; NewLine();
+    GenCaseAtomic(Next,true);
+    .
+
+  A:AChoice(SL,Next,EL,P),B ?
+    GenCaseExprList(EL); NewLine();
+    BeginAtomicBlock(SL,NoTree,false);
+    GenProcess(P);
+    EndAtomicBlock(SL);
+    "break;"; NewLine();
+    GenCaseAtomic(Next,B);
+    .
+
+  NoChoice(),{false} ?
+   "default: SETERR(MSG_CASE);"; NewLine();
+   .
+  NoChoice(),_ ? .
+/*}}}*/
+
+/*{{{  PROCEDURE GenCaseInSwitches(CaseList)*/
+PROCEDURE GenCaseInSwitches(CaseList)
+  LOCAL { int nlab; }
+
+/* The SpecList in CaseList is not traversed here since the
+   tag value cannot depend upon it. */
+
+  A:ACase(NoCase(),_,AnExpr(_,Default(_)),_) ?
+    nlab := NewLabel();
+    "default: GOTO("; WriteLabelValue(nlab); ");"; NewLine();
+    A->ACase.Label := nlab;
+    .
+
+  A:ACase(Next,_,AnExpr(_,ElementalExpr(_,E:Element(..))),_) ?
+    nlab := NewLabel();
+    "case "; CodeElement(E,false); ": " ;
+    "GOTO ("; WriteLabelValue(nlab); ");"; NewLine();
+    A->ACase.Label := nlab;
+    GenCaseInSwitches(Next);
+    .
+
+  NoCase() ?
+   "default: SETERR(MSG_CASEIN);"; NewLine();
+   .
+/*}}}*/
+/*{{{  PROCEDURE GenCaseInCode(CaseList,Element,int)*/
+PROCEDURE GenCaseInCode(CaseList,Element,int)
+
+  A:ACase(Next,SL,AnExpr(EL,Expr(Pos)),P),E,endlab ?
+    WriteLabel(A->ACase.Label);
+    BeginBlock(SL);
+    SetPosition(Pos);
+    GenInput(E,ElementType(E),EL) ;
+    GenProcess(P);
+    EndBlock(SL);
+    "GOTO("; WriteLabelValue(endlab); ");"; NewLine();
+    GenCaseInCode(Next,E,endlab);
+    .
+
+  NoCase(),_,_ ?.
+/*}}}*/
+/*}}}*/
+
+/*{{{  locals,inits and results*/
+/*{{{  PROCEDURE GenSetScope(tSymbol)*/
+PROCEDURE GenSetScope(tSymbol)
+  S ? (IS_Mode(xxOccamDebug));(S<=OccSymSize);
+    WriteStr("SETSCOPE(");
+    WriteInt(S-1);
+    ");";
+    NewLine();
+  .
+  _ ? .
+/*}}}*/
+/*{{{  PROCEDURE GenSetListScope([IdList,Formals])*/
+PROCEDURE GenSetListScope([IdList,Formals])
+  AnId(NoId(),S) ? GenSetScope(S);.
+  AnId(N,S) ? GenSetListScope(N);.  
+  NoId() ? .
+  AFormal(NoFormal(),_,_,_,S) ? GenSetScope(S);.
+  AFormal(N,..) ?  GenSetListScope(N);.
+  NoFormal() ? .
+/*}}}*/
+
+/*{{{  PROCEDURE GenLocalSpecs(SpecList)*/
+PROCEDURE GenLocalSpecs(SpecList)
+  ASpec(S:Spec(Pos),N) ? SetPosition(Pos);GenLocalSpec(S); GenLocalSpecs(N); .
+  NoSpec() ? .
+/*}}}*/
+/*{{{  PROCEDURE GenLocalSpec(SP:Spec)*/
+PROCEDURE GenLocalSpec(SP:Spec)
+
+  /*{{{  declare local state*/
+  Decl(_,T,IL) ? GenLocalIdList(T,IL); (false); .
+  
+  Val(_,_,S,..) ? (IsLocal(S)); DoBlock(); GenSpecState(SP);  .
+  ValRetypes(_,_,S,..) ? (IsLocal(S)); DoBlock(); GenSpecState(SP); .
+  Retypes(_,_,S,..) ? (IsLocal(S)); DoBlock(); GenSpecState(SP);  .
+  Is(_,_,S,..) ? (IsLocal(S)); DoBlock(); GenSpecState(SP); .
+  /*}}}*/
+    
+  S:Spec(P) ? .
+
+/*}}}*/
+/*{{{  PROCEDURE GenLocalRep(Replicator)*/
+PROCEDURE GenLocalRep(Replicator)
+  Replicator(S,FROM,FOR) ? (IsLocal(S)); (IsConstInt(FROM)); (IsConstInt(FOR));
+    DoBlock();
+    "INT "; WriteSym(S); ";"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+    .
+
+  Replicator(S,FROM,FOR) ? (IsLocal(S)); 
+    DoBlock();
+    "INT "; WriteSym(S); ";"; NewLine();
+    "INT "; WriteSym(S); "_End;"; NewLine();
+    ReplaceSymId(S,PrefixId(CurSpec().PrefixId,Symbol(S).CId,'.'));
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenLocalIdList(Type,IdList)*/
+PROCEDURE GenLocalIdList(Type,IdList)
+  T, AnId(N, S) ? (IsLocal(S)); DoBlock(); GenDeclSym(T,S,false); GenLocalIdList(T,N);.
+  T, AnId(N, S) ? GenLocalIdList(T,N);.
+  _, NoId() ?.
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenLocalInits(SpecList)*/
+PROCEDURE GenLocalInits(SpecList)
+  ASpec(S:Spec(Pos),N) ? SetPosition(Pos);GenLocalInit(S); GenLocalInits(N); .
+  NoSpec() ? .
+/*}}}*/
+/*{{{  PROCEDURE GenLocalInit(SP:Spec)*/
+PROCEDURE GenLocalInit(SP:Spec)
+
+  Decl(_,Chan(..),IL) 	? GenSetListScope(IL);GenInitChanList(IL); .
+
+  Decl(_,T:Array(..),IL)   ? (IsChanType(T)); GenSetListScope(IL); GenInitChanArrayList(T,IL); .
+
+  Decl(_,T,IL) 		? GenSetListScope(IL);.
+
+  /*{{{  Zero length arrays*/
+  AVal (_,T,S,EX) ? (IsZeroSizeType(ExprType(EX)));
+    GenSetScope(S);
+    CodeSym(S); " = NULL;"; NewLine(); .
+  
+  Is (_,T,S,EX) ? (IsZeroSizeType(ExprType(EX)));
+    GenSetScope(S);
+    CodeSym(S); " = NULL;"; NewLine(); .
+  
+  Retypes (_,T,S,EX) ? (IsZeroSizeType(T));
+    GenSetScope(S);
+    CodeSym(S); " = NULL;"; NewLine(); .
+  
+  /*}}}*/
+
+  /*{{{  RETYPES abbreviation*/
+  Retypes(_,T,S,EL:Element(..))	? (IsScalarType(T)) ; (IsChanType(T));
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(T,false); CodeChannelElement(EL,false); ";"; NewLine();
+    .
+  
+  Retypes(_,T,S,EL:Element(..))	? (IsChanType(T));
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(T,true); CodeChannelElement(EL,true); ";"; NewLine();
+    GenInitReArray(S,T,EL,GetElementSymbol(EL),ElementType(EL));
+    .
+  
+  Retypes(Pos,T,S,EL:Element(..)) ? (IS_Mode(xxEmulate));
+    GenEmuRetype(T,S,ElementType(EL),EL);
+    .
+  
+  Retypes(_,T,S,EL:Element(..))	? (IsScalarType(T)) ; 
+    GenSetScope(S);
+    CodeSym(S); " = *"; CCodeTypeName(T,true); CodeElement(EL,true); ";"; NewLine();
+    .
+  
+  Retypes(_,T,S,EL:Element(..))	? 
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(T,true); CodeElement(EL,true); ";"; NewLine();
+    GenInitReArray(S,T,EL,GetElementSymbol(EL),ElementType(EL));
+    .
+  /*}}}*/
+
+  /*{{{  VAL RETYPES abbreviation*/
+  ValRetypes(_,T,S,EX) ? (IS_Mode(xxEmulate)); (IsScalarType(ExprType(EX))); (IsConstExpr(EX));
+    "{"; Indent();
+    "static "; CCodeType(ExprType(EX)); " TMP; TMP = "; CodeExpr(EX); ";"; NewLine();
+    GenSetScope(S);
+    "RETYPE("; WriteInt(RetypeSize(T)); "^"; WriteInt(RetypeSize(ExprType(EX))); ",";
+    CodeRetypeSize(T,S,1); ",";
+    CodeSymRef(SymbolKind(S),S,true); ","; 
+    "&TMP);"; NewLine();
+    Outdent(); "}"; NewLine();
+    .
+  
+  ValRetypes (_,T,S,EX:ElementalExpr(_,EL:Element(..))) ? (IS_Mode(xxEmulate));
+    GenEmuRetype(T,S,ExprType(EX),EL);
+    .
+  
+  ValRetypes(_,T,S,EX) 	? (IsScalarType(T)) ; (IsScalarType(ExprType(EX)));
+    GenSetScope(S);
+    "*(";CCodeTypeName(ExprType(EX),true); CodeSymRef(SymbolKind(S),S,true); ") = "; CodeExpr(EX); ";"; NewLine();
+    .
+  
+  ValRetypes(_,T,S,EX) 	? (IsScalarType(ExprType(EX))); (IsConstExpr(EX));
+    "{"; Indent();
+    "static "; CCodeType(ExprType(EX)); " TMP; TMP = "; CodeExpr(EX); ";"; NewLine();
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(T,true); "&TMP;"; NewLine();
+    Outdent(); "}"; NewLine();
+    .
+  
+  ValRetypes(_,T,S,EX:ElementalExpr(_,EL:Element(..))) ? (IsScalarType(T));
+    GenSetScope(S);
+    CodeSym(S); " = *("; CCodeTypeName(T,true); CodeArrayExpr(EX,true); ");"; NewLine();
+    GenInitReArray(S,T,EL,GetElementSymbol(EL),ExprType(EL)); 
+    .
+  
+  ValRetypes(_,T,S,EX:ElementalExpr(_,EL:Element(..))) ? 
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(T,true); CodeArrayExpr(EX,true); ";"; NewLine();
+    GenInitReArray(S,T,EL,GetElementSymbol(EL),ExprType(EL));
+    .
+  
+  
+  /*}}}*/
+
+  /*{{{  VAL abbreviation*/
+  Val (_,T,S,EX:ElementalExpr(_,E)) ? (IsConstExpr(EX)); (!IsScalarType(ExprType(EX))); 
+    "{"; Indent();
+    "static "; CCodeType(ExprType(EX)); " TMP"; CCodeTypeId(ExprType(EX)); " = "; CodeConstArray(ExprType(E),E->Elemental.CA); ";"; NewLine();
+    GenSetScope(S);
+    CodeSym(S) ; " = (" ; CCodeType(ExprType(EX)); "*)TMP;"; NewLine();
+    Outdent(); "}"; NewLine(); .
+  
+  Val (_,T,S,ST:StringElement(..)) ? (IsConstExpr(ST)); (IsArrayType(ExprType(ST)));
+    "{"; Indent();
+    "static " ; CCodeType(ExprType(ST)); " TMP"; CCodeTypeId(ExprType(ST)); " = "; CodeConstArray(ExprType(ST),ST->StringElement.CA); ";"; NewLine(); 
+    GenSetScope(S);
+    CodeSym(S) ; " = TMP;"; NewLine();
+    Outdent(); "}"; NewLine(); .
+  
+  Val (_,T,S,EX)	? (IsConstExpr(EX)); (!IsNewSymbol(S)); . /* All other constants will have been propagated */
+  
+  Val (_,T:UserStructTypes(_,_,FL),S,ElementalExpr(_,EX:Table(_,EL))) ? 
+    GenInitUserType(S,FL,EL);
+    GenSetScope(S);  .
+  
+  Val (_,T,S,ElementalExpr(_,EX:Table(_,EL))) ? 
+    GenInitTable(S,0,EL);
+    GenSetScope(S);  .
+   
+  V:Val (_,T,S,FC:FuncCall(P,FS,EL)) ? (IsSTVFunction(SymbolKind(FS)));
+    GenFuncCall(SymbolKind(FS),FC,V); ";"; NewLine();
+    GenSetScope(S);  .
+     
+  Val (_,T,S,EX)	? (IsScalarType(SymbolType(S))) ;
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(SymbolType(S),false); CodeExpr(EX); ";"; NewLine(); .
+   
+  Val (_,T,S,EX:ElementalExpr(_,EL:Element(..))) ? 
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(SymbolType(S),true); CodeArrayExpr(EX,true); ";"; NewLine();
+    GenInitIsArray(S,SymbolType(S),EL,GetElementSymbol(EL),ExprType(EX)); .
+  
+  
+  /*}}}*/
+
+  /*{{{  IS abbreviation*/
+  Is(_,_,S,EL) ? (IsTimerType(SymbolType(S))); .
+  
+  Is(_,T:UserStructTypes(_,_,FL),S,Table(_,EL)) ?
+    GenSetScope(S);
+    GenInitUserType(S,FL,EL); .
+  
+  Is(_,T,S,Table(_,EL)) ?
+    GenSetScope(S);
+    GenInitTable(S,0,EL); .
+  
+  Is(_,T,S,EL:Element(..)) ? (IsScalarType(SymbolType(S))); (IsChanType(SymbolType(S)));
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(SymbolType(S),false); CodeChannelElement(EL,false); ";"; NewLine(); .
+  
+  Is(_,T,S,EL:Element(..)) ? (IsChanType(SymbolType(S)));
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(SymbolType(S),true); CodeChannelElement(EL,true); ";"; NewLine(); 
+    GenInitIsArray(S,SymbolType(S),EL,GetElementSymbol(EL),ElementType(EL)); .
+  
+  Is(_,T,S,EL:Element(..)) ? (IsScalarType(SymbolType(S))) ;
+    GenSetScope(S);
+    CodeSym(S); " = "; CodeElement(EL,false); ";"; NewLine(); .
+  
+  Is(_,T,S,EL:Element(..)) ?
+    GenSetScope(S);
+    CodeSym(S); " = "; CCodeTypeName(SymbolType(S),true); CodeElement(EL,true); ";"; NewLine(); 
+    GenInitIsArray(S,SymbolType(S),EL,GetElementSymbol(EL),ElementType(EL)); .
+  
+  /*}}}*/
+
+  CallFrame(..) ? ; .
+  ParFrame(..) ? ; .
+  DefAProc(..) ? ; .
+  DefAFunc(..) ? ; .
+  DefAPro(..) ? ; .
+  NullSpec(..) ? ; .
+  DeclType(_,_) ? .
+ 
+  S:Spec(P) ? WNYI(S,P);.
+
+/*}}}*/
+/*{{{  PROCEDURE GenInitUserType(tSymbol,FieldList,ExprList)*/
+PROCEDURE GenInitUserType(tSymbol,FieldList,ExprList)
+
+  S,FL:AField(N,_,T),AnExpr(EL,EX) ? (IsScalarType(T)) ;
+    "*((";CCodeType(T);"*)(((BYTE*)";CodeSym(S);")+"; WriteInt(CalcOffset(SymbolType(S),FL)); ")) = "; CodeExpr(EX); ";"; NewLine();
+    GenInitUserType(S,N,EL) ; .
+
+  S,FL:AField(N,..),AnExpr(EL,EX) ? 
+    WriteStr(ASSIGN); "(";
+    "(((BYTE*)";CodeSym(S);")+"; WriteInt(CalcOffset(SymbolType(S),FL)); "),";
+    CodeArrayExpr(EX,true); ","; 
+    GenArrayTypeSize(ExprType(EX)); "); "; NewLine();
+    GenInitUserType(S,N,EL) ; .
+  
+  S,FL,NoExpr() ? .
+/*}}}*/
+/*{{{  PROCEDURE GenInitTable(tSymbol,int,ExprList)*/
+PROCEDURE GenInitTable(tSymbol,int,ExprList)
+
+  S,index,AnExpr(EL,EX) ? (IsScalarType(ExprType(EX))) ;
+    CodeSym(S); "["; WriteInt(index); "] = "; CodeExpr(EX); ";"; NewLine();
+    GenInitTable(S,index+1,EL) ; .
+
+  S,index,AnExpr(EL,EX) ? 
+    WriteStr(ASSIGN); "(";
+    CodeSym(S); "["; WriteInt(index); "],"; 
+    CodeArrayExpr(EX,true); ","; 
+    GenArrayTypeSize(ExprType(EX)); "); "; NewLine();
+    GenInitTable(S,index+1,EL) ; .
+  
+  S,index,NoExpr() ? .
+/*}}}*/
+/*{{{  PROCEDURE GenArrayTypeSize(Type)*/
+PROCEDURE GenArrayTypeSize(Type)
+
+  Array(E,T) ?
+    "(";CodeExpr(E);"*";GenArrayTypeSize(T);")";
+    .
+
+  T ? (IsChanType(T));
+    "sizeof(";CCodeType(T);" *)";
+    .
+
+  T ?
+    WriteInt(PrimTypeSize(T));
+    .
+
+
+/*}}}*/
+/*{{{  PROCEDURE GenEmuRetype(Type,tSymbol,Type,Expr)*/
+PROCEDURE GenEmuRetype(Type,tSymbol,Type,Element)
+
+  T,S,ET,EL:Element(..) ? (RetypeSize(T) == RetypeSize(ET)); (!IsScalarType(T));
+    CodeSym(S); " = "; 
+    CCodeTypeName(T,true); CodeElement(EL,true); ";"; NewLine();
+    GenInitReArray(S,SymbolType(S),EL,GetElementSymbol(EL),ET);
+    .
+
+  T,S,ET,EL ? (!IsBoundedType(T));
+    GenInitReArray(S,SymbolType(S),EL,GetElementSymbol(EL),ET);
+    "ALLOCRETYPE("; CodeSym(S); ","; CCodeType(T); "*,"; CodeRetypeSize(T,S,1); ");"; NewLine();
+    (false);
+    .
+
+  T,S,ET,EL:Element(..) ?
+    GenSetScope(S);
+    "RETYPE("; 
+    WriteInt(RetypeSize(T)); "^"; WriteInt(RetypeSize(ET)); ",";
+    CodeRetypeSize(T,S,1); ",";
+    CodeSymRef(SymbolKind(S),S,true);
+    ",";
+    CodeElement(EL,true);
+    ");"; NewLine();
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeRetypeSize(Type,tSymbol,int)*/
+PROCEDURE CodeRetypeSize(Type,tSymbol,int)
+ A:Array(UnBound(_),T),S,I ? 
+   CodeSym(S); "_Dim"; WriteInt(TypeDepth(A)); "*";
+   CodeRetypeSize(T,S,I);
+   .
+ A:Array(EX,T),S,I ? 
+   CodeRetypeSize(T,S,I*ValConstInt(EX));
+   .
+
+  T,S,I ?
+    WriteInt(I*PrimTypeSize(T));
+    .
+/*}}}*/
+/*{{{  FUNCTION  RetypeSize(Type) int*/
+FUNCTION  RetypeSize(Type) int
+  Array(_,T) RETURN RetypeSize(T) ?.
+  T RETURN PrimTypeSize(T)-1 ?.
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenInitChanList(IdList)*/
+PROCEDURE GenInitChanList(IdList)
+  AnId(N,Sym) ?
+    CodeSym(Sym); " = &"; CodeSym(Sym); "_CHAN"; ";"; NewLine();
+    "INITCH("; CodeSym(Sym); ");"; NewLine(); 
+    GenInitChanList(N); .
+  NoId() ? .
+/*}}}*/
+/*{{{  PROCEDURE GenInitChanSubs(int,int)*/
+PROCEDURE GenInitChanSubs(int,int)
+  dim,max ? (dim < max); "[TMP"; WriteInt(dim); "]"; GenInitChanSubs(dim+1,max); .
+  _,_ ? .
+/*}}}*/
+/*{{{  PROCEDURE GenInitChanArray(Type,tSymbol,int)*/
+PROCEDURE GenInitChanArray(Type,tSymbol,int)
+
+  Array(E,T),S,dim ?
+    "{"; Indent(); NewLine();
+     "int TMP"; WriteInt(dim); ";"; NewLine();
+     "for (TMP"; WriteInt(dim); "=0;TMP"; WriteInt(dim); "<"; CodeExpr(E); ";TMP"; WriteInt(dim); "++)"; NewLine();
+    "{"; Indent(); NewLine();
+     GenInitChanArray(T,S,dim+1);
+    Outdent(); "}"; NewLine();
+    Outdent(); "}"; NewLine(); .
+  
+  Chan(_),S,dim ?
+    CodeSym(S); GenInitChanSubs(0,dim); " = &"; CodeSym(S); "_CHAN"; GenInitChanSubs(0,dim); ";"; NewLine();
+    "INITCH("; CodeSym(S); GenInitChanSubs(0,dim); ");"; NewLine(); .
+/*}}}*/
+/*{{{  PROCEDURE GenInitChanArrayList(Type,IdList)*/
+PROCEDURE GenInitChanArrayList(Type,IdList)
+  T,AnId(N,Sym) ? GenInitChanArray(T,Sym,0); GenInitChanArrayList(T,N); .
+  T,NoId() ? .
+/*}}}*/
+
+/*{{{  PROCEDURE GenInitIsArray(tSymbol,Type,Element,tSymbol,Type)*/
+PROCEDURE GenInitIsArray(tSymbol,Type,Element,tSymbol,Type)
+
+  LHS,L:Array(LHE,LHT), EL:Range(_,N,From,For), RHS, Array(RHE,RHT) ? (!IsConstExpr(LHE));
+    GenInitIsArray(LHS,LHT,N,RHS,RHT);
+    CodeSym(LHS); WriteStr(DIM); WriteInt(TypeDepth(L)); " = "; CodeExpr(For); ";";
+    NewLine(); 
+    .
+
+  LHS,L:Array(LHE,LHT), EL:Range(_,N,From,For), RHS, Array(RHE,RHT) ?
+    GenInitIsArray(LHS,LHT,N,RHS,RHT);
+    WriteStr(CHK); "(";
+    CodeExpr(LHE); " == ";
+    CodeExpr(For);
+    ","; WriteStr(MSG_AIM); ");";
+    NewLine(); 
+    .
+
+  LHS,L:Array(LHE,LHT), EL, RHS, R:Array(RHE,RHT) ? (!IsConstExpr(LHE));
+    GenInitIsArray(LHS,LHT,EL,RHS,RHT);
+    CodeSym(LHS); WriteStr(DIM); WriteInt(TypeDepth(L)); " = "; CodeSizeOp(EL,R); "; ";
+    NewLine();
+    .
+
+  LHS,L:Array(LHE,LHT), EL, RHS,R:Array(RHE,RHT) ? (!IsConstExpr(RHE));
+    GenInitIsArray(LHS,LHT,EL, RHS,RHT);
+    WriteStr(CHK); "(";
+    CodeExpr(LHE); " == ";
+    CodeSym(RHS); WriteStr(DIM); WriteInt(TypeDepth(R)); 
+    ","; WriteStr(MSG_AIM); ");";
+    NewLine();
+    .
+
+  LHS,Array(_,LHT), EL, RHS,Array(_,RHT) ? 
+    GenInitIsArray(LHS,LHT,EL, RHS,RHT);
+    .
+  _,_,_,_,_ ? .  
+/*}}}*/
+/*{{{  PROCEDURE GenInitReArray(tSymbol,Type,Element,tSymbol,Type)*/
+PROCEDURE GenInitReArray(tSymbol,Type,Element,tSymbol,Type)
+
+  LHS,T,EL,RHS,RHT:Array(..) ? (CheckValidDeclType(T)) ; (CheckValidDeclType(RHT)) ;.
+
+  LHS,LHT,EL,RHS,RHT ? 
+    GenInitMissingDimensions(LHS,LHT,EL,RHT);
+    WriteStr(CHK); "("; GenArraySize(LHS,LHT); " == "; GenElementSize(EL,RHT); 
+    ","; WriteStr(MSG_ARM); ");"; NewLine(); .
+
+/*}}}*/
+/*{{{  PROCEDURE GenInitMissingDimensions(tSymbol,Type,Element,Type)*/
+PROCEDURE GenInitMissingDimensions(tSymbol,Type,Element,Type)
+  LHS,T:Array(UnBound(..),NT),EL,RHT ? 
+    CodeSym(LHS); WriteStr(DIM); WriteInt(TypeDepth(T)); " = ";
+    "(("; GenElementSize(EL,RHT); ")/(";GenArrayUnBoundSize(SymbolType(LHS));")) ;" ; NewLine();
+    GenInitMissingDimensions(LHS,NT,EL,RHT);    
+  .
+  LHS,T:Array(E,NT),EL,RHT ? (!IsConstExpr(E));
+    CodeSym(LHS); WriteStr(DIM); WriteInt(TypeDepth(T)); " = ";
+    CodeExpr(E); ";" ; NewLine();
+    GenInitMissingDimensions(LHS,NT,EL,RHT);
+  .
+  LHS,T:Array(_,NT),EL,RHT ?
+    GenInitMissingDimensions(LHS,NT,EL,RHT);    
+  .    
+  _,_,_,_ ? .
+/*}}}*/
+      
+/*{{{  PROCEDURE GenArrayUnBoundSize(Type)*/
+PROCEDURE GenArrayUnBoundSize(Type)
+
+  L:Array(UnBound(_),LHT) ?
+    GenArrayUnBoundSize(LHT);
+    .
+
+  Array(E,LHT) ?
+    CodeExpr(E);
+    " * ";
+    GenArrayUnBoundSize(LHT);
+    . 
+
+  TT:UserStructTypes(..) ?
+    WriteInt(CalcTypeSize(TT)); 
+  .
+  T ? (IsChanType(T));
+    "sizeof(";CCodeType(T);" *)";
+    .
+  T ?
+    "sizeof(";CCodeType(T);")";
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE GenResults(SpecList)*/
+PROCEDURE GenResults(SpecList)
+  ASpec(S,N) ? GenResults(N); GenResult(S); .
+  NoSpec() ? .
+/*}}}*/
+/*{{{  PROCEDURE GenResult(Spec)*/
+PROCEDURE GenResult(Spec)
+
+  Is(Pos,T,S,E) ? (IsChanOrTimerType(SymbolType(S)));
+    .
+
+  Retypes(Pos,T,S,E) ? (IsChanOrTimerType(SymbolType(S)));
+    .
+
+  Is(Pos,T,S,Table(_,EL)) ?
+    GenResultTable(S,0,EL);
+    .
+
+  Is(Pos,T,S,EL:Element(..)) ? (IsScalarType(SymbolType(S)));
+    CodeElement(EL,false); " = "; CodeSym(S); ";"; NewLine();
+    .
+
+  ValRetypes (_,T,S,ElementalExpr(_,EL)) ? (IS_Mode(xxEmulate)); (RetypeSize(T)!=RetypeSize(ElementType(EL))); (!IsBoundedType(T)); (!IsScalarType(T));
+    "FREERETYPE("; CodeSym(S); ");"; NewLine();
+    .
+
+  Retypes (_,T,S,EL) ? (IS_Mode(xxEmulate)); 
+    GenEmuRetypeResult(T,S,ElementType(EL),EL);
+    .
+
+  Retypes (_,T,S,EL:Element(..)) ? (IsScalarType(T)); 
+    "*"; CCodeTypeName(T,true); CodeElement(EL,true); " = "; CodeSym(S); ";"; NewLine();
+    .
+  Spec(P) ? .
+      
+/*}}}*/
+/*{{{  PROCEDURE GenResultTable(tSymbol,int,ExprList)*/
+PROCEDURE GenResultTable(tSymbol,int,ExprList)
+  
+  S,index,AnExpr(EL,EX) ? (IsScalarType(ExprType(EX))) ;
+    CodeExpr(EX); " = "; CodeSym(S); "["; WriteInt(index); "];"; NewLine();
+    GenResultTable(S,index+1,EL) ; .
+
+  S,index,AnExpr(EL,EX) ? 
+    WriteStr(ASSIGN); "(";
+    CodeArrayExpr(EX,true); ","; 
+    CodeSym(S); "["; WriteInt(index); "],"; 
+    GenArrayTypeSize(ExprType(EX)); "); "; NewLine();
+    GenResultTable(S,index+1,EL) ; .
+/*}}}*/
+/*{{{  PROCEDURE GenEmuRetypeResult(Type,tSymbol,Type,Elemental)*/
+PROCEDURE GenEmuRetypeResult(Type,tSymbol,Type,Elemental)
+  T,E,ET,EL ? (RetypeSize(T) == RetypeSize(ET)); .
+
+  T,S,ET,EL:Element(..) ?
+    GenSetScope(S);
+    "RETYPE("; 
+    WriteInt(RetypeSize(T)); "^"; WriteInt(RetypeSize(ET)); ",";
+    CodeRetypeSize(T,S,1); ",";
+    CodeElement(EL,true);
+    ",";
+    CodeSymRef(SymbolKind(S),S,true);
+    ");"; NewLine();
+    (false);
+    .
+
+  T,S,ET,EL:Element(..) ? (RetypeSize(T)!=RetypeSize(ElementType(EL))); (!IsBoundedType(T)); (!IsScalarType(T));
+    "FREERETYPE("; CodeSym(S); ");"; NewLine();
+    .
+    
+  T,S,ET,EL:Element(..) ? .
+
+/*}}}*/
+/*}}}*/
+
+/*{{{  replicators and fors*/
+/*{{{  FUNCTION  GenRepStart(Replicator) int*/
+FUNCTION  GenRepStart(Replicator) int
+  LOCAL { int lab; }
+  Replicator(S,From,For) RETURN lab; ? (IsConstInt(From));(IsConstInt(For));
+    lab := NewLabel();
+    GenSetScope(S);
+    CodeSymRef(Symbol(S).Kind,S,false); " = "; CodeExpr(From); ";"; NewLine();
+    "GOTO("; WriteLabelValue(lab); ");"; NewLine();
+  .    
+  Replicator(S,From,For) RETURN lab; ? 
+    lab := NewLabel();
+    GenSetScope(S);
+    CodeSymRef(Symbol(S).Kind,S,false); " = "; CodeExpr(From); ";"; NewLine();
+    CodeSymRef(Symbol(S).Kind,S,false); "_End = "; CodeSymRef(Symbol(S).Kind,S,false); " + "; CodeExpr(For); ";"; NewLine();
+    "GOTO("; WriteLabelValue(lab); ");"; NewLine();
+  .    
+/*}}}*/
+/*{{{  PROCEDURE GenRepEnd(Replicator,int,int)*/
+PROCEDURE GenRepEnd(Replicator,int,int)
+  Replicator(S,From,For),start,end ? (IsConstInt(From));(IsConstInt(For));
+    CodeSymRef(Symbol(S).Kind,S,false); "++;"; NewLine();
+    WriteLabel(end);
+    "if ("; CodeSymRef(Symbol(S).Kind,S,false); " != ("; CodeExpr(From);"+";CodeExpr(For);")) GOTO("; WriteLabelValue(start); ");"; NewLine();
+    .
+  Replicator(S,From,For),start,end ? 
+    CodeSymRef(Symbol(S).Kind,S,false); "++;"; NewLine();
+    WriteLabel(end);
+    "if ("; CodeSymRef(Symbol(S).Kind,S,false); " != "; CodeSymRef(Symbol(S).Kind,S,false); "_End) GOTO("; WriteLabelValue(start); ");"; NewLine();
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE GenAltIndex(Replicator)*/
+PROCEDURE GenAltIndex(Replicator)
+  Replicator(S,..) ?
+    CodeSymRef(Symbol(S).Kind,S,false); .
+/*}}}*/
+/*{{{  PROCEDURE GenAltSelect(Replicator)*/
+PROCEDURE GenAltSelect(Replicator)
+  Replicator(S,..) ?
+    CodeSymRef(Symbol(S).Kind,S,false); "_Alt"; .
+/*}}}*/
+
+/*{{{  PROCEDURE GenForLoop(Replicator)*/
+PROCEDURE GenForLoop(Replicator)
+  Replicator(S,From,For) ? (IsConstInt(From));(IsConstInt(For));
+    GenSetScope(S);
+    "for ("; CodeSymRef(Symbol(S).Kind,S,false); " = "; CodeExpr(From); "; ";
+    CodeSymRef(Symbol(S).Kind,S,false); " != "; CodeExpr(From); " + "; CodeExpr(For); "; "; CodeSymRef(Symbol(S).Kind,S,false); "++)"; NewLine();
+    .
+
+  Replicator(S,From,For) ?
+    GenSetScope(S);
+    CodeSymRef(Symbol(S).Kind,S,false); " = "; CodeExpr(From); ";";
+    CodeSymRef(Symbol(S).Kind,S,false); "_End = "; CodeSymRef(Symbol(S).Kind,S,false); " + "; CodeExpr(For); ";"; NewLine();
+    "for (; "; CodeSymRef(Symbol(S).Kind,S,false); " != "; CodeSymRef(Symbol(S).Kind,S,false); "_End; "; CodeSymRef(Symbol(S).Kind,S,false); "++)"; NewLine();
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenForCheck(Replicator)*/
+PROCEDURE GenForCheck(Replicator)
+  Replicator(S,From,For) ? (IsConstInt(From));(IsConstInt(For));
+    "if ("; CodeSymRef(Symbol(S).Kind,S,false); " == (";CodeExpr(From); " + "; CodeExpr(For);"))"; NewLine();
+  .
+  Replicator(S,From,For) ?
+    "if ("; CodeSymRef(Symbol(S).Kind,S,false); " == "; CodeSymRef(Symbol(S).Kind,S,false); "_End) "; NewLine();
+  .
+/*}}}*/
+/*}}}*/
+
+/*{{{  expressions, arrays, assign*/
+/*{{{  PROCEDURE CodeArrayExpr(Expr,bool)*/
+PROCEDURE CodeArrayExpr(Expr,bool)
+
+  ElementalExpr(_,EL:Element(..)),BL ? (IsChanType(ElementType(EL)));
+    CodeChannelElement(EL,BL); .
+
+  ElementalExpr(_,EL:Element(..)),BL ?
+    CodeElement(EL,BL); .
+
+  ElementalExpr(_,TableElement(Pos,..)),_ ? 
+    Message("Unexpected table element",xxError,Pos) ; .
+
+  StringElement(Pos,..),_ ? 
+    Message("Unexpected string element",xxError,Pos) ; .
+    
+/*}}}*/
+/*{{{  PROCEDURE CodeExpr(Expr)*/
+PROCEDURE CodeExpr(Expr)
+
+  E:Expr(..) ? (IsConstExpr(E)); (IsScalarType(ExprType(E))); CodeConstExpr(ExprType(E),ValConstExpr(E)); .
+
+  Binary(_,L,R,O:LeftShift()) ? 
+   "LOGSHIFTLEFT(";CCodeType(ExprType(L));",";CodeExpr(L);",";CodeExpr(R);")"; 
+  .
+  Binary(_,L,R,O:RightShift()) ? 
+    "LOGSHIFTRIGHT(";CCodeType(ExprType(L));",";CodeExpr(L);",";CodeExpr(R);")"; 
+  .
+  Binary(_,L,R,O:AfterOp()) ? 
+    "AFTER(";CodeExpr(L);",";CodeExpr(R);")"; 
+  .
+  B:Binary(_,L,R,Rem()) ? (Tree_IsType(ExprType(B),kReal));
+    "( remainder((";CodeExpr(L); "),("; CodeExpr(R); ")))";
+    .
+  Binary(_,L,R,O) ? 
+    "(";CodeExpr(L); CodeOp(O); CodeExpr(R); ")";
+  .
+  Unary(_,EX:ElementalExpr(_,EL:Element),Size()) ? 
+    "("; CodeSizeOp(EL,ExprType(EX)); ")";
+  .
+  Unary(_,E,O) ? 
+    "("; CodeOp(O); CodeExpr(E); ")";
+  .
+  BytesInType(_,T) ? 
+    GenArraySize(NoSymbol,T);
+  .   
+  BytesInExpr(_,ElementalExpr(_,EL:Element)) ? 
+    GenElementSize(EL,ElementType(EL));
+  .   
+  ElementalExpr(_,E:Element(..)) ? (IsChanType(ElementType(E))); (IsScalarType(ElementType(E))); 
+    CodeChannelElement(E,false);
+  . 
+  ElementalExpr(_,E:Element(..)) ? (IsChanType(ElementType(E))); 
+    CodeChannelElement(E,true);
+  . 
+  ElementalExpr(_,E:Element(..)) ? 
+    CodeElement(E,false);
+  . 
+  Convert(_,T,E) ? 
+    CCodeType(T);CCodeType(ExprType(E));"(";CodeExpr(E);")";
+  .
+  Round(_,T,E) ? 
+    CCodeType(T);CCodeType(ExprType(E));"ROUND(";CodeExpr(E);")";
+  .
+  Trunc(_,T,E) ? 
+    CCodeType(T);CCodeType(ExprType(E));"TRUNC(";CodeExpr(E);")";
+  .
+  MostPos(_,T) ? 
+    "MOSTPOS";CCodeType(T);
+  .
+  MostNeg(_,T) ? 
+    "MOSTNEG";CCodeType(T);
+  .
+  FC:FuncCall(P,S,EL) ? 
+    GenFuncCall(SymbolKind(S),FC,NoTree);
+  .
+  E:Expr(P) ? WNYI(E,P);.
+/*}}}*/
+/*{{{  PROCEDURE CodeSizeOp(Element,Type)*/
+PROCEDURE CodeSizeOp(Element,Type)
+
+  Range(_,N,From,For), TT:Array(E,T) ? (!IsConstExpr(E)); 
+    CodeExpr(For);
+    .
+
+  EL, TT:Array(E,T) ? (!IsConstExpr(E)); 
+    CodeSym(GetElementSymbol(EL));WriteStr(DIM);WriteInt(TypeDepth(TT));
+    .
+
+  EL,Array(E,T) ? 
+    CodeExpr(E);
+  .  
+
+/*}}}*/
+/*{{{  PROCEDURE CodeConstExpr(Type,tValue)*/
+PROCEDURE CodeConstExpr(Type,tValue)
+
+  Int64(),V    ? { WritetInt(V.Number,true); };.
+  Integer(),V  ? { WritetInt(V.Number,false); };.
+  Byte(),V ? {WriteInt((unsigned char)V.Number);};.
+  Bool(),V ? (V.Number); "true";.
+  Bool(),V ?             "false";.
+
+  Real32(),V ? WriteReal(V);.
+  Real64(),V ? WriteReal(V);.
+  T:Type(),V ? WNYI(T,NoPosition);.
+
+/*}}}*/
+
+/*{{{  PROCEDURE CodeAssign(ExprList,ExprList)*/
+PROCEDURE CodeAssign(ExprList,ExprList)
+
+  NoExpr(),NoExpr() ?
+    .
+  AnExpr(_,ElementalExpr(Pos,E:TableElement(..))),_ ?
+    Message("Unexpected table elements on LHS of assign",xxError,Pos);
+    .
+  EL:AnExpr(N1,_),AnExpr(N2:AnExpr(..),FC:FuncCall(Pos,FS,FL)) ? (IsMVFunction(SymbolKind(FS)));
+    OpenBlock(false); DoBlock();
+    CodeMVFTemps(EL,0);
+    GenFuncCall(SymbolKind(FS),FC,EL); ";"; NewLine();
+    CodeMVFTempCopies(EL,0);
+    CloseBlock();
+    CodeAssign(N1,N2);
+    .
+
+  EL:AnExpr(..),AnExpr(_,FC:FuncCall(Pos,FS,FL)) ? (IsMVFunction(SymbolKind(FS)));
+    OpenBlock(false); DoBlock();
+    CodeMVFTemps(EL,0);
+    GenFuncCall(SymbolKind(FS),FC,EL); ";"; NewLine();
+    CodeMVFTempCopies(EL,0);
+    CloseBlock();
+    .
+
+  EL,ER ?
+    CodeAssign2(EL,ER);
+    .
+
+/* This bypassing a bug in the GMD toolset */
+PROCEDURE CodeAssign2(ExprList,ExprList)
+  LOCAL { tTree T;}
+
+  AE:AnExpr(EL,ElementalExpr(P,E1:Element(..))),AnExpr(ER,EX:ElementalExpr(_,E2:Element(..))) ? (TempRequired(AE));(!IsScalarType(T=ElementType(E1))); 
+    "{"; Indent();
+    CCodeType(ElementType(E1)); " TMP";CCodeTypeIdChkConst(ElementType(E1),P);";"; NewLine();
+    "INT len = ";GenElementSize(E1,T); "; "; NewLine();
+    GenChkDims(E1,T,E2,ExprType(EX));
+    WriteStr(ASSIGN); "(TMP,"; CodeArrayExpr(EX,true); ",len); "; NewLine();
+    CodeAssign(EL,ER);
+    WriteStr(ASSIGN); "("; CodeElement(E1,true);",TMP,len); "; Outdent();
+    "}";NewLine();
+  .
+  AnExpr(EL,ElementalExpr(_,E1:Element(..))),AnExpr(ER,EX:ElementalExpr(_,E2:Element(..))) ? (!IsScalarType(T=ElementType(E1)));
+    GenChkDims(E1,T,E2,ExprType(EX));
+    WriteStr(ASSIGN); "("; CodeElement(E1,true);","; CodeArrayExpr(EX,true); ","; 
+    GenElementSize(E1,T); "); "; NewLine();
+    CodeAssign(EL,ER);
+  .
+  AE:AnExpr(EL,ElementalExpr(_,E:Element(..))),AnExpr(ER,EX) ? (!TempRequired(AE));
+    CodeAssign(EL,ER); CodeElement(E,false); " = "; CodeExpr(EX); "; "; NewLine(); 
+  .
+  AnExpr(EL,ElementalExpr(_,E:Element(..))),AnExpr(ER,EX:ElementalExpr(_,Identifier(_,S))) ? (Tree_IsType(SymbolKind(S),kAVal)); /* funcs already go through temp*/
+    CodeAssign(EL,ER); CodeElement(E,false); " = "; CodeExpr(EX); "; "; NewLine();
+  .
+  AnExpr(EL,ElementalExpr(_,E:Element(..))),AnExpr(ER,EX) ?
+    "{"; Indent();
+     CCodeType(ElementType(E)); " TMP = "; CodeExpr(EX); "; "; NewLine();
+     CodeAssign(EL,ER); 
+     CodeElement(E,false); " = TMP;"; Outdent(); 
+    "}";NewLine();
+  .
+  _,_ ? yyAbort("Unbalanced assignment list") ; .
+
+/*{{{  PROCEDURE GenChkDims(Element,Type,Expr,Type)*/
+PROCEDURE GenChkDims(Element,Type,Element,Type)
+
+  EL1,TT1:Array(E1,T1),EL2:Range(_,NEL2,From,For),TT2:Array(E2,T2) ?
+    WriteStr(CHK);"(";CodeSizeOp(EL1,TT1); "=="; CodeSizeOp(EL2,TT2); ",";WriteStr(MSG_ASM);");"; NewLine();
+    GenChkDims(EL1,T1,NEL2,T2);
+    .
+
+  EL1,TT1:Array(E1,T1),EL2,TT2:Array(E2,T2) ? (IsConstExpr(E1)); (IsConstExpr(E2));
+    GenChkDims(EL1,T1,EL2,T2);
+    .
+
+  EL1,TT1:Array(E1,T1),EL2,TT2:Array(E2,T2) ?
+    WriteStr(CHK);"(";CodeSizeOp(EL1,TT1); "=="; CodeSizeOp(EL2,TT2); ",";WriteStr(MSG_ASM);");"; NewLine();
+    GenChkDims(EL1,T1,EL2,T2);
+    .
+  _,_,_,_ ? .
+/*}}}*/
+
+/*}}}*/
+
+/*}}}*/
+
+/*{{{  instance, funccall*/
+/*{{{  PROCEDURE GenInstance(DP:DefAProc, ExprList, tIdent)*/
+PROCEDURE GenInstance(DP:DefAProc, ExprList, tIdent)
+  LOCAL { bool comma = false; int lab; }
+
+  DefProc(_,S,F,P),EL,FP ? (IsAtomicProc(DP));
+    GenAtomicInstance(S,F,EL);
+    .
+
+  DefProc(_,S,F,P),EL,FP ?
+    GenNonAtomicInstance(S,F,EL,FP);
+    .
+
+  PrototypeProc(_,S,F,M,L),EL,FP ? (L == xxOccam);
+    GenNonAtomicInstance(S,F,EL,FP);
+    .
+
+  PrototypeProc(_,S,F,M,L),EL,FP ? (L == xxAtomicOccam);
+    GenAtomicInstance(S,F,EL);
+    .
+
+  PrototypeProc(_,S,F,M,L),EL,FP ? (L == xxC);
+    GenCInstance(S,F,EL);
+    .
+
+  PrototypeProc(_,S,F,M,L),EL,FP ? (L == xxF90);
+    GenF90Instance(S,F,EL);
+    .
+
+  PrototypeProc(Pos,S,F,M,L),EL,FP ? (L == xxF77);
+    Message("Fortran 77 interface not yet implemented",xxError,Pos);
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE GenAtomicInstance(tSymbol, Formals, ExprList)*/
+PROCEDURE GenAtomicInstance(tSymbol, Formals, ExprList)
+  LOCAL { bool comma = false; }
+
+  S,F,EL ?
+    WriteSym(S); "("; 
+    (NeedsChain(SymbolKind(S)));
+    "FP"; CodeIndirect(S,CurProc);
+    comma := true;
+    (false);
+    .
+
+  S,F,EL ?
+    GenParams(F,EL,comma);
+    ");"; NewLine();
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenNonAtomicInstance(tSymbol, Formals, ExprList, tIdent)*/
+PROCEDURE GenNonAtomicInstance(tSymbol, Formals, ExprList, tIdent)
+  LOCAL { int lab; }
+
+  S,F,EL,FP ? (IsPrototype(SymbolKind(S)));
+    GenExtParams(F,EL,FP,0);
+    GenChain(FP,S,true);
+    (false);
+    .
+
+  S,F,EL,FP ? (!IsPrototype(SymbolKind(S)));
+    GenIntParams(F,EL,FP,NoSymbol);
+    GenChain(FP,S,(IsTopLevel(S)));
+    (false);
+    .
+
+  S,F,EL,FP ? 
+    lab := NewLabel(); 
+    "CALL("; WriteSym(S);  ",&FP->"; WriteId(FP); ","; WriteInt(lab); ",\""; WriteSym(S);"\");"; NewLine();
+    WriteLabel(lab);
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE GenCInstance(tSymbols, Formals, ExprList)*/
+PROCEDURE GenCInstance(tSymbol, Formals, ExprList)
+  S,F,EL ? 
+    GenCTemps(F,EL,0);
+    WriteId(Symbol(S).Id); "(";
+    GenCParams(F,EL,false);
+    ");"; NewLine();
+    GenCResults(F,EL,0);
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE GenCTemps(Formals,ExprList,bool)*/
+PROCEDURE GenCTemps(Formals,ExprList,bool)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,T,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM ? (IsByteArray(T));
+    GenCTemps(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,T,S),AnExpr(NE,E),PRM ? 
+    GenCTemps(NF,NE,PRM+1);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenCParams(Formals,ExprList,bool)*/
+PROCEDURE GenCParams(Formals,ExprList,bool)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,T:Array,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),B ? (IsChanType(ArrayPrimType(T)));
+    "(";CCodeType(ArrayPrimType(T));"**)"; CodeChannelElement(E,true);
+    GenCParams(NF,NE,true);
+    .
+
+  AFormal(NF,_,_,T:Array,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),B ?
+    GenComma(B);
+    "(";CCodeType(T);"*)"; CodeElement(E,true);  
+    GenCParams(NF,NE,true);
+    .
+
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,E:Element(..))),B ? (IsChanType(ElementType(E)));
+    GenComma(B);
+    CodeChannelElement(E,false);
+    GenCParams(NF,NE,true);  
+  .
+
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,E:Element(..))),B ? 
+    GenComma(B);
+    CodeElement(E,true);
+    GenParams(NF,NE,true);  
+  .
+
+  AFormal(NF,_,ByVal(),Type,Sym),AnExpr(NE,E),B ? 
+    GenComma(B);
+    CodeExpr(E);
+    GenParams(NF,NE,true);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenCResults(Formals,ExprList,bool)*/
+PROCEDURE GenCResults(Formals,ExprList,bool)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,ByRef(),T,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM ? (IsByteArray(T));
+    GenCResults(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,T,S),AnExpr(NE,E),PRM ? 
+    GenCResults(NF,NE,PRM+1);
+  .
+/*}}}*/
+
+/*{{{  PROCEDURE GenF90Instance(tSymbol, Formals, ExprList)*/
+PROCEDURE GenF90Instance(tSymbol, Formals, ExprList)
+  S,F,EL ? 
+    "{"; Indent(); NewLine();
+    GenF90Temps(F,EL,0);
+    GenF90Inits(F,EL,0);
+    WriteId(CalcModule(SymbolKind(S))); "_MP_"; WriteId(Symbol(S).Id); "(";
+    GenF90Params(F,EL,0,false);
+    GenF90CharParams(F,EL,0);
+    ");"; NewLine();
+    GenF90Results(F,EL,0);
+    Outdent(); "}"; NewLine();
+    .
+
+/*}}}*/
+/*{{{  PROCEDURE GenF90Temps(Formals,ExprList,int)*/
+PROCEDURE GenF90Temps(Formals,ExprList,int)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,FT:Array(_,Byte()),Sym),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ?
+    GenF90Temps(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,FT:Array,Sym),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ? (!IsBoundedType(FT)); (IsByteArray(FT));
+    "ChDope"; WriteInt(CountArrayDims(FT)-1); " TMP"; WriteInt(PRM); ";"; NewLine();
+    GenF90Temps(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,FT:Array,Sym),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ? (!IsBoundedType(FT));
+    "Dope"; WriteInt(CountArrayDims(FT)); " TMP"; WriteInt(PRM); ";"; NewLine();
+    GenF90Temps(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,FT,_),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ? (IsScalarType(FT)); (IsConstExpr(EX));
+    CCodeType(FT); " TMP"; WriteInt(PRM); " = "; CodeExpr(EX); ";"; NewLine();    
+    GenF90Temps(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,..),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM ?
+    GenF90Temps(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,FT,_),AnExpr(NE,E),PRM ? 
+    CCodeType(FT); " TMP"; WriteInt(PRM); " = "; CodeExpr(E); NewLine();    
+    GenF90Temps(NF,NE,PRM+1);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenF90Inits(Formals,ExprList,int)*/
+PROCEDURE GenF90Inits(Formals,ExprList,int)
+  LOCAL { int tmp; }
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,Array(_,Byte()),_),AnExpr(NE,EX),PRM ?
+    GenF90Inits(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,T:Array,Sym),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ? (!IsBoundedType(T)); (IsByteArray(T));
+    "TMP"; WriteInt(PRM); ".offset = 0; "; NewLine();
+    "TMP"; WriteInt(PRM); ".addr = (Pointer)"; CodeElement(E,true); ";"; NewLine();
+    GenF90DopeInits(T,ExprType(EX),E,PRM,CountArrayDims(T)-2); 
+    GenF90Inits(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,T:Array,Sym),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ? (!IsBoundedType(T));
+    "TMP"; WriteInt(PRM); ".offset = 0; "; NewLine();
+    "TMP"; WriteInt(PRM); ".addr = (Pointer)"; CodeElement(E,true); ";"; NewLine();
+    GenF90DopeInits(T,ExprType(EX),E,PRM,CountArrayDims(T)-1); 
+    GenF90Inits(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,..),AnExpr(NE,..),PRM ?
+    GenF90Inits(NF,NE,PRM+1);
+    .
+/*}}}*/
+/*{{{  PROCEDURE GenF90DopeInits(Type, Type, Element, int, int)*/
+PROCEDURE GenF90DopeInits(Type, Type, Element, int, int)
+  LOCAL { int extent; }
+
+  FT,ET,EL,PRM,DIM ?
+    "TMP";WriteInt(PRM); ".dim["; WriteInt(DIM); "].lower = 0;"; 
+    "TMP";WriteInt(PRM); ".dim["; WriteInt(DIM); "].extent = "; GenArrayDimSize(ET,EL); ";"; 
+    (false);
+    .
+
+  FT,Array(E,ET),EL,PRM,DIM ? (DIM==0); (IsByteArray(ET));
+    "TMP";WriteInt(PRM); ".len = "; GenArrayDimSize(ET,EL); ";"; NewLine();
+    "TMP";WriteInt(PRM); ".dim[0].mult = "; GenArrayDimSize(ET,EL); ";"; NewLine();
+    .
+
+  FT,Array(E,T),EL,PRM,DIM ? (DIM>0);
+    GenF90DopeInits(FT,T,EL,PRM,DIM-1);
+    (false);
+    .
+
+  FT,Array(E,ET),EL,PRM,DIM ? (DIM>0);
+    "TMP";WriteInt(PRM); ".dim["; WriteInt(DIM); "].mult = ";
+    "TMP";WriteInt(PRM); ".dim["; WriteInt(DIM-1); "].mult * "; GenArrayDimSize(ET,EL); ";"; NewLine();
+    .
+
+  FT,Array(E,T),EL,PRM,DIM ?
+    "TMP";WriteInt(PRM); ".dim["; WriteInt(DIM); "].mult = sizeof("; CCodeType(T); ");"; NewLine();
+    .
+	 
+  FT,ET,_,_,_ ?
+    .
+
+
+/*}}}*/
+/*{{{  PROCEDURE GenF90Params(Formals,ExprList,int,bool)*/
+PROCEDURE GenF90Params(Formals,ExprList,int,bool)
+
+  _,NoExpr(),_,_ ? .
+
+  AFormal(NF,_,_,T:Array(_,Byte()),_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM,B ?
+    GenComma(B);
+    "(";CCodeType(ArrayPrimType(T));"*)"; CodeElement(E,true);
+    GenF90Params(NF,NE,PRM+1,true);
+    .
+
+  AFormal(NF,_,_,T:Array,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM,B ? (IsBoundedType(T));
+    GenComma(B);
+    "(";CCodeType(ArrayPrimType(T));"*)"; CodeElement(E,true);
+    GenF90Params(NF,NE,PRM+1,true);
+    .
+
+  AFormal(NF,_,_,T:Array,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM,B ?
+    GenComma(B);
+    "&TMP"; WriteInt(PRM); 
+    GenF90Params(NF,NE,PRM+1,true);
+    .
+
+  AFormal(NF,_,_,T,_),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM,B ? (IsScalarType(T)); (IsConstExpr(EX));
+    GenComma(B);
+    "&TMP"; WriteInt(PRM);
+    GenF90Params(NF,NE,PRM+1,true);
+    .
+
+  AFormal(NF,_,_,Type,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM,B ? 
+    GenComma(B);
+    CodeElement(E,true);
+    GenF90Params(NF,NE,PRM+1,true);  
+  .
+
+  AFormal(NF,_,_,Type,_),AnExpr(NE,E),PRM,B ? 
+    GenComma(B);
+    "&TMP"; WriteInt(PRM);
+    GenF90Params(NF,NE,PRM+1,true);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenF90CharParams(Formals,ExprList,int)*/
+PROCEDURE GenF90CharParams(Formals,ExprList,int)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,FT:Array(_,Byte()),_),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ?
+    GenComma(true);
+    GenArrayDimSize(ExprType(EX),E);
+    GenF90CharParams(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,FT:Array(_,T),_),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ? (IsByteArray(FT));
+    GenComma(true);
+    "TMP"; WriteInt(PRM); ".len"; 
+    GenF90CharParams(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,..),AnExpr(NE,E),PRM ? 
+    GenF90CharParams(NF,NE,PRM+1);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenF90Results(Formals,ExprList)*/
+PROCEDURE GenF90Results(Formals,ExprList,int)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,T,_),AnExpr(NE,ElementalExpr(_,E:Element(..))),PRM ? (IsBoundedType(T));
+    GenF90Results(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,T:Array,Sym),AnExpr(NE,EX:ElementalExpr(_,E:Element(..))),PRM ?
+    GenF90Results(NF,NE,PRM+1);
+    .
+
+  AFormal(NF,_,_,Type,Sym),AnExpr(NE,E),PRM ? 
+    GenF90Results(NF,NE,PRM+1);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenArrayDimSize(Type,Element)*/
+PROCEDURE GenArrayDimSize(Type,Element)
+  ET:Array(UnBound(_),T),EL ?
+    CodeSym(GetElementSymbol(EL)); WriteStr(DIM); WriteInt(TypeDepth(ET));
+    .
+
+  ET:Array(E,T),EL ?
+    WriteInt(ValConstInt(E));
+    .
+
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenExtParams(Formals, ExprList, tIdent, int)*/
+PROCEDURE GenExtParams(Formals, ExprList, tIdent, int)
+  NoFormal(),NoExpr(),FP, N ?
+  .
+  AFormal(NF,_,_,T,Sym),AnExpr(NE,E),FP,Index ? (IsTimerType(T));
+    GenExtParams(NF,NE,FP,Index);
+  .
+  AFormal(NF,_,_,T:Array,Sym),AnExpr(NE,E),FP,N ?
+    GenExtArrayParams(T,ExprType(E),E,FP,N);
+    GenExtParams(NF,NE,FP,N+1);
+  .
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,El:Element(..))),FP,N ?  (IsChanType(ElementType(El)));
+    "FP->"; WriteId(FP);"."; WriteStr(PRM); WriteInt(N); 
+    "="; CodeChannelElement(El,false);";"; NewLine();
+    GenExtParams(NF,NE,FP,N+1);
+  .
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,El:Element(..))),FP,N ?
+    "FP->"; WriteId(FP);"."; WriteStr(PRM); WriteInt(N); 
+    "="; CodeElement(El,true);";"; NewLine();
+    GenExtParams(NF,NE,FP,N+1);
+  .
+  AFormal(NF,_,ByVal(),Type,Sym),AnExpr(NE,E),FP,N ? 
+    "FP->"; WriteId(FP);".";  WriteStr(PRM); WriteInt(N); "="; CodeExpr(E); ";"; NewLine();
+    GenExtParams(NF,NE,FP,N+1); 
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenExtArrayParams(Type,Type,Expr,tIdent,int)*/
+PROCEDURE GenExtArrayParams(Type,Type,Expr,tIdent,int)
+  FT:Array(UnBound(_),T),ET:Array(UnBound(_),NET),EX:ElementalExpr(P,E:Element(..)),FP,N ? 
+    "FP->"; WriteId(FP);"."; WriteStr(PRM); WriteInt(N); WriteStr(DIM); WriteInt(TypeDepth(FT)); "="; 
+    CodeSym(GetElementSymbol(E)); WriteStr(DIM); WriteInt(TypeDepth(ET)); ";"; NewLine();
+    GenExtArrayParams(T,NET,EX,FP,N) ;
+  .
+  FT:Array(UnBound(_),T),Array(AE,ET),EX:Expr(P),FP,N ? 
+    "FP->"; WriteId(FP);"."; WriteStr(PRM); WriteInt(N); WriteStr(DIM); WriteInt(TypeDepth(FT)); "="; CodeExpr(AE); ";"; NewLine();
+    GenExtArrayParams(T,ET,EX,FP,N) ;
+  .
+  Array(FE,T),ET:Array(UnBound(_),NET),EX:ElementalExpr(P,E:Element(..)),FP,N ? 
+    WriteStr(CHK);"(";CodeExpr(FE);"==";
+    CodeSym(GetElementSymbol(E)); WriteStr(DIM); WriteInt(TypeDepth(ET)); ",";WriteStr(MSG_ASM); ");"; NewLine();
+    GenExtArrayParams(T,NET,EX,FP,N) ;
+  .
+  Array(FE,T),Array(E,ET),EX,FP,N ? (IsConstInt(FE));(IsConstInt(E)); 
+    GenExtArrayParams(T,ET,EX,FP,N); 
+  .
+  Array(FE,T),Array(E,ET),EX:Expr(P),FP,N ? 
+    WriteStr(CHK);"(";CodeExpr(FE);"==";CodeExpr(E);",";WriteStr(MSG_ASM);");"; NewLine();
+    GenExtArrayParams(T,ET,EX,FP,N); 
+  .
+  T,ET,ElementalExpr(_,E:Element(..)),FP,N ? (IsChanType(T));
+    "FP->"; WriteId(FP);"."; WriteStr(PRM); WriteInt(N); "= (";CCodeType(T);"**)"; CodeChannelElement(E,true); ";"; NewLine(); 
+  .
+  T,ET,ElementalExpr(P,E:Element(..)),FP,N ? 
+    "FP->"; WriteId(FP);"."; WriteStr(PRM); WriteInt(N); "= (";CCodeType(T);"*)"; CodeElement(E,true); ";"; NewLine(); 
+  .
+  _,_,E:Expr(P),_,_ ? WNYI(E,P);
+  .
+/*}}}*/
+/*{{{  PROCEDURE GenIntParams(Formals, ExprList, tIdent, tSymbol)*/
+PROCEDURE GenIntParams(Formals, ExprList, tIdent, tSymbol)
+  NoFormal(),NoExpr(),FP,Index ? 
+  .
+  AFormal(NF,_,_,T,Sym),AnExpr(NE,E),FP,Index ? (IsTimerType(T));
+    GenIntParams(NF,NE,FP,Index);
+  .
+  AFormal(NF,_,_,T:Array,Sym),AnExpr(NE,E),FP,Index ? 
+    GenIntArrayParams(T,ExprType(E),Sym,E,FP,Index);
+    GenIntParams(NF,NE,FP,Index);
+  .
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,El:Element(..))),FP,Index ? (IsChanType(ElementType(El)));
+    GenFrameRef(FP,Index); "."; WriteSym(Sym); "="; CodeChannelElement(El,false);";"; NewLine();
+    GenIntParams(NF,NE,FP,Index);  
+  .
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,El:Element(..))),FP,Index ? 
+    GenFrameRef(FP,Index); "."; WriteSym(Sym); "="; CodeElement(El,true);";"; NewLine();
+    GenIntParams(NF,NE,FP,Index);  
+  .
+  AFormal(NF,_,ByVal(),Type,Sym),AnExpr(NE,E),FP,Index ? 
+    GenFrameRef(FP,Index);"."; WriteSym(Sym); "="; CodeExpr(E); ";"; NewLine();
+    GenIntParams(NF,NE,FP,Index);
+  .
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenChain(tIdent,tSymbol,bool)*/
+PROCEDURE GenChain(tIdent,tSymbol,bool)
+  FP,S,{true} ? "FP->"; WriteId(FP); ".Chain = NULL;"; NewLine();.
+  FP,S,_      ? "FP->"; WriteId(FP); ".Chain = "; "FP"; CodeIndirect(S,CurProc); ";"; NewLine();.
+
+/*}}}*/
+/*{{{  PROCEDURE GenIntArrayParams(Type,Type,tSymbol,Expr,tIdent,tSymbol)*/
+PROCEDURE GenIntArrayParams(Type,Type,tSymbol,Expr,tIdent,tSymbol)
+  FT:Array(UnBound(_),T),ET:Array(UnBound(_),NET),S,EX:ElementalExpr(_,E:Element(..)),FP,Index ? 
+    GenFrameRef(FP,Index);"."; WriteSym(S); WriteStr(DIM); WriteInt(TypeDepth(FT)); "="; 
+    CodeSym(GetElementSymbol(E)); WriteStr(DIM); WriteInt(TypeDepth(ET)); ";"; NewLine();
+    GenIntArrayParams(T,NET,S,EX,FP,Index) ;
+  .
+  FT:Array(UnBound(_),T),Array(AE,ET),S,EX,FP,Index ? 
+    GenFrameRef(FP,Index);"."; WriteSym(S); WriteStr(DIM); WriteInt(TypeDepth(FT)); "="; CodeExpr(AE); ";"; NewLine();
+    GenIntArrayParams(T,ET,S,EX,FP,Index) ;
+  .
+  Array(FE,T),ET:Array(UnBound(_),NET),S,EX:ElementalExpr(_,E:Element(..)),FP,Index ? 
+    WriteStr(CHK);"(";CodeExpr(FE);"==";
+    CodeSym(GetElementSymbol(E)); WriteStr(DIM); WriteInt(TypeDepth(ET)); ",";WriteStr(MSG_ASM);");"; NewLine();
+    GenIntArrayParams(T,NET,S,EX,FP,Index) ;
+  .
+  Array(FE,T),Array(E,ET),S,EX,FP,Index ? (IsConstInt(FE));(IsConstInt(E)); 
+    GenIntArrayParams(T,ET,S,EX,FP,Index); 
+  .
+  Array(FE,T),Array(E,ET),S,EX:Expr(P),FP,Index ? 
+    WriteStr(CHK);"(";CodeExpr(FE);"==";CodeExpr(E);",";WriteStr(MSG_ASM);");"; NewLine();
+    GenIntArrayParams(T,ET,S,EX,FP,Index); 
+  .
+  T,ET,S,ElementalExpr(_,E:Element(..)),FP,Index ? (IsChanType(T));
+    GenFrameRef(FP,Index);"."; WriteSym(S); "= (";CCodeType(T);"**)"; CodeChannelElement(E,true); ";"; NewLine(); 
+  .
+  T,ET,S,ElementalExpr(_,E:Element(..)),FP,Index ? 
+    GenFrameRef(FP,Index);"."; WriteSym(S); "= (";CCodeType(T);"*)"; CodeElement(E,true); ";"; NewLine(); 
+  .
+  _,_,_,E:Expr(P),_,_ ? WNYI(E,P);.
+/*}}}*/
+
+/*{{{  PROCEDURE GenFrameRef(tIdent,tSymbol)*/
+PROCEDURE GenFrameRef(tIdent,tSymbol)
+  FP, {NoSymbol} ? "FP->"; WriteId(FP);.
+  FP, Index ? "FP->"; WriteId(FP);  "["; CodeSymRef(Symbol(Index).Kind,Index,false); "]";.
+/*}}}*/
+
+/*{{{  PROCEDURE GenFuncCall(DefFunc,FuncCall,[ExprList,Spec])*/
+PROCEDURE GenFuncCall(DefFunc,FuncCall,[ExprList,Spec])
+  LOCAL { bool comma = false; }
+
+  DF,FuncCall(_,S,_),_ ?
+    WriteSym(S); "("; 
+    (NeedsChain(DF));
+    "FP"; CodeIndirect(S,CurProc);
+    comma := true;
+    (false);
+    .
+
+  DefFunc(_,_,_,F:AFormal(..),_),FuncCall(_,S,EL),_ ? 
+    GenParams(F,EL,comma);
+    comma := true;
+    (false);
+    .
+
+  DF:DefFunc(..),FC:FuncCall(_,S,_),SP ? (IsMVFunction(DF) || IsSTVFunction(DF)); (Tree_IsType(SP,kVal));
+    CONDWrite(comma,",");
+    "(";CCodeType(ExprType(FC));"*)";
+    CodeSym(SP->Val.Sym);
+    (false);
+    .
+
+  DF:DefFunc(..),FuncCall(_,S,_),EL ? (IsMVFunction(DF)); (Tree_IsType(EL,kExprList));
+    { CodeMVFParams(EL,comma,0); } ;
+    (false);
+    .
+
+  _,_,_ ?
+    ")";
+    .
+
+
+/*}}}*/
+/*{{{  PROCEDURE CodeMVFParams(ExprList,bool,int)*/
+PROCEDURE CodeMVFParams(ExprList,bool,int)
+
+  NoExpr(),.. ?.
+
+  EX:AnExpr(EL,ElementalExpr(_,E:Element(..))),B,N ? (TempRequired(EX)); 
+    GenComma(B);
+    CONDWrite(IsScalarType(ElementType(E)),"&");
+    "_TMP"; WriteInt(N);
+    CodeMVFParams(EL,true,N+1);
+    . 
+
+  AnExpr(EL,ElementalExpr(_,E:Element(..))),B,N ?
+    GenComma(B);
+    CodeElement(E,true);
+    CodeMVFParams(EL,true,N+1);
+    . 
+
+/*}}}*/
+/*{{{  PROCEDURE CodeMVFTemps(ExprList,int)*/
+PROCEDURE CodeMVFTemps(ExprList,int)
+
+  NoExpr(),_ ?.
+
+  EX:AnExpr(EL,ElementalExpr(_,E:Element(..))),N ? (TempRequired(EX));
+    CCodeType(ElementType(E));" _TMP";WriteInt(N);  CCodeTypeId(ElementType(E)); ";"; NewLine();
+    CodeMVFTemps(EL,N+1);
+    . 
+
+  EX:AnExpr(EL,ElementalExpr(_,E:Element(..))),N ?
+    CodeMVFTemps(EL,N+1);
+    .
+/*}}}*/
+/*{{{  PROCEDURE CodeMVFTempCopies(ExprList,int)*/
+PROCEDURE CodeMVFTempCopies(ExprList,int)
+
+  NoExpr(),_ ?.
+
+  EX:AnExpr(EL,ElementalExpr(_,E:Element(..))),N ? (TempRequired(EX));(!IsScalarType(ElementType(E)));
+    WriteStr(ASSIGN);"(";CodeElement(E,true); ", _TMP"; WriteInt(N); ","; GenElementSize(E,ElementType(E)) ;");"; NewLine();
+    CodeMVFTempCopies(EL,N+1);
+    . 
+
+  EX:AnExpr(EL,ElementalExpr(_,E:Element(..))),N ? (TempRequired(EX));
+    CodeElement(E,false); " = _TMP"; WriteInt(N); ";"; NewLine();
+    CodeMVFTempCopies(EL,N+1);
+    . 
+
+  EX:AnExpr(EL,ElementalExpr(_,E:Element(..))),N ?
+    CodeMVFTempCopies(EL,N+1);
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE GenParams(Formals,ExprList,bool)*/
+PROCEDURE GenParams(Formals,ExprList,bool)
+
+  _,NoExpr(),_ ? .
+
+  AFormal(NF,_,_,T,Sym),AnExpr(NE,E),B ? (IsTimerType(T));
+    GenParams(NF,NE,B);
+  .
+
+  AFormal(NF,_,_,T:Array,Sym),AnExpr(NE,E),B ? 
+    GenArrayParams(T,ExprType(E),E,B);
+    GenParams(NF,NE,true);
+  .
+
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,El:Element(..))),B ? (IsChanType(ElementType(El)));
+    GenComma(B);
+    CodeChannelElement(El,false);
+    GenParams(NF,NE,true);  
+  .
+  AFormal(NF,_,ByRef(),Type,Sym),AnExpr(NE,ElementalExpr(_,El:Element(..))),B ? 
+    GenComma(B);
+    CodeElement(El,true);
+    GenParams(NF,NE,true);  
+  .
+  AFormal(NF,_,ByVal(),Type,Sym),AnExpr(NE,E),B ? 
+    GenComma(B);
+    CodeExpr(E);
+    GenParams(NF,NE,true);
+  .
+
+
+  
+/*}}}*/
+/*{{{  PROCEDURE GenArrayParams(Type,Type,Expr,bool)*/
+PROCEDURE GenArrayParams(Type,Type,Expr,bool)
+
+  FT:Array(UnBound(_),T),ET:Array(UnBound(_),NET),EX:ElementalExpr(_,E:Element(..)),B ? 
+    GenComma(B);
+    CodeSym(GetElementSymbol(E)); WriteStr(DIM); WriteInt(TypeDepth(ET));
+    GenArrayParams(T,NET,EX,true) ;
+    .
+  FT:Array(UnBound(_),T),Array(AE,ET),EX,B ? 
+    GenComma(B);
+    CodeExpr(AE);
+    GenArrayParams(T,ET,EX,true) ;
+    .
+
+  Array(FE,T),Array(E,ET),EX,B ? (IsConstInt(FE));(IsConstInt(E)); 
+    GenArrayParams(T,ET,EX,B); 
+    .
+
+  Array(FE,T),ET:Array(UnBound(_),NET),EX:ElementalExpr(_,E:Element(..)),B ? 
+    /* WriteStr(CHK);"(";CodeExpr(FE);"=="; CodeSym(GetElementSymbol(E)); WriteStr(DIM); WriteInt(TypeDepth(ET)); ",";WriteStr(MSG_ASM);")"; */
+    GenArrayParams(T,NET,EX,B) ;
+    .
+  Array(FE,T),Array(E,ET),EX:Expr(P),B ? 
+    /*WriteStr(CHK);"(";CodeExpr(FE);"==";CodeExpr(E);",";WriteStr(MSG_ASM);")"; */
+    GenArrayParams(T,ET,EX,B); 
+    .
+
+  T,ET,ElementalExpr(_,E:Element(..)),B ? (IsChanType(T));
+    GenComma(B);
+    "(";CCodeType(T);"**)"; CodeChannelElement(E,true);
+    .
+
+  T,ET,ElementalExpr(_,E:Element(..)),B ? 
+    GenComma(B);
+    "(";CCodeType(T);"*)"; CodeElement(E,true);  
+    .
+
+  _,_,E:Expr(P),_ ? WNYI(E,P);.
+/*}}}*/
+
+/*{{{  PROCEDURE GenComma(bool)*/
+PROCEDURE GenComma(bool)
+  {true} ?
+  ",";
+  .
+
+  _ ?.
+
+/*}}}*/
+
+/*}}}*/
+
+/*{{{  after, input, output*/
+/*{{{  PROCEDURE GenTimerInput(ExprList)*/
+PROCEDURE GenTimerInput(ExprList)
+
+  AnExpr(NoExpr,EX) ? 
+    CodeExpr(EX); " = ReadTimer();"; NewLine(); 
+  .
+
+/*}}}*/
+/*{{{  PROCEDURE GenInput(Element,T:Type,ExprList)*/
+PROCEDURE GenInput(Element,T:Type,ExprList)
+  LOCAL { int lab; }
+  _,_,NoExpr() ?
+  .
+  E,_,AnExpr(Next,CA:CountArray(_,L:ElementalExpr,EX:ElementalExpr(_,EL:Element(..)))) ?
+    GenInputToExpr(E,L);
+    WriteStr(CHK);"(";CodeExpr(L);"<=";CodeSizeOp(EL,ExprType(EX));",";WriteStr(MSG_CITL);");";NewLine();
+    lab := NewLabel(); "INPUT"; 
+    "(";CodeChannelElement(E,false);","; CodeElement(EL,true);",";
+    "(";CodeExpr(L); ")*("; GenArraySize(GetElementSymbol(EL),ExprType(EX)->Array.Type);"),"; 
+    WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+    GenInput(E,T,Next);
+  .
+  E,_,AnExpr(Next,EX) ? (IsPrimType(ExprType(EX)));
+    GenInputToExpr(E,EX);
+    GenInput(E,T,Next);
+  .
+  E,_,AnExpr(Next,EX:ElementalExpr(_,EL:Element(..))) ? 
+    lab := NewLabel(); "INPUT";
+    "(";CodeChannelElement(E,false);","; CodeElement(EL,true);",";
+    GenElementSize(EL,ExprType(EX));",";
+    WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+    GenInput(E,T,Next);
+  .
+  E:Element(P),_,_ ? WNYI(E,P); .
+
+PROCEDURE GenInputToExpr(Element,Expr)
+  LOCAL { int lab; }
+  E,EX:ElementalExpr(_,EL:Element(..)) ? (IsPrimType(ExprType(EX))); 
+    lab := NewLabel(); "INPUT"; WriteInt(PrimTypeSize(ExprType(EX))); 
+    "(";CodeChannelElement(E,false);","; CodeElement(EL,true);
+    ","; WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+  .
+  
+/*}}}*/
+/*{{{  PROCEDURE GenOutput(Element,Protocol,ExprList)*/
+PROCEDURE GenOutput(Element,Protocol,ExprList)
+
+  _,_,NoExpr() ?.
+
+  E,P:Named(_,S),EL ? (Tree_IsType(SymbolKind(S),kDefSeqPro)); 
+    GenSeqProOutput(E,SymbolKind(S)->DefSeqPro.SeqProList,EL); .
+
+  E,P:Named(_,S),AnExpr(NE,TAG:ElementalExpr(_,Identifier(_,TS))) ? (Tree_IsType(SymbolKind(S),kDefTagPro)); 
+    GenSimpleOutputOfExpr(E,TAG,ExprType(TAG));
+    GenSeqProOutput(E,SymbolKind(TS)->ATagPro.SeqProList,NE); .
+
+  E,P:Any(_), AnExpr(Next,EX) ? GenSimpleOutput(E,P,EX); GenOutput(E,P,Next); .
+  E,P:Any(_), NoExpr() ? .
+
+  E,P:Simple(..),AnExpr(NoExpr(),EX) ? GenSimpleOutput(E,P,EX); .
+
+  E,P:Counted(..),AnExpr(NoExpr(),EX) ? GenSimpleOutput(E,P,EX); .
+
+  _,_,AnExpr(_,E:Expr(P)) ? WNYI(E,P);.
+
+PROCEDURE GenSeqProOutput(Element,SeqProList,ExprList)
+  EL,ASeqPro(NP,PR),AnExpr(NE,E:Expr(P)) ? 
+    GenSimpleOutput(EL,PR,E); 
+    GenSeqProOutput(EL,NP,NE); 
+  .
+  EL,NoSeqPro(),NoExpr() ? .
+  
+PROCEDURE GenSimpleOutput(Element,Protocol,Expr)
+  LOCAL { int lab; }
+
+  E,Counted(_,ET,AT),CountArray(_,L,EX:ElementalExpr(_,EL:Element(..))) ?
+    GenSimpleOutputOfExpr(E,L,ExprType(L));
+    lab := NewLabel(); "OUTPUT"; 
+    "(";CodeChannelElement(E,false);","; CodeElement(EL,true);",";
+    "(";CodeExpr(L); ")*("; GenArraySize(GetElementSymbol(EL),ExprType(EX)->Array.Type);"),"; 
+    WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+    .
+
+  E,Counted(_,ET,AT),EX:ElementalExpr(_,EL:Element(..)) ? 
+    lab := NewLabel();
+    "FP->_Header.Temp.V"; CCodeType(AT); " = "; CodeSizeOp(EL,ExprType(EX)); ";"; NewLine();
+    "OUTPUT"; WriteInt(PrimTypeSize(AT));
+    "("; CodeChannelElement(E,false); ",&FP->_Header.Temp.V"; CCodeType(AT);
+    ","; WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+    lab := NewLabel(); "OUTPUT"; 
+    "(";CodeChannelElement(E,false);","; CodeElement(EL,true);",";
+    GenElementSize(EL,ExprType(EX));"),"; 
+    WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+    .
+
+  E,_,EX ? (IsPrimType(ExprType(EX)));
+    GenSimpleOutputOfExpr(E,EX,ExprType(EX));
+    .
+
+  E,_,EX:ElementalExpr(_,EL:Element(..)) ? 
+    lab := NewLabel(); "OUTPUT";
+    "(";CodeChannelElement(E,false);","; CodeElement(EL,true);",";
+    GenElementSize(EL,ExprType(EX));",";
+    WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);
+    .
+  _,_,E:Expr(P) ? ;WNYI(E,P);.
+
+PROCEDURE GenSimpleOutputOfExpr(Element,Expr,Type)
+  LOCAL { int lab; }
+
+  E,EX,T ? (IsPrimType(ExprType(EX))); (IsConstExpr(EX));
+    lab := NewLabel();
+    "FP->_Header.Temp.V"; CCodeType(T); " = ";
+    CodeExpr(EX); ";"; NewLine();
+    "OUTPUT"; WriteInt(PrimTypeSize(T));
+    "("; CodeChannelElement(E,false); ",&FP->_Header.Temp.V"; CCodeType(T);
+    ","; WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+  .
+
+  E,EX:ElementalExpr(_,El:Element(..)),T ? (IsPrimType(ExprType(EX)));
+    lab := NewLabel();
+    "OUTPUT"; WriteInt(PrimTypeSize(T));
+    "("; CodeChannelElement(E,false); ",";  CodeElement(El,true);
+    ","; WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+  .
+
+  E,EX,T ? (IsPrimType(ExprType(EX)));
+    lab := NewLabel();
+    "FP->_Header.Temp.V"; CCodeType(T); " = ";
+    CodeExpr(EX); ";"; NewLine();
+    "OUTPUT"; WriteInt(PrimTypeSize(T));
+    "("; CodeChannelElement(E,false); ",&FP->_Header.Temp.V"; CCodeType(T);
+    ","; WriteLabelValue(lab); ");"; NewLine(); WriteLabel(lab);     
+  .
+
+
+  _,E:Expr(P),_ ? ;WNYI(E,P);.
+
+
+/*}}}*/
+/*}}}*/
+
+/*{{{  element, symbol, types*/
+/*{{{  PROCEDURE CodeElement(Element,bool)*/
+PROCEDURE CodeElement(Element,bool)
+
+  LOCAL { tSymbol Sym; }
+
+  E:Element(P,..) ,_ ? (IsChanType(ElementType(E)));
+    Message("Unexpected channel element",xxError,P); 
+  .
+  I:Identifier(..),{false} ? (ConstFlag(I->Element) && IsScalarType(ElementType(I))); 
+    CodeConstExpr(ElementType(I),I->Element.CV);
+  .
+  Identifier(_,S),Ref ? (Tree_IsType(SymbolType(S),kArray));
+    CodeSym(S);
+  .
+  Identifier(_,S),Ref ? (Tree_IsType(SymbolType(S),kUserStructTypes));
+    CodeSym(S);
+  .
+  Identifier(_,S),Ref ? 
+    CodeSymRef(Symbol(S).Kind,S,Ref);
+  .
+  Sub:Subscript(_,N,E),Ref ? (!Ref); (!Tree_IsType(ElementType(Sub),kArray)); (!Tree_IsType(ElementType(Sub),kUserStructTypes));
+    "*";
+    CodeElement(Sub,true); 
+  .
+  Sub:Subscript(_,N,E),Ref ? 
+    Sym := GetElementSymbol(Sub);
+    "((";CCodeType(ElementType(Sub));"*)(((BYTE*)"; CodeSym(Sym);")";
+    GenArrayIndex(Sym,ElementType(Sub),Sub);"))"; 
+  .
+    R:Range(_,N,E,F),Ref ?
+    Sym := GetElementSymbol(R);
+    "((";CCodeType(ElementType(R));"*)(((BYTE*)"; CodeSym(Sym);")";
+    GenArrayIndex(Sym,ElementType(R)->Array.Type,R);"))";
+  .
+  E:Element(P),_ ? WNYI(E,P);.
+/*}}}*/
+/*{{{  PROCEDURE CodeChannelElement(Element,bool)*/
+PROCEDURE CodeChannelElement(Element,bool)
+
+  LOCAL { tSymbol Sym; }
+
+  E:Element(P,..) ,_ ? (!IsChanType(ElementType(E)));
+    Message("Expected channel element",xxError,P);
+  .
+  Identifier(P,S),{false} ? (Tree_IsType(SymbolType(S),kArray));
+    Message("Can only take reference to channel arrays",xxError,P);
+  .
+  Identifier(_,S),{true} ? (Tree_IsType(SymbolType(S),kArray));
+    CodeSym(S);
+  .
+  Identifier(_,S),{true} ? 
+    "(&"; CodeSym(S); ")";
+  . 
+  Identifier(_,S),_ ? 
+    CodeSym(S);
+  . 
+  Sub:Subscript(_,N,E),{false} ? (!Tree_IsType(ElementType(Sub),kArray));
+    Sym := GetElementSymbol(Sub);
+    "*((";CCodeType(ElementType(Sub));"**)(((BYTE*)"; CodeSym(Sym);")";
+    GenArrayIndex(Sym,ElementType(Sub),Sub);"))"; 
+  .
+  Sub:Subscript(_,N,E),_ ? 
+    Sym := GetElementSymbol(Sub);
+    "((";CCodeType(ElementType(Sub));"**)(((BYTE*)"; CodeSym(Sym);")";
+    GenArrayIndex(Sym,ElementType(Sub),Sub);"))"; 
+  .
+  R:Range(_,N,E,F),{true} ?
+    Sym := GetElementSymbol(R);
+    "((";CCodeType(ElementType(R));"**)(((BYTE*)"; CodeSym(Sym);")";
+    GenArrayIndex(Sym,ElementType(R)->Array.Type,R);"))";
+  .
+  R:Range(P,N,E,F),_ ?
+    Message("Can only take reference to channel arrays",xxError,P);
+  .
+  E:Element(P),_ ? WNYI(E,P);.
+/*}}}*/
+/*{{{  PROCEDURE GenArrayIndex(tSymbol,Type,Element)*/
+PROCEDURE GenArrayIndex(tSymbol,Type,Element)
+/* Generate Array Indexing equation
+
+   tSymbol: Array Element Symbol
+   Type:    Resultant Type of array indexing operation
+   Element: Array Element
+*/ 
+  S,T,Subscript(P,N,E) ? (Tree_IsType(ElementType(N),kUserStructTypes)); 
+    "+"; WriteInt(GetFieldOffset(ElementType(N),E)); 
+    GenArrayIndex(S,T,N);
+  .  
+  S,T,Sub:Subscript(_,N,E) ?
+    "+(";CodeChkExpr(DoBndChk(Sub),(Tree_IsType(ElementType(N)->Array.Expr,kUnBound)),E,S,ElementType(N));"*";GenArraySize(S,ElementType(Sub));")";
+    GenArrayIndex(S,T,N);
+  .
+  S,T,R:Range(_,N,E,F) ?
+    "+(";
+    "(";CodeChkUBExpr(DoUprBndChk(R),(Tree_IsType(ElementType(N)->Array.Expr,kUnBound)),E,F,S,ElementType(N));
+    CodeChkLBExpr(DoLwrBndChk(R),E);")"; "*";GenArraySize(S,ElementType(R)->Array.Type);")";
+    GenArrayIndex(S,T,N);
+  .
+  S, T, Identifier(..) ? .
+/*}}}*/
+/*{{{  PROCEDURE GenElementSize(Element,Type)*/
+PROCEDURE GenElementSize(Element,Type)
+/* Generate size (in bytes) of Element
+   Handles Range() elements
+
+   Element: Element to generate size of
+   Type:    Type of Element
+*/
+
+  EL:Range(_,Next,From,For), TT:Array(E,T) ? 
+    "("; CodeExpr(For); "*"; GenArraySize(GetElementSymbol(EL),T); ")"; 
+    .
+
+  EL, T ? 
+    GenArraySize(GetElementSymbol(EL),T); 
+    .
+  
+
+
+/*}}}*/
+/*{{{  PROCEDURE GenArraySize(tSymbol,Type)*/
+PROCEDURE GenArraySize(tSymbol,Type)
+
+  S,TT:Array(E,T) ? (!IsConstExpr(E)); 
+    "("; CodeSym(S);WriteStr(DIM);WriteInt(TypeDepth(TT)); "*"; GenArraySize(S,T); ")";
+    .
+  S,TT:Array(E,T) ? 
+    "("; CodeExpr(E); "*"; GenArraySize(S,T); ")";
+    .
+  S,TT:UserStructTypes(..) ?
+    WriteInt(CalcTypeSize(TT)); 
+  .
+  S,T ? (IsChanType(T));
+    "sizeof(";CCodeType(T);" *)";
+    .
+  S,T ?
+    "sizeof(";CCodeType(T);")";
+    .
+
+
+/*}}}*/
+
+/*{{{  PROCEDURE CodeChkExpr(bool,bool,Expr,tSymbol,Type)*/
+PROCEDURE CodeChkExpr(bool,bool,Expr,tSymbol,Type)
+  {true},{true},E,S,T ?
+    WriteStr(RNGCHK);"(";CodeExpr(E);",";CodeSym(S);WriteStr(DIM);WriteInt(TypeDepth(T));")";
+  .
+  {true},_,E,S,T:Array(TE,_) ?
+    WriteStr(RNGCHK);"(";CodeExpr(E);",";CodeExpr(TE);")";
+  .
+  _,_,E,.. ? CodeExpr(E);
+  .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeChkUBExpr(bool,bool,Expr,Expr,tSymbol,Type)*/
+PROCEDURE CodeChkUBExpr(bool,bool,Expr,Expr,tSymbol,Type)
+  {true},{true},E,F,S,T:Array ?
+    WriteStr(RNGCHKUB);"(";CodeExpr(E);",";CodeExpr(F);",";CodeSym(S);WriteStr(DIM);WriteInt(TypeDepth(T));"),";
+  .
+
+  {true},_,E,F,S,T:Array(TE,_) ?
+    WriteStr(RNGCHKUB);"(";CodeExpr(E);",";CodeExpr(F);",";CodeExpr(TE);"),";
+  .
+
+  .. ? ;
+  .
+/*}}}*/
+/*{{{  PROCEDURE CodeChkLBExpr(bool,Expr)*/
+PROCEDURE CodeChkLBExpr(bool,Expr)
+  {true},E ? WriteStr(RNGCHKLB);"(";CodeExpr(E);")"; .
+  _,E ? CodeExpr(E); .
+/*}}}*/
+/*{{{  FUNCTION  GetElementSymbol(Element) tSymbol*/
+FUNCTION  GetElementSymbol(Elemental) tSymbol
+  Identifier(_,S) RETURN S ?.
+  Subscript(_,N,E) RETURN GetElementSymbol(N) ? .
+  Range(_,N,_,_) RETURN GetElementSymbol(N) ? .
+/*}}}*/
+/*{{{  PROCEDURE CodeSymRef(Tree,tSymbol,bool)*/
+PROCEDURE CodeSymRef(Tree,tSymbol,bool)
+
+  AFormal(_,_,ByRef(),..),S,{true}  ? CodeSym(S);.
+  AFormal(_,_,ByRef(),..),S,_ ? "*";CodeSym(S);.
+  
+  AFormal(_,_,ByVal(),..),S,{true}  ? "&";CodeSym(S);.
+  AFormal(_,_,ByVal(),..),S,_ ? CodeSym(S);.
+
+  AnId(..),S,{true}  ? "&";CodeSym(S);. 
+  AnId(..),S,_ ? CodeSym(S);. 
+
+  Replicator(..),S,{true}  ? "&";CodeSym(S);. 
+  Replicator(..),S,_ ? CodeSym(S);. 
+
+  Is(..),S,{true}  ? (IsScalarType(SymbolType(S))); "&"; CodeSym(S);.
+  Is(..),S,_ ? (IsScalarType(SymbolType(S))); CodeSym(S);.
+  Is(..),S,{true}  ? CodeSym(S);.
+  Is(..),S,_ ? "*";CodeSym(S);.
+
+  Retypes(_,T,_,_),S,{true}  ? (IsScalarType(T)); "&"; CodeSym(S);.
+  Retypes(_,T,_,_),S,_ ? (IsScalarType(T)); CodeSym(S);.
+  Retypes(_,T,_,_),S,{true}  ? CodeSym(S);.
+  Retypes(_,T,_,_),S,_ ? "*";CodeSym(S);.
+
+  Val(..),S,{true}  ? (IsScalarType(SymbolType(S))); "&"; CodeSym(S);.
+  Val(..),S,_ ? (IsScalarType(SymbolType(S))); CodeSym(S);.
+  Val(..),S,{true}  ? CodeSym(S);.
+  Val(..),S,_ ? "*";CodeSym(S);.
+
+  ValRetypes(_,T,_,_),S,{true}  ? (IsScalarType(T)); "&"; CodeSym(S);.
+  ValRetypes(_,T,_,_),S,_ ? (IsScalarType(T)); CodeSym(S);.
+  ValRetypes(..),S,{true}  ? CodeSym(S);.
+  ValRetypes(..),S,_ ? "*";CodeSym(S);.
+  
+  S:Spec(P),.. ? WNYI(S,P); .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeSym(tSymbol)*/
+PROCEDURE CodeSym(tSymbol)
+  S ? (Symbol(S).Depth == 0);
+      WriteStaticSym(S);.
+
+  S ? (IsLocal(S)); WriteSym(S);.
+      
+  S ? "FP";CodeIndirect(S,CurProc);"->"; WriteSym(S);.
+/*}}}*/
+/*{{{  PROCEDURE CodeIndirect(tSymbol,Spec)*/
+PROCEDURE CodeIndirect(tSymbol,Spec)
+  Sym,P:DefProc(_,S,..)   ? (Symbol(Sym).Depth <= Symbol(S).Depth); "->Chain"; CodeIndirect(Sym,Symbol(P->DefProc.Parent).Kind); .
+  Sym,F:DefFunc(_,S,..)   ? (Symbol(Sym).Depth <= Symbol(S).Depth); "->Chain"; CodeIndirect(Sym,Symbol(F->DefFunc.Parent).Kind); .
+  _,_ ? .
+/*}}}*/
+
+/*{{{  PROCEDURE CCodeTypeName(Type,bool)*/
+PROCEDURE CCodeTypeName(Type,bool)
+
+  T,{true}  ? (IsChanType(T)); "("; CCodeType(T); "**)"; .
+  T,_       ? (IsChanType(T)); "("; CCodeType(T); "*)"; .
+
+  T,{true}  ? "("; CCodeType(T); "*)"; .
+  T,_       ? "("; CCodeType(T); ")"; .
+/*}}}*/
+/*{{{  PROCEDURE CCodeType(Type)*/
+PROCEDURE CCodeType(Type)
+  Int() ? "INT";.
+  Int64() ? "INT64";.
+  Int32() ? "INT32";.
+  Int16() ? "INT16";.
+  Real32() ? "REAL32";.
+  Real64() ? "REAL64";.
+  Bool() ? "BOOL";.
+  Byte() ? "BYTE";.
+  Array(E,T) ? CCodeType(T);.
+  UserStructTypes(..) ? "USER";.
+  Chan(_) ? "CHAN";.
+/*}}}*/
+/*{{{  PROCEDURE CCodeTypeId(Type)*/
+PROCEDURE CCodeTypeId(Type)
+  Array(E,T) ? "[";CodeExpr(E);"]";CCodeTypeId(T);.
+  T:UserStructTypes(..) ? "[SIZEUSER("; WriteInt(CalcTypeSize(T)); ")]"; .
+  _ ? .
+/*}}}*/
+/*{{{  PROCEDURE CCodeTypeIdChkConst(Type,tPosition)*/
+PROCEDURE CCodeTypeIdChkConst(Type,tPosition)
+  Array(E,T),P ? (!IsConstInt(E)); 
+    "[]";CCodeTypeId(T);
+    Message("Implementation restriction: arrays may not be unknown size",xxError,P);
+  .
+  Array(E,T),P ? "[";CodeExpr(E);"]";CCodeTypeId(T);.
+  T:UserStructTypes(..),P ? "[SIZEUSER("; WriteInt(CalcTypeSize(T)); ")]"; .  
+/*}}}*/
+
+/*{{{  PROCEDURE OccCodeType(Type)*/
+PROCEDURE OccCodeType(Type)
+  NIL                           ? ;.
+  AType(NoType(),T)             ? OccCodeType(T);.
+  AType(TL,T)                   ? OccCodeType(T);",";OccCodeType(TL);.
+  UserArray(_,_,_,S)            ? WriteOccSym(S);.
+  UserInt(_,S)                  ? WriteOccSym(S);.
+  UserInt16(_,S)                ? WriteOccSym(S);.
+  UserInt32(_,S)                ? WriteOccSym(S);.
+  UserInt64(_,S)                ? WriteOccSym(S);.
+  UserReal32(_,S)               ? WriteOccSym(S);.
+  UserReal64(_,S)               ? WriteOccSym(S);.
+  UserByte(_,S)                 ? WriteOccSym(S);.
+  UserBool(_,S)                 ? WriteOccSym(S);.
+  UserStructTypes(_,S,_)        ? WriteOccSym(S);.
+  Int()                         ? "INT"; .
+  Int16()                       ? "INT16";.
+  Int32()                       ? "INT32"; .
+  Int64()                       ? "INT64"; .
+  Real32()                      ? "REAL32"; .
+  Real64()                      ? "REAL64"; .
+  Bool()                        ? "BOOL"; .
+  Byte()                        ? "BYTE"; .
+  Array(Expr,Type)              ? (IsConstInt(Expr));"["; WriteInt(ValConstInt(Expr)); "]"; OccCodeType(Type); .
+  Array(Expr,Type)              ? "[]"; OccCodeType(Type); .
+  Chan(Protocol)                ? "CHAN OF "; OccCodeProtocol(Protocol); .
+  Timer()                       ? "TIMER";.
+/*}}}*/
+/*{{{  PROCEDURE OccCodeProtocol(Protocol)*/
+PROCEDURE OccCodeProtocol(Protocol)
+  Any(_)                        ? "ANY";.
+  Named(_,S)            	? WriteOccSym(S);.
+  Simple(_,Type)                ? OccCodeType(Type);.
+  Counted(_,Length,Type)        ? OccCodeType(Length) ; ":: "; OccCodeType(Type);.
+/*}}}*/
+   
+/*{{{  PROCEDURE CodeOp(Op)*/
+PROCEDURE CodeOp(Op)
+  Less() ? " < ";.
+  Greater() ? " > ";.
+  LessEqual() ? " <= ";.
+  GreaterEqual() ? " >= ";.
+  Equal() ? " == ";.
+  NotEqual() ? " != ";.
+  Add() ? " + ";.
+  Subtract() ? " - ";.
+  Multiply() ? " * ";.
+  Divide() ? " / ";.
+
+  Rem() ? " % ";.
+
+  BitAnd() ? " & ";.
+  BitOr() ? " | ";.
+  BitEor() ? " ^ ";.
+  BitNot() ? " ~ ";.
+
+  Size() ? " sizeof ";.
+  Plus() ? " + ";.
+  Minus() ? " - ";.
+  Times() ? " * ";.
+  And() ? " && ";.
+  Or() ? " || ";.
+  Not() ? " ! ";.
+
+/*}}}*/
+/*}}}*/
+
+/*{{{  predicates and functions*/
+/*{{{  FUNCTION  PrimTypeSize(Type) int*/
+FUNCTION PrimTypeSize(Type) int
+  T:UserRecord(P,_,F) RETURN CalcTypeSize(T) ? .
+  Int()  RETURN { (IS_Mode(xx16bitINT)) ? 2 : 4} ? .
+  Int16() RETURN 2 ? .
+  Int32() RETURN 4 ? .
+  Int64() RETURN 8 ? .
+  Real32() RETURN 4 ? .
+  Real64() RETURN 8 ? .
+  Byte() RETURN 1 ? .
+  Bool() RETURN 1 ? .
+
+/*}}}*/
+/*{{{  FUNCTION  GetPrimType(Type) Type*/
+FUNCTION  GetPrimType(Type) Type
+  Array(_,T) RETURN GetPrimType(T) ?.
+  T  RETURN T ?.
+/*}}}*/
+/*{{{  PREDICATE IsPrimType(Type)*/
+PREDICATE IsPrimType(Type)
+  Primitive() ? .
+/*}}}*/
+/*{{{  FUNCTION  IsTimer(Element) bool*/
+FUNCTION  IsTimer(Element) bool
+  Identifier(_,S)  RETURN Tree_IsType(SymbolType(S),kTimer) ? ; .
+  Subscript(_,N,_) RETURN IsTimer(N) ? ; .
+  Range(_,N,_,_)   RETURN IsTimer(N) ? ; .
+/*}}}*/
+/*{{{  FUNCTION  IsAtomicProcess(Process) bool*/
+FUNCTION  IsAtomicProcess(Process) bool
+
+  P RETURN (P->Process.ATOMIC || IS_Mode(xxPrettyC)) ? .
+/*}}}*/
+/*{{{  PREDICATE IsAtomicProc(Spec)*/
+PREDICATE IsAtomicProc(Spec)
+  P:PrototypeProc ? (P->PrototypeProc.Lang != xxOccam); .
+  P:DefProc       ? (P->DefProc.ATOMIC || IS_Mode(xxPrettyC));.
+  P:DefAFunc      ?.
+
+/*}}}*/
+/*{{{  PREDICATE IsParProc(Spec)*/
+PREDICATE IsParProc(Spec)
+  P:DefProc(_,S,..) ? (P->DefProc.isPar || (S==TreeRoot->Start.OuterProc && !IS_Mode(xxLibrary))); .
+
+/*}}}*/
+/*{{{  PREDICATE IsPrototype(Spec)*/
+PREDICATE IsPrototype(Spec)
+  PrototypeProc(..) ? .
+  PrototypeFunc(..) ? .
+
+/*}}}*/
+/*{{{  FUNCTION  IsBoundedType(Type) bool*/
+FUNCTION IsBoundedType(Type) bool
+
+  Array(UnBound(_),T) RETURN false ? .
+
+  Array(_,T) RETURN IsBoundedType(T) ? .
+
+  _ RETURN true ? .
+/*}}}*/
+/*{{{  PREDICATE IsByteArray(Type)*/
+PREDICATE IsByteArray(Type)
+
+  Array(E,Byte()) ? .
+  Array(E,T) ? (IsByteArray(T)); .
+    
+/*}}}*/
+/*{{{  FUNCTION  CountArrayDims(Type) int*/
+FUNCTION  CountArrayDims(Type) int
+  Array(_,T) RETURN 1 + CountArrayDims(T) ?.
+  _          RETURN 0 ?.
+ 
+/*}}}*/
+/*}}}*/
+
+/*}}}*/
+
+/*{{{  FUNCTION  GenOccPrototypes(Tree) Tree*/
+FUNCTION  GenOccPrototypes(Tree) Tree
+  Start(..) RETURN NoTree ?.
+
+  D:PrototypeProc RETURN D->PrototypeProc.CGNext ? .
+
+  D:PrototypeFunc RETURN D->PrototypeFunc.CGNext ? .
+
+  D:DefProc(_,S,F,_) RETURN D->DefProc.CGNext ? (IsTopLevel(S)); IsAtomicProc(D); (!IsInlined(D));
+    "EXTERN_ATOMIC PROC ";WriteOccSym(S); "(" ;GenOccPrototypeFormals(F);") : "; WriteStr(outname); NewLine();.
+
+  D:DefProc(_,S,F,_) RETURN D->DefProc.CGNext ? (IsTopLevel(S)); (!IsInlined(D));
+    "EXTERN_OCCAM PROC ";WriteOccSym(S); "(" ;GenOccPrototypeFormals(F);") : "; WriteStr(outname); NewLine();.
+  D:DefProc(_,S,F,_) RETURN D->DefProc.CGNext ? .
+
+  D:DefAFunc(_,S,T,F) RETURN D->DefAFunc.CGNext ? (IsTopLevel(S)); (!IsInlined(D));
+    "EXTERN_ATOMIC "; OccCodeType(T);" FUNCTION ";WriteOccSym(S);"("; GenOccPrototypeFormals(F);") : "; WriteStr(outname); NewLine();.
+  D:DefAFunc(_,S,T,F) RETURN D->DefAFunc.CGNext ? .
+  D:HCode(..)         RETURN D->HCode.CGNext ?.
+/*}}}*/
+/*{{{  PROCEDURE GenOccPrototypeFormals(Formals)*/
+PROCEDURE GenOccPrototypeFormals(Formals)
+  AF:AFormal(NoFormal(),_,_,T,S) ? (AF->AFormal.U==xxOutput); 
+    OccCodeType(SymbolType(S));" out";
+  .
+  AF:AFormal(NoFormal(),_,_,T,S) ? (AF->AFormal.U==xxInput); 
+    OccCodeType(SymbolType(S));" in";
+  .
+  AFormal(NoFormal(),_,ByRef(),T,S) ? 
+    OccCodeType(SymbolType(S));
+  .
+  AFormal(NoFormal(),_,ByVal(),T,S) ? 
+    "VAL ";OccCodeType(SymbolType(S));
+  .
+  AF:AFormal(NF,_,_,T,S) ? (AF->AFormal.U==xxOutput); 
+    OccCodeType(SymbolType(S));" out,";
+    GenOccPrototypeFormals(NF);
+  .
+  AF:AFormal(NF,_,_,T,S) ? (AF->AFormal.U==xxInput);
+    OccCodeType(SymbolType(S));" in,";
+    GenOccPrototypeFormals(NF);
+  .
+  AFormal(NF,_,ByRef(),T,S) ? 
+    OccCodeType(SymbolType(S));",";
+    GenOccPrototypeFormals(NF);
+  .
+  AFormal(NF,_,ByVal(),T,S) ? 
+    "VAL ";OccCodeType(SymbolType(S));",";
+    GenOccPrototypeFormals(NF);
+  .
+  NoFormal() ? .
+/*}}}*/
+/*{{{  FUNCTION  GenCPrototype(Tree) Tree*/
+FUNCTION  GenCPrototype(Tree) Tree
+  Start(..) RETURN NoTree ?.
+
+  D:PrototypeProc RETURN D->PrototypeProc.CGNext ? .
+
+  D:PrototypeFunc RETURN D->PrototypeFunc.CGNext ? .
+
+  D:DefFunc(_,S,T,F,V) RETURN D->DefFunc.CGNext ? (IsTopLevel(S)); (!IsInlined(D));
+    "{\""; GenFuncHead(D); ";\",NULL,0},"; NewLine();
+    .
+
+  D:DefProc(_,S,F,_) RETURN D->DefProc.CGNext ? (IsTopLevel(S)); (IsAtomicProc(D)); (!IsInlined(D));
+    "{\""; GenProcHead(D); ";\",NULL,0},"; NewLine();
+    .
+
+  D:DefProc(_,S,F,P) RETURN D->DefProc.CGNext ? (IsTopLevel(S)); (!IsInlined(D));
+    "{\""; GenProcHead(D); ";\",\""; WriteSym(S); "\",sizeof(tSF_"; WriteSym(S); ")},"; NewLine();
+    .
+
+  D:DefAFunc(_,S,T,F) RETURN D->DefAFunc.CGNext ? .
+  D:DefProc(_,S,T,F) RETURN D->DefProc.CGNext ? .
+
+  D:HCode(..)         RETURN D->HCode.CGNext ?.
+
+/*}}}*/
+/*{{{  FUNCTION  GenCGDebug(Tree) Tree*/
+FUNCTION  GenCGDebug(Tree) Tree
+  Start(..) RETURN NoTree ? .
+
+  D:DefFunc(_,S,T,F,V:Valof(_,_,_,EL)) RETURN D->DefFunc.CGNext ?
+    "FUNC "; WriteSym(S); "() ";
+    CONDWrite(NeedsChain(D),"CHAIN ");
+    CONDWrite(IsTopLevel(S),"TOP ");
+    CONDWrite(IsMVFunction(D),"MV ");
+    CONDWrite(IsSTVFunction(D),"STV ");
+    CONDWrite(UsesFreeVars(D),"UFV ");
+    CONDWrite(IsInlined(D),"INLINE ");
+    "\n";
+    .
+
+  D:DefProc(_,S,F,_) RETURN D->DefProc.CGNext ?
+    "PROC "; WriteSym(S); "() ";
+    CONDWrite(IsAtomicProc(D),"ATOMIC ");
+    CONDWrite(NeedsChain(D),"CHAIN ");
+    CONDWrite(IsTopLevel(S),"TOP ");
+    CONDWrite(UsesFreeVars(D),"UFV ");
+    CONDWrite(IsInlined(D),"INLINE ");
+    "\n";
+    .
+
+  D:DefAFunc(..) RETURN D->DefAFunc.CGNext ? .
+  D:DefAProc(..) RETURN D->DefAProc.CGNext ? .
+
+  D:HCode(..)         RETURN D->HCode.CGNext ?.
+
+/*}}}*/
+
+/*{{{  Miscellaneous*/
+/*{{{  PREDICATE IsASEntry(Spec)*/
+PREDICATE IsASEntry(Spec)
+  DefProc(P,S,AF1:AFormal(AF2:AFormal(NoFormal(),_,_,T2,S2),_,_,T1,S1),_) ? 
+    IsASChan(SymbolType(S1)); IsASChan(SymbolType(S2));
+    (AF1->AFormal.U!=xxOutput);(AF2->AFormal.U!=xxInput);
+  .
+/*}}}*/
+/*{{{  PROCEDURE CodeMainEntryParameters(Spec)*/
+PROCEDURE CodeMainEntryParameters(Spec)
+ DefProc(P,S,NoFormal(),_) ? .
+
+ DefProc(P,S,AF1:AFormal(AF2:AFormal(NoFormal(),_,_,T2,S2),_,_,T1,S1),_) ? 
+   IsASChan(SymbolType(S1)); IsASChan(SymbolType(S2));
+   (AF1->AFormal.U!=xxOutput);(AF2->AFormal.U!=xxInput);
+   "MAINFP->";WriteSym(S1);"=&fs;";NewLine();
+   "MAINFP->";WriteSym(S2);"=&ts;";NewLine();
+ .
+
+ DefProc(P,S,AF1:AFormal(AF2:AFormal(NoFormal(),_,_,T2,S2),_,_,T1,S1),_) ? 
+   IsSPChan(SymbolType(S1)); IsSPChan(SymbolType(S2));
+   (AF1->AFormal.U!=xxOutput);(AF2->AFormal.U!=xxInput);
+   "MAINFP->";WriteSym(S1);"=&fs;";NewLine();
+   "MAINFP->";WriteSym(S2);"=&ts;";NewLine();
+ .
+
+ DefProc(P,S,AF1:AFormal(AF2:AFormal(AFormal(NoFormal(),_,_,Array(UnBound(_),Int()),S3),_,_,T2,S2),_,_,T1,S1),_) ? 
+   IsSPChan(SymbolType(S1)); IsSPChan(SymbolType(S2));
+   (AF1->AFormal.U!=xxOutput);(AF2->AFormal.U!=xxInput);
+   "MAINFP->";WriteSym(S1);"=&fs;";NewLine();
+   "MAINFP->";WriteSym(S2);"=&ts;";NewLine();
+   "MAINFP->";WriteSym(S3);"=mem;";NewLine();
+   "MAINFP->";WriteSym(S3);"_Dim0=mem_size;";NewLine();
+ .
+
+ DefProc(P,S,AF1:AFormal(NoFormal(),_,_,Array(UnBound(_),Int()),S1),_) ? 
+   "MAINFP->";WriteSym(S1);"=mem;";NewLine();
+   "MAINFP->";WriteSym(S1);"_Dim0=mem_size;";NewLine();
+ .
+
+ DefProc(P,..) ? Message("Main entry point does not have acceptable parameter list",xxError,P);.
+
+ Spec(P) ? Message("Main Entry Point must be a PROC",xxError,P);.
+/*}}}*/
+
+/*{{{  PREDICATE IsSPChan(Type)*/
+PREDICATE IsSPChan(Type)
+  Chan(Named(_,S)) ? (Symbol(S).Id==MakeIdent("SP",2));.
+/*}}}*/
+/*{{{  PREDICATE IsASChan(Type)*/
+PREDICATE IsASChan(Type)
+  Chan(Named(_,S)) ? (Symbol(S).Id==MakeIdent("AS",2));.
+/*}}}*/
+
+/*{{{  PROCEDURE GenStatics(Tree)*/
+PROCEDURE GenStatics(Tree)
+  Start(P) ? GenStatics(P); .
+
+  NullProcess(_,SL) ? GenStatics(SL); .
+
+  NoSpec() ? .
+
+  ASpec(S,SL) ? GenStatic(S); GenStatics(SL); .
+
+  T ? "Error in GenStatics - "; WriteTreeNode(yyf,T); .
+
+/*}}}*/
+/*{{{  PROCEDURE GenStatic(Spec)*/
+PROCEDURE GenStatic(Spec)
+
+  Val(_,T,S,EX) ? (IsPrimType(ExprType(EX))); . /* VAL primitive constants are propagated */
+
+  Val (_,T,S,EX) ? (IsZeroSizeType(ExprType(EX)));
+    "static "; CCodeType(ExprType(EX)); " *" ; WriteStaticSym(S); " = NULL;"; NewLine(); .
+
+  Val (Pos,T,S,ST:StringElement(..)) ?
+    "static BYTE " ; WriteStaticSym(S); "[] = "; CodeConstArray(ExprType(ST),ST->StringElement.CA); ";"; NewLine(); .
+
+  Val (Pos,T,S,EX:ElementalExpr(_,E)) ?
+    "static "; CCodeType(ExprType(EX)); " "; WriteStaticSym(S); CCodeTypeId(ExprType(EX)); " = "; CodeConstArray(ExprType(E),E->Elemental.CA); ";"; NewLine();
+    .
+
+  ValRetypes(_,T,S,EX) ? (IsPrimType(T)); . /* VAL RETYPES to primitive constants are propogated */
+
+  ValRetypes (_,T,S,EX) ? (IsZeroSizeType(ExprType(EX)));
+    "static "; CCodeType(T); " *" ; WriteStaticSym(S); " = NULL;"; NewLine(); .
+
+  ValRetypes (Pos,T,S,ST:StringElement(..)) ?
+    "static "; CCodeType(T); " "; WriteStaticSym(S); CCodeTypeId(T); " = "; CodeConstArray(T,ST->StringElement.CA); ";"; NewLine(); .
+
+  ValRetypes (Pos,T,S,EX:ElementalExpr(_,E)) ?
+    "static "; CCodeType(T); " "; WriteStaticSym(S); CCodeTypeId(T); " = "; CodeConstArray(T,E->Elemental.CA); ";"; NewLine();
+    .
+
+  ValRetypes (Pos,T,S,EX) ? IsPrimType(ExprType(EX));
+    "static "; CCodeType(T); " "; WriteStaticSym(S); CCodeTypeId(T); " = "; 
+    {{
+      unsigned char tmp[8];
+      tConstArray CA = (tConstArray)tmp;
+
+      WriteConstArray(ExprType(EX),ValConstExpr(EX),CA);
+      RetypeConst(PrimTypeSize(ExprType(EX)),CA,PrimTypeSize(ArrayPrimType(T)),CA);
+      CodeConstArray(T,CA);
+    }};
+    ";"; NewLine();
+    .
+
+  AVal(P,T,S,EX) ?
+    Message("VAL constant cannot be calculated at compile time",xxError,P); .
+
+/*
+  ValRetypes (Pos,T,S,EX:String(..)) ?
+    "static "; CCodeType(T); " *" ; WriteStaticSym(S); " = "; CCodeTypeName(T,true); GenStaticString(EX); ";"; NewLine();
+    .
+
+  ValRetypes(_,T,S,EX) ? (IsScalarType(ExprType(EX)));
+    "static "; CCodeType(ExprType(EX)); " STMP_"; WriteStaticSym(S); " = "; GenStaticExpr(EX); ";"; NewLine();
+    "static "; CCodeType(T); " *";  WriteStaticSym(S); " = "; CCodeTypeName(T,true); "&STMP_"; WriteStaticSym(S); ";"; NewLine();
+    .
+
+  ValRetypes (Pos,T,S,EX:ElementalExpr(_,Table(..))) ?
+    "static "; CCodeType(ExprType(EX)); " STMP_"; WriteStaticSym(S); CCodeTypeId(ExprType(EX)); " = "; GenStaticExpr(EX); ";"; NewLine();
+    "static "; CCodeType(T); " *"; WriteStaticSym(S); " = "; CCodeTypeName(T,true); "&STMP_"; WriteStaticSym(S); ";"; NewLine();
+    .
+
+  ValRetypes(_,T,S,EX) ?
+    "static "; CCodeType(T); " *";  WriteStaticSym(S); " = "; CCodeTypeName(T,true); GenStaticExpr(EX); ";"; NewLine();
+    .
+*/
+
+
+  DefAProc(..) ? .
+  DefAFunc(..) ?.
+  HCode(..) ?.
+  NullSpec(..) ? .
+  DefAPro(..) ?.
+  DeclType(..) ?.
+  
+  T ? "Error in GenStatic - "; WriteTreeNode(yyf,T); .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeConstArray(Type,tConstArray)*/
+PROCEDURE CodeConstArray(Type,tConstArray)
+  LOCAL { static bool dowarn=true; }
+  T:UserStructTypes(P,..), CA ? (dowarn);
+    Message("Code generator has assumed target endianness is compiler endianness",xxWarning,P); 
+    dowarn := false;
+    (false);
+  .    
+  /* This is a bodge. 
+     It assumes target endianness == compiler endianness
+     Need to build another CA with bytes reverse according
+     to field data types and then output both using a compiler
+     name flag to switch between the two. 
+  */
+  T:UserStructTypes(P,..), CA ? 
+    "{" ;
+    {
+      { int i;
+	int sz = CalcTypeSize(T);
+	line_count = 0;
+
+	for(i = 0; i < sz; i+=USER_ALIGNMENT)
+	{
+	  if (i) WriteChar(',');
+	    
+	  WritetInt(*((tInt *)(CA+i)),true);
+	  line_count++;
+	}
+      }      
+    };
+    "}" ;
+    .
+   
+  A:Array(E,T:Primitive()),CA ? 
+    "{";
+    {{ int i;
+       int sz = PrimTypeSize(T);
+       for(i = 0; i < ValConstInt(E); ++i)
+       {
+	  if (i) WriteChar(',');
+	  if (line_count == MAX_CONSTS_LINE) 
+	  {
+	    line_count=0;
+	    NewLine();
+	    WriteStr("   ");
+	  }
+	  CodeConstExpr(T,ReadConstArray(T,CA+(sz*i)));
+	  line_count++;
+	}
+    }};
+    "}";
+    .
+
+  A:Array(E,T),CA ?
+    "{"; 
+    {{ int i,sz;
+	sz = CalcTypeSize(T);
+	for(i = 0; i < ValConstInt(E); ++i)
+	{
+	  if (i) WriteChar(',');
+	  CodeConstArray(T,CA+i*sz);
+	  line_count++;
+	}
+    }};
+    "}";
+    .
+
+/*}}}*/
+
+/*{{{  PROCEDURE GenStaticExpr(Expr)*/
+PROCEDURE GenStaticExpr(Expr)
+
+  ElementalExpr(_,EX:Table(_,EL)) ? "{ "; GenStaticExprList(EL); " }"; .  
+
+  EX:String(_,SREF,_) ? "\""; WriteStrRef(SREF); "\""; .
+
+  EX ? (IsConstExpr(EX)); CodeExpr(EX);.
+
+  EX:Expr(P) ? Message("VAL constant cannot be calculated at compile time",xxError,P); .
+/*}}}*/
+/*{{{  PROCEDURE GenStaticElement(Element)*/
+PROCEDURE GenStaticElement(Element,int)
+  Identifier(_,S),sub ? "&"; WriteStaticSym(S); "["; WriteInt(sub); "]"; .
+  Subscript(_,El,E),sub ? GenStaticElement(El,ValConstInt(E)); "["; WriteInt(sub); "]"; .
+  Range(_,El,From,For),sub ? GenStaticElement(El,ValConstInt(From)+sub); .
+  
+/*}}}*/
+/*{{{  PROCEDURE GenStaticExprList(ExprList)*/
+PROCEDURE GenStaticExprList(ExprList)
+  AnExpr(NoExpr(),EX) ? GenStaticExpr(EX); .
+  AnExpr(EL,EX)       ? GenStaticExpr(EX); ", "; GenStaticExprList(EL); .
+/*}}}*/
+
+/*{{{  PROCEDURE GenShowValue(Tree,Type,tSymbol)*/
+PROCEDURE GenShowValue(Tree,Type,tSymbol)
+  ATagPro(..),_,_ ? .
+  DefTagPro(..),_,_ ?.
+  K,_,S ? 
+   (Tree_IsType(K,kAFormal) && 
+   (Tree_IsType(SymbolKind(CalcParent(SymbolKind(S))),kPrototypeProc) || 
+    Tree_IsType(SymbolKind(CalcParent(SymbolKind(S))),kPrototypeFunc) ));.
+  K:DefAProc,_,S ? "printf(\"";WriteSym(S);"\");";.
+  K:DefAFunc,_,S ? "printf(\"";WriteSym(S);"\");";.
+
+  _,NIL,_ ?.
+
+  _,A:Array(E,T:Array),S ? 
+    NewLine();
+    "{ int i;";Indent();
+    GenShowSizes(A,S,0);
+    "for(i=0;i<s0;i++)";NewLine();
+    "{";Indent();
+    GenShowTests(A,S,0);
+    "else putchar(',');";
+    Outdent();"}";
+    Outdent();"}";
+  .    
+
+  _,A:Array(UnBound(_),T),S ? 
+    "ShowArray";CCodeType(T);"((";CCodeTypeName(T,true);GenShowSym(Symbol(S).Kind,S);"),";
+     GenShowSym(Symbol(S).Kind,S);WriteStr(DIM); WriteInt(TypeDepth(A));
+     ");";
+  .  
+  _,A:Array(E,T),S ? (IsConstExpr(E)); "ShowArray"; CCodeType(T); "("; GenShowSym(Symbol(S).Kind,S); ","; CodeExpr(E); ");";. 
+  _,A:Array(E,T),S ? ;.
+  _,Timer(),S ?.
+  _,T, S ? "Show";CCodeType(T);"(";GenShowSym(Symbol(S).Kind,S);");";.
+
+/*}}}*/
+/*{{{  PROCEDURE GenShowSizes(Type,tSymbol,int)*/
+PROCEDURE GenShowSizes(Type,tSymbol,int)
+
+  A:Array(UnBound(_),T:Array(_,Array(..))),S,N ? 
+    GenShowSizes(T,S,N+1); 
+    "int s";WriteInt(N);"= s";WriteInt(N+1);"*"; GenShowSym(Symbol(S).Kind,S);WriteStr(DIM); WriteInt(TypeDepth(A));";";NewLine();
+  .
+  Array(E,T:Array(_,Array(..))),S,N ?
+    GenShowSizes(T,S,N+1);
+    "int s";WriteInt(N);"= s";WriteInt(N+1);"*"; CodeExpr(E);";"; NewLine();
+  .
+  A:Array(UnBound(_),T),S,N ? GenShowSizes(T,S,N+1);"int s";WriteInt(N);"=";GenShowSym(Symbol(S).Kind,S);WriteStr(DIM); WriteInt(TypeDepth(A));";";NewLine();.
+
+  Array(E,T),S,N ?  GenShowSizes(T,S,N+1);"int s";WriteInt(N);"=";CodeExpr(E);";"; NewLine();.
+/*}}}*/
+/*{{{  PROCEDURE GenShowTests(Type,tSymbol)*/
+PROCEDURE GenShowTests(Type,tSymbol,int)
+
+  Array(_,T:Array), S,N ? 
+    "if ((i%s"; WriteInt(N);")==0) LP; ";
+    GenShowTests(T,S,N+1);
+    "if (((i+1)%s"; WriteInt(N);")==0) RP; ";
+    .
+
+  Array(_,T:Chan(..)), S, N ? 
+    NewLine(); 
+    "ShowArray"; CCodeType(T); "(((";CCodeType(T);"**)"; GenShowSym(Symbol(S).Kind,S); ")+(i*s"; WriteInt(N); "), s"; WriteInt(N); ");";
+    NewLine();
+  .
+
+  Array(_,T), S, N ? 
+    NewLine(); 
+    "ShowArray"; CCodeType(T); "(((";CCodeType(T);"*)"; GenShowSym(Symbol(S).Kind,S); ")+(i*s"; WriteInt(N); "), s"; WriteInt(N); ");";
+    NewLine();
+  .
+
+/*}}}*/
+/*{{{  PROCEDURE GenShowSymRef (Tree,tSymbol)*/
+PROCEDURE GenShowSymRef (Tree,tSymbol)
+
+  _,S ? (!IsScalarType(SymbolType(S))); .
+
+  _,S ? (IsChanType(SymbolType(S))); .
+
+  AFormal(_,_,ByRef(),..),_ ? "*";.
+  
+  AFormal(_,_,ByVal(),..),_ ? .
+
+  AnId(..),_ ? . 
+
+  Replicator(..),_ ? . 
+
+  Is(..),_ ? .
+
+  Retypes(..),_ ? .
+
+  Val(..),S ? .
+
+  ValRetypes(..),_ ? .
+
+  T,_ ? "** Error in GenShowSymRef -"; WriteTreeNode(yyf,T); " **"; NewLine(); .
+
+/*}}}*/
+/*{{{  PROCEDURE GenShowSym(Tree,tSymbol)*/
+PROCEDURE GenShowSym(Tree,tSymbol)
+
+  Val(_,_,_,EX),S ? (IsPrimType(ExprType(EX)) && IsConstExpr(EX));
+      CodeConstExpr(ExprType(EX), ValConstExpr(EX)); .
+
+  V:ValRetypes(P,T,_,EX), S ? (IsPrimType(T) && IsConstExpr(EX));
+      CodeConstExpr(T,EvalConstId(V));.
+
+  _,S ? (Symbol(S).Depth == 0);
+      WriteSym(S); .
+
+  _,S ? (IsLocal(S)); .
+
+  T,S ? GenShowSymRef(T,S); "((tSF_"; WriteSym(CalcParent(SymbolKind(S))); " *)FP)->"; WriteSym(S); .
+/*}}}*/
+
+/*{{{  PROCEDURE CShowSym(Tree,tSymbol)*/
+PROCEDURE CShowSym(Tree,tSymbol)
+
+  Val(_,_,_,EX),S ? (IsPrimType(ExprType(EX)) && IsConstExpr(EX));
+      CodeConstExpr(ExprType(EX), ValConstExpr(EX)); .
+
+  V:ValRetypes(P,T,_,EX), S ? (IsPrimType(T) && IsConstExpr(EX));
+      CodeConstExpr(T,EvalConstId(V)); .
+
+  V,S ? CodeSymRef(V,S,false); .
+/*}}}*/
+
+/*{{{  FUNCTION MapKinds(Tree,Type,tSymbol) int*/
+FUNCTION MapKinds(Tree,Type,tSymbol) int
+  NIL,_,_ RETURN 0  ? .
+
+  K:DefProc,_,_ RETURN 3 ? .
+  K:PrototypeProc,_,_ RETURN 10 ? (K->DefAProc.U==xxUsed); .
+  K:PrototypeProc,_,_ RETURN 0 ? .
+
+  _,NIL,_ RETURN 0 ? .
+
+  K:DefFunc,_,_ RETURN 2 ? .
+  K:PrototypeFunc,_,_ RETURN 10 ? (K->DefAFunc.U==xxUsed); .
+  K:PrototypeFunc,_,_ RETURN 0 ? .
+
+  K:AFormal,_,S RETURN 1 ? (IsNonLocal(S));.
+  K:AnId,_,S RETURN 4 ? (IsNonLocal(S));.
+  K:Val,_,S RETURN 5 ? (IsNonLocal(S));.
+  K:ValRetypes,_,S RETURN 6 ? (IsNonLocal(S));.
+  K:Is,_,S RETURN 7 ? (IsNonLocal(S));.
+  K:Retypes,_,S RETURN 8 ? (IsNonLocal(S));.
+  K:Replicator,_,S RETURN 9 ? (IsNonLocal(S));.
+  K,_,_ RETURN 0 ? .
+
+/*}}}*/
+/*{{{  FUNCTION CalcParent(Tree) tSymbol*/
+FUNCTION CalcParent(T:Tree) tSymbol
+  NIL RETURN NoSymbol  ?.
+  ATagPro(..)       RETURN NoSymbol ? .
+  DefTagPro(..)     RETURN NoSymbol ? .
+  DefSeqPro(..)     RETURN NoSymbol ? .
+  TableElement(..)  RETURN NoSymbol ? .
+
+  AnId(..)          RETURN T->AnId.Parent; .
+  AVal(..)          RETURN T->AVal.Parent; .
+  Is(..)            RETURN T->Is.Parent; .
+  Replicator(..)    RETURN T->Replicator.Parent; .
+  Retypes(..)       RETURN T->Retypes.Parent; .
+  AFormal(..)       RETURN T->AFormal.Parent; .
+  Valof(..)         RETURN T->Valof.Parent; .
+    
+  DefProc(..)       RETURN T->DefProc.Parent; .
+  DefFunc(..)       RETURN T->DefFunc.Parent; .
+
+  PrototypeProc(..) RETURN T->PrototypeProc.Parent; .
+  PrototypeFunc(..) RETURN T->PrototypeFunc.Parent; .
+
+  _ RETURN 0 ? fprintf(stderr,"Fell through CalcParent with\n"); WriteTreeNode(stderr,T); .
+/*}}}*/
+/*{{{  FUNCTION CalcModule(Tree) tIdent*/
+FUNCTION CalcModule(Tree) tIdent
+K:PrototypeFunc RETURN K->PrototypeFunc.Module?.
+K:PrototypeProc RETURN K->PrototypeProc.Module?.
+_ RETURN NoIdent?.
+/*}}}*/
+/*{{{  FUNCTION CalcHeader(Tree) tIdent*/
+FUNCTION CalcHeader(Tree) tStringRef
+K:PrototypeFunc(P,..) RETURN P.File ?.
+K:PrototypeProc(P,..) RETURN P.File ?.
+_ RETURN NULL ?.
+/*}}}*/
+/*{{{  FUNCTION CalcUsage(Tree) tUsage*/
+FUNCTION CalcUsage(Tree) tUsage
+K:PrototypeFunc RETURN K->PrototypeFunc.U?.
+K:PrototypeProc RETURN K->PrototypeProc.U?.
+/*}}}*/
+/*}}}*/
+/*{{{  PREDICATE IsInlined(Spec)*/
+PREDICATE IsInlined(Spec)
+  InlineDefProc(..) ? .
+  InlineDefFunc(..) ? .
+  InlineDefIsFunc(..) ? .
+/*}}}*/
+/*{{{  PREDICATE IsFieldExpr(Expr) */
+PREDICATE IsFieldExpr(Expr) 
+  ElementalExpr(_,Identifier(_,S)) ? (Tree_IsType(SymbolKind(S),kAField)) ;.
+/*}}}*/
+/*{{{  FUNCTION GetFieldOffset(Type,Expr) int*/
+FUNCTION GetFieldOffset(Type,Expr) int
+  T,ElementalExpr(_,Identifier(_,S)) RETURN CalcOffset(T,SymbolKind(S)) ? (Tree_IsType(SymbolKind(S),kAField)) ;.
+/*}}}*/
+/*{{{  PREDICATE IsLocal(tSymbol)*/
+PREDICATE IsLocal(tSymbol)
+  S ? (!IsNonLocal(S));.
+
+/*}}}*/
+/*{{{  PREDICATE IsNonLocal(tSymbol)*/
+PREDICATE IsNonLocal(tSymbol)
+  S ? (SymbolUsage(S) & (xxNLRead|xxNLWrite)); .
+  S ? (!(SymbolUsage(S) & xxAtomic));.
+
+/*}}}*/
+/*{{{  PREDICATE IsAtomic(Tree)*/
+PREDICATE IsAtomic(Tree)
+  T ? (IS_Mode(xxPrettyC)); .
+  T:Process ? (T->Process.ATOMIC); .
+  T:AChoices ? (T->AChoices.ATOMIC); .
+  T:Replicator ? (T->Replicator.AtomicSpec); .
+/*}}}*/
+/*{{{  PREDICATE IsMVFunction(DefFunc)*/
+PREDICATE IsMVFunction(DefFunc)
+  /* test for Multi Value Result */
+  DefFunc(_,S,AType(AType(..),T),F,V) ?.
+/*}}}*/
+/*{{{  PREDICATE IsSTVFunction(DefFunc)*/
+PREDICATE IsSTVFunction(DefFunc)
+  /* test for Single Table Value result */
+  NIL ? (1);.   /* To cope with undefined functions */
+  DefFunc(_,S,AType(NoType(),T),F,V) ? (!IsScalarType(T));.
+/*}}}*/
+
+/*{{{  PREDICATE IsNewSymbol(tSymbol)*/
+PREDICATE IsNewSymbol(tSymbol)
+  S ? ({SymTable[S].Id == NoIdent}); .
+
+
+/*}}}*/
+/*{{{  PROCEDURE BeginBlock(SpecList)*/
+PROCEDURE BeginBlock(SpecList)
+  SL ?
+    GenLocalInits(SL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE EndBlock(SpecList)*/
+PROCEDURE EndBlock(SpecList)
+  SL ?
+    GenResults(SL);
+    .
+/*}}}*/
+
+/*{{{  PROCEDURE BeginAtomicBlock(SpecList,Replicator,bool)*/
+PROCEDURE BeginAtomicBlock(SpecList,Replicator,bool)
+  SL,R,B ?
+    OpenBlock(B);
+    GenLocalSpecs(SL);
+    (false);
+    .
+
+  SL,R,B ? (R != NoTree);
+    GenLocalRep(R);
+    (false);
+    .
+
+  SL,R,B ?
+    GenLocalInits(SL);
+    .
+/*}}}*/
+/*{{{  PROCEDURE EndAtomicBlock(SpecList)*/
+PROCEDURE EndAtomicBlock(SpecList)
+  SL ?
+    GenResults(SL);
+    CloseBlock();
+    .
+/*}}}*/
+/*{{{  PROCEDURE MarkRefParent(tSymbol,Spec,tVUsage)*/
+PROCEDURE MarkRefParent(tSymbol,Spec,tVUsage)
+
+  S,_,_ ? (IsTopLevel(S)); .
+
+  Sym,P:DefAProc(_,S,..),U   ? (SymbolDepth(Sym) <= SymbolDepth(S));
+    AddVUsage(S,U);
+    MarkRefParent(Sym,SymbolKind(P->DefAProc.Parent),U);
+    .
+
+  Sym,F:DefAFunc(_,S,..),U   ? (SymbolDepth(Sym) <= SymbolDepth(S));
+    AddVUsage(S,U);
+    MarkRefParent(Sym,SymbolKind(F->DefAFunc.Parent),U);
+    .
+  _,_,_ ? .
+
+/*}}}*/
+
+

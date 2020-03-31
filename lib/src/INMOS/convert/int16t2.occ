@@ -1,0 +1,19 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#USE "ioconv.lib"
+--{{{  history
+-- V1.0, 1-Jul-88
+-- Added V to OPTIONs; V1.1, 22-Mar-90 SRH
+--}}}
+--{{{  STRINGTOINT16 T2
+PROC STRINGTOINT16 (BOOL Error, INT16 n, VAL []BYTE string)
+  INT n RETYPES n:
+  STRINGTOINT (Error, n, string)
+:
+--}}}
+--{{{  INT16TOSTRING T2
+PROC INT16TOSTRING (INT len, []BYTE string, VAL INT16 n)
+  INTTOSTRING (len, string, INT n)
+:
+--}}}

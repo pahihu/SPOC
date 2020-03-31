@@ -1,0 +1,225 @@
+##############################################################################
+#
+#              Make file for occam2 toolset library streamio.lib
+#
+#                              25-Oct-90 SRH
+#
+#                This makefile is presently set up for UNIX
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(OCCEXTRAS)
+
+
+# T2 class modules
+STREAMT2=kkbd.t2h kfile.t2h kstdin.t2h keysink.t2h sfile.t2h sstdout.t2h \
+	scrtfarr.t2h scrfan.t2h scrsink.t2h scrcopy.t2h keyscr.t2h \
+	toansi.t2h totvi.t2h srchar.t2h srint.t2h srint64.t2h srreal32.t2h \
+	srreal64.t2h swsimple.t2h swint.t2h swint64.t2h swreal32.t2h \
+	swreal64.t2h scrcont.t2h scrmux.t2h \
+	kkbd.t2x kfile.t2x kstdin.t2x keysink.t2x sfile.t2x sstdout.t2x \
+	scrtfarr.t2x scrfan.t2x scrsink.t2x scrcopy.t2x keyscr.t2x \
+	toansi.t2x totvi.t2x srchar.t2x srint.t2x srint64.t2x srreal32.t2x \
+	srreal64.t2x swsimple.t2x swint.t2x swint64.t2x swreal32.t2x \
+	swreal64.t2x scrcont.t2x scrmux.t2x \
+	kkbd.y2h kfile.y2h kstdin.y2h keysink.y2h sfile.y2h sstdout.y2h \
+	scrtfarr.y2h scrfan.y2h scrsink.y2h scrcopy.y2h keyscr.y2h \
+	toansi.y2h totvi.y2h srchar.y2h srint.y2h srint64.y2h srreal32.y2h \
+	srreal64.y2h swsimple.y2h swint.y2h swint64.y2h swreal32.y2h \
+	swreal64.y2h scrcont.y2h scrmux.y2h \
+	kkbd.y2x kfile.y2x kstdin.y2x keysink.y2x sfile.y2x sstdout.y2x \
+	scrtfarr.y2x scrfan.y2x scrsink.y2x scrcopy.y2x keyscr.y2x \
+	toansi.y2x totvi.y2x srchar.y2x srint.y2x srint64.y2x srreal32.y2x \
+	srreal64.y2x swsimple.y2x swint.y2x swint64.y2x swreal32.y2x \
+	swreal64.y2x scrcont.y2x scrmux.y2x
+
+# TA class modules
+STREAMTA=kkbd.tah kfile.tah kstdin.tah keysink.tah sfile.tah sstdout.tah \
+	scrtfarr.tah scrfan.tah scrsink.tah scrcopy.tah keyscr.tah \
+	toansi.tah totvi.tah srchar.tah srint.tah srint64.tah srreal32.tah \
+	srreal64.tah swsimple.tah swint.tah swint64.tah swreal32.tah \
+	swreal64.tah scrcont.tah scrmux.tah \
+	kkbd.tax kfile.tax kstdin.tax keysink.tax sfile.tax sstdout.tax \
+	scrtfarr.tax scrfan.tax scrsink.tax scrcopy.tax keyscr.tax \
+	toansi.tax totvi.tax srchar.tax srint.tax srint64.tax srreal32.tax \
+	srreal64.tax swsimple.tax swint.tax swint64.tax swreal32.tax \
+	swreal64.tax scrcont.tax scrmux.tax \
+	kkbd.yah kfile.yah kstdin.yah keysink.yah sfile.yah sstdout.yah \
+	scrtfarr.yah scrfan.yah scrsink.yah scrcopy.yah keyscr.yah \
+	toansi.yah totvi.yah srchar.yah srint.yah srint64.yah srreal32.yah \
+	srreal64.yah swsimple.yah swint.yah swint64.yah swreal32.yah \
+	swreal64.yah scrcont.yah scrmux.yah \
+	kkbd.yax kfile.yax kstdin.yax keysink.yax sfile.yax sstdout.yax \
+	scrtfarr.yax scrfan.yax scrsink.yax scrcopy.yax keyscr.yax \
+	toansi.yax totvi.yax srchar.yax srint.yax srint64.yax srreal32.yax \
+	srreal64.yax swsimple.yax swint.yax swint64.yax swreal32.yax \
+	swreal64.yax scrcont.yax scrmux.yax
+
+# T8 class modules
+STREAMT8=kkbd.t8h kfile.t8h kstdin.t8h keysink.t8h sfile.t8h sstdout.t8h \
+	scrtfarr.t8h scrfan.t8h scrsink.t8h scrcopy.t8h keyscr.t8h \
+	toansi.t8h totvi.t8h srchar.t8h srint.t8h srint64.t8h srreal32.t8h \
+	srreal64.t8h swsimple.t8h swint.t8h swint64.t8h swreal32.t8h \
+	swreal64.t8h scrcont.t8h scrmux.t8h \
+	kkbd.t8x kfile.t8x kstdin.t8x keysink.t8x sfile.t8x sstdout.t8x \
+	scrtfarr.t8x scrfan.t8x scrsink.t8x scrcopy.t8x keyscr.t8x \
+	toansi.t8x totvi.t8x srchar.t8x srint.t8x srint64.t8x srreal32.t8x \
+	srreal64.t8x swsimple.t8x swint.t8x swint64.t8x swreal32.t8x \
+	swreal64.t8x scrcont.t8x scrmux.t8x \
+	kkbd.y8h kfile.y8h kstdin.y8h keysink.y8h sfile.y8h sstdout.y8h \
+	scrtfarr.y8h scrfan.y8h scrsink.y8h scrcopy.y8h keyscr.y8h \
+	toansi.y8h totvi.y8h srchar.y8h srint.y8h srint64.y8h srreal32.y8h \
+	srreal64.y8h swsimple.y8h swint.y8h swint64.y8h swreal32.y8h \
+	swreal64.y8h scrcont.y8h scrmux.y8h \
+	kkbd.y8x kfile.y8x kstdin.y8x keysink.y8x sfile.y8x sstdout.y8x \
+	scrtfarr.y8x scrfan.y8x scrsink.y8x scrcopy.y8x keyscr.y8x \
+	toansi.y8x totvi.y8x srchar.y8x srint.y8x srint64.y8x srreal32.y8x \
+	srreal64.y8x swsimple.y8x swint.y8x swint64.y8x swreal32.y8x \
+	swreal64.y8x scrcont.y8x scrmux.y8x
+
+
+#
+############################## target and rules ##############################
+#
+all: streamio.lib
+
+streamio.lib:	streamio.t2 streamio.t8 streamio.ta
+	$(LIBRARIAN) streamio.t2 streamio.t8 streamio.ta $(SWITCH)o streamio.lib $(LIBOPT)
+
+
+streamio.t2: $(STREAMT2)
+	$(CONCATENATE) $(STREAMT2) $(INTO) streamio.t2
+
+streamio.ta: $(STREAMTA)
+	$(CONCATENATE) $(STREAMTA) $(INTO) streamio.ta
+
+streamio.t8: $(STREAMT8)
+	$(CONCATENATE) $(STREAMT8) $(INTO) streamio.t8
+
+
+# pattern matching rules
+#
+# all files depend on streamio.inc; some files also depend on hostio.inc,
+# hostio.lib, and convert.lib ( and occam2.lib and occama.lib )
+#
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t2h
+
+%.t2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t2x
+
+%.tah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.tah
+
+%.tax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.tax
+
+%.t8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t8h
+
+%.t8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t8x
+
+# y versions
+%.y2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(SWITCH)y $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.y2h
+
+%.y2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(SWITCH)y $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.y2x
+
+%.yah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(SWITCH)y $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.yah
+
+%.yax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(SWITCH)y $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.yax
+
+%.y8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(SWITCH)y $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.y8h
+
+%.y8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(SWITCH)y $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.y8x
+
+
+# explicit rules for those which use compiler libraries ( for information
+# only really )
+# requires NOTFINITE
+srreal32.t2h:	srreal32.occ
+	$(OCCAM) srreal32 $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o srreal32.t2h
+
+# requires NOTFINITE
+srreal32.t2x:	srreal32.occ
+	$(OCCAM) srreal32 $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o srreal32.t2x
+
+# requires DNOTFINITE
+srreal64.t2h:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o srreal64.t2h
+
+# requires DNOTFINITE
+srreal64.t2x:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o srreal64.t2x
+
+# requires DNOTFINITE
+srreal64.tah:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o srreal64.tah
+
+# requires DNOTFINITE
+srreal64.tax:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o srreal64.tax
+
+# requires INT64GT
+swint64.t2h:	swint64.occ
+	$(OCCAM) swint64 $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o swint64.t2h
+
+# requires INT64GT
+swint64.t2x:	swint64.occ
+	$(OCCAM) swint64 $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o swint64.t2x
+
+
+# y versions
+# requires NOTFINITE
+srreal32.y2h:	srreal32.occ
+	$(OCCAM) srreal32 $(SWITCH)h $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o srreal32.y2h
+
+# requires NOTFINITE
+srreal32.y2x:	srreal32.occ
+	$(OCCAM) srreal32 $(SWITCH)x $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o srreal32.y2x
+
+# requires DNOTFINITE
+srreal64.y2h:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)h $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o srreal64.y2h
+
+# requires DNOTFINITE
+srreal64.y2x:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)x $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o srreal64.y2x
+
+# requires DNOTFINITE
+srreal64.yah:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)h $(SWITCH)ta $(SWITCH)y $(OCCOPT) $(SWITCH)o srreal64.yah
+
+# requires DNOTFINITE
+srreal64.yax:	srreal64.occ
+	$(OCCAM) srreal64 $(SWITCH)x $(SWITCH)ta $(SWITCH)y $(OCCOPT) $(SWITCH)o srreal64.yax
+
+# requires INT64GT
+swint64.y2h:	swint64.occ
+	$(OCCAM) swint64 $(SWITCH)h $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o swint64.y2h
+
+# requires INT64GT
+swint64.y2x:	swint64.occ
+	$(OCCAM) swint64 $(SWITCH)x $(SWITCH)t2 $(SWITCH)y $(OCCOPT) $(SWITCH)o swint64.y2x

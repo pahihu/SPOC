@@ -1,0 +1,286 @@
+#############################################################################
+#
+#             Make file for occam2 toolset library tbmaths.lib
+#
+#                              19-Dec-90 SRH
+#
+#                 This makefile is presently set up for UNIX
+#
+#############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d OCCAM
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+# see bug report TS/744 for reason for 'u' option in OCCOPT
+OCCOPT=$(SWITCH)d $(SWITCH)tb $(SWITCH)v $(SWITCH)u $(OCCEXTRAS)
+
+
+
+#
+############################## target and rules ##############################
+#
+all: tbmaths.lib
+
+tbmaths.lib:	tbmaths.lbb \
+	fdiv.tbh fdiv.tbx incexp.tbh incexp.tbx \
+	fix.tbh fix.tbx reflot.tbh reflot.tbx \
+	normal64.tbh normal64.tbx fmul64.tbh fmul64.tbx \
+	fdiv64.tbh fdiv64.tbx incexp64.tbh incexp64.tbx \
+	fixshf64.tbh fixshf64.tbx reflot64.tbh reflot64.tbx \
+	alogfx.tbh alogfx.tbx expfx.tbh expfx.tbx \
+	powfx.tbh powfx.tbx sinfx.tbh sinfx.tbx \
+	cosfx.tbh cosfx.tbx tanfx.tbh tanfx.tbx \
+	asinfx.tbh asinfx.tbx acosfx.tbh acosfx.tbx \
+	atanfx.tbh atanfx.tbx hyperfx.tbh hyperfx.tbx \
+	ranfx.tbh ranfx.tbx dalogfx.tbh dalogfx.tbx \
+	dexpfx.tbh dexpfx.tbx dpowfx.tbh dpowfx.tbx \
+	dsinfx.tbh dsinfx.tbx dcosfx.tbh dcosfx.tbx \
+	dtanfx.tbh dtanfx.tbx dasncsfx.tbh dasncsfx.tbx \
+	datanfx.tbh datanfx.tbx dhyperfx.tbh dhyperfx.tbx \
+	dranfx.tbh dranfx.tbx 
+	$(LIBRARIAN) $(SWITCH)f tbmaths.lbb $(SWITCH)o tbmaths.lib $(LIBOPT)
+
+
+# Pattern matching rules - used only if no explicit rule.
+
+%.tbh: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbh
+	$(OCCAM) $*.pbh $(SWITCH)h $(OCCOPT) $(SWITCH)o $*.tbh
+	$(DELETE) $*.pbh
+
+%.tbx: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbx
+	$(OCCAM) $*.pbx $(SWITCH)x $(OCCOPT) $(SWITCH)o $*.tbx
+	$(DELETE) $*.pbx
+
+
+
+alogfx.tbh:	alogfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) alogfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o alogfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+utilstb.lib:	utilstb.lbb \
+	fdiv.tbh fdiv.tbx incexp.tbh incexp.tbx \
+	fix.tbh fix.tbx reflot.tbh reflot.tbx \
+	normal64.tbh normal64.tbx fmul64.tbh fmul64.tbx \
+	fdiv64.tbh fdiv64.tbx incexp64.tbh incexp64.tbx \
+	fixshf64.tbh fixshf64.tbx reflot64.tbh reflot64.tbx
+	$(LIBRARIAN) $(SWITCH)f utilstb.lbb $(SWITCH)o utilstb.lib $(LIBOPT)
+
+alogfx.tbx:	alogfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) alogfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o alogfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+expfx.tbh:	expfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) expfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o expfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+expfx.tbx:	expfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) expfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o expfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+powfx.tbh:	powfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) powfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o powfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+powfx.tbx:	powfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) powfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o powfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+sinfx.tbh:	sinfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) sinfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o sinfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+sinfx.tbx:	sinfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) sinfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o sinfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+cosfx.tbh:	cosfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) cosfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o cosfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+cosfx.tbx:	cosfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) cosfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o cosfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+tanfx.tbh:	tanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) tanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o tanfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+tanfx.tbx:	tanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) tanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o tanfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+asinfx.tbh:	asinfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) asinfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o asinfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+asinfx.tbx:	asinfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) asinfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o asinfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+acosfx.tbh:	acosfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) acosfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o acosfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+acosfx.tbx:	acosfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) acosfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o acosfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+atanfx.tbh:	atanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) atanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o atanfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+atanfx.tbx:	atanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) atanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o atanfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+hyperfx.tbh:	hyperfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) hyperfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o hyperfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+hyperfx.tbx:	hyperfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) hyperfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o hyperfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+ranfx.tbh:	ranfx.occ t4fhdr.inc
+	$(PREPROCESSOR) ranfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o ranfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+ranfx.tbx:	ranfx.occ t4fhdr.inc
+	$(PREPROCESSOR) ranfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o ranfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dalogfx.tbh:	dalogfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dalogfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dalogfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dalogfx.tbx:	dalogfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dalogfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dalogfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dexpfx.tbh:	dexpfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dexpfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dexpfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dexpfx.tbx:	dexpfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dexpfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dexpfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dpowfx.tbh:	dpowfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dpowfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dpowfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dpowfx.tbx:	dpowfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dpowfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dpowfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dsinfx.tbh:	dsinfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dsinfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dsinfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dsinfx.tbx:	dsinfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dsinfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dsinfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dcosfx.tbh:	dcosfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dcosfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dcosfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dcosfx.tbx:	dcosfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dcosfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dcosfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dtanfx.tbh:	dtanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dtanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dtanfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dtanfx.tbx:	dtanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dtanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dtanfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dasncsfx.tbh:	dasncsfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dasncsfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dasncsfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dasncsfx.tbx:	dasncsfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dasncsfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dasncsfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+datanfx.tbh:	datanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) datanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o datanfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+datanfx.tbx:	datanfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) datanfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o datanfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dhyperfx.tbh:	dhyperfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dhyperfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dhyperfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dhyperfx.tbx:	dhyperfx.occ t4fhdr.inc utilstb.lib 
+	$(PREPROCESSOR) dhyperfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dhyperfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)
+
+dranfx.tbh:	dranfx.occ t4fhdr.inc
+	$(PREPROCESSOR) dranfx.occ $(PREOPT) $(SWITCH)o $(@:.tbh=.tmp)
+	$(OCCAM) $(@:.tbh=.tmp) $(SWITCH)h $(SWITCH)o dranfx.tbh $(OCCOPT)
+	$(DELETE) $(@:.tbh=.tmp)
+
+dranfx.tbx:	dranfx.occ t4fhdr.inc
+	$(PREPROCESSOR) dranfx.occ $(PREOPT) $(SWITCH)o $(@:.tbx=.tmp)
+	$(OCCAM) $(@:.tbx=.tmp) $(SWITCH)x $(SWITCH)o dranfx.tbx $(OCCOPT)
+	$(DELETE) $(@:.tbx=.tmp)

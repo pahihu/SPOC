@@ -1,0 +1,114 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE EXP "EXP%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE EXP "EXP%f"
+#PRAGMA TRANSLATE EXPP "EXPP%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL32 FUNCTION EXP (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL XMax IS #42B00F34(INT) :     -- a little less than ln(Inf - 1)
+    VAL XMin IS #42CE8ED1(INT) :     -- a little more than -ln(smallest real)
+    -- Threshold for exp(x) = 1 is 2**(-ManBits), see C&W p63.
+    VAL Eps  IS #34000000(INT) :
+    VAL REAL32 InvLn2 RETYPES #3FB8AA3B(INT32) : -- 1/log(2) in floating poin
+    VAL REAL32 C1     RETYPES #3F318000(INT32) : -- C1 + C2 = Ln(2)
+    VAL REAL32 C2     RETYPES #B95E8083(INT32) :
+    VAL INT X.i RETYPES X :  -- so we can do fast integer comparisons
+    VAL PosX IS X.i /\ (~(MOSTNEG INT)) :
+    --}}}
+    IF
+      --{{{  special cases
+      (PosX > RealInf)       -- X is NaN
+        RWork := X
+      (X.i > XMax)           -- X is too large
+        RWork := RInf
+      (PosX > XMin)          -- X is too negative
+        RWork := Zero -- underflow
+        --{{{COMMENT COMMENT alternative responses
+        --RWork := inexact.NaN -- another alternative
+        --VAL REAL32 min.denorm RETYPES 1 : -- minimum floating-point number
+        --RWork := min.denorm  -- if preferred
+        ----}}}
+      PosX < Eps             -- X is near zero
+        RWork := One
+      --}}}
+      TRUE
+        VAL N IS INT ROUND (X * InvLn2) :   -- integer part of X/ln(2)
+        REAL32 XWork :
+        SEQ
+          VAL XN IS REAL32 ROUND N :
+          XWork := ( X - (XN * C1)) - (XN * C2) -- higher precision remainder
+          --{{{  compute exponential of remainder
+          VAL P1   IS #00885308(INT) :
+          VAL P0   IS #1FFFFFFF(INT) :
+          VAL Q1   IS #0665FAD9(INT) :
+          VAL Half IS #40000000(INT) :
+          INT G, Z :
+          SEQ
+            G := FIX (XWork)
+            Z := FRACMUL (G, G)
+            G := FRACMUL (G, FRACMUL (Z, P1) + P0)
+            RWork := ReFloat(Half + FracDiv(G, (FRACMUL(Z, Q1) + Half) - G))
+          --}}}
+          --{{{  construct result
+          INT RExp, RTemp :
+          INT RWork.i RETYPES RWork :
+          SEQ
+            INT T :
+            RTemp, RExp, T := UNPACKSN (RWork.i)
+            RWork.i := ROUNDSN (RExp + (N + 1), RTemp, 0)
+          --}}}
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  EXPP
+REAL32 FUNCTION EXPP( VAL INT dummy, VAL INT X )
+
+  -- EXPP exists for when the FORTRAN intrinsic EXP is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to EXPP.  When EXPP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts EXPP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for EXPP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT EXP( Xtemp )
+:
+--}}}
+#endif

@@ -1,0 +1,18 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.2 14/12/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+
+REAL64, INT64 FUNCTION DRAN (VAL INT64 DSeedIn)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  -- Replaced `PLUS one' by `PLUS 1(INT64)'; V1.2 14-Dec-90 SRH
+  --}}}
+
+  VAL A IS 6364136223846793005(INT64) :
+  INT64 DSeedOut :
+  VALOF
+    DSeedOut := (DSeedIn TIMES A) PLUS 1(INT64) --creates next integer
+    RESULT DSCALEB (REAL64 ROUND (DSeedOut >> 1), -63), DSeedOut
+:

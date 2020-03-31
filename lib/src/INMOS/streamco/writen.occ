@@ -1,0 +1,30 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "TDS/TOOLSET conversion library V1.0, 31/03/89"
+#COMMENT "Copyright INMOS Limited 1989"
+#INCLUDE "streamio.inc"
+#INCLUDE "hostio.inc"
+#USE "streamio.lib"
+
+PROC write.int (CHAN OF ANY sink, VAL INT number, field)
+  ss.write.int(sink, number, field)
+:
+
+PROC write.hex.int (CHAN OF ANY sink, VAL INT number, field)
+  ss.write.hex.int(sink, number, field)
+:
+
+PROC write.int64 (CHAN OF ANY sink, VAL INT64 number, VAL INT field)
+  ss.write.int64(sink, number, field)
+:
+
+PROC write.hex.int64 (CHAN OF ANY sink, VAL INT64 number, VAL INT field)
+  ss.write.hex.int64(sink, number, field)
+:
+
+PROC write.real32 (CHAN OF ANY sink, VAL REAL32 number, VAL INT Ip, Dp)
+  ss.write.real32(sink, number, Ip, Dp)
+:
+
+PROC write.real64 (CHAN OF ANY sink, VAL REAL64 number, VAL INT Ip, Dp)
+  ss.write.real64(sink, number, Ip, Dp)
+:

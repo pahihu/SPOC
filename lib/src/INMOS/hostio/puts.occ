@@ -1,0 +1,71 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.puts
+PROC sp.puts (CHAN OF SP fs, ts, VAL INT32 streamid, VAL []BYTE data,
+              BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To write a line to the specified output stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the stream to be
+  --           written to
+  -- In:       data - the line to be written ( without a terminating newline
+  --           sequence )
+  -- Out:      result - equal to spr.ok if the line was successfully written;
+  --           otherwise takes on a value indicating what was wrong:
+  --             spr.bad.packet.size   too many bytes supplied,
+  --                                     (SIZE data) > sp.max.writebuffer.size
+  --           >=spr.operation.failed  the write failed - see hostio.inc or
+  --                                   iserver documentation for further details
+  -- Notes:    A newline sequence is added to the end of the bytes to be written.
+  --}}}
+
+  IF
+    (SIZE data) > sp.max.writebuffer.size
+      result := spr.bad.packet.size
+    TRUE
+      [sp.max.packet.data.size]BYTE buffer :
+      INT16 temp.INT16 :
+      SEQ
+        --{{{  pack the data into the buffer (7 bytes plus data)
+        buffer [0] := sp.puts.tag
+        
+        VAL [4]BYTE b.streamid RETYPES streamid :
+        [buffer FROM 1 FOR 4] := b.streamid
+        
+        temp.INT16 := INT16 (SIZE data)
+        VAL [2]BYTE b.temp RETYPES temp.INT16 :
+        [buffer FROM 5 FOR 2] := b.temp
+        
+        [buffer FROM 7 FOR SIZE data] := data
+        --}}}pack the data into the buffer (7 bytes plus data)
+        --{{{  send and receive the buffer
+        SEQ
+          INT len :
+          SEQ
+            -- Size of buffer is (SIZE data) + 7.
+            -- Add 1, then mask off bottom bit, to ensure it is even
+            len := ((SIZE data) + 8) /\ ((-1) << 1)
+            IF
+              len < sp.min.packet.data.size
+                temp.INT16 := INT16 sp.min.packet.data.size
+              TRUE
+                temp.INT16 := INT16 len
+        
+          ts ! temp.INT16 :: buffer
+          fs ? temp.INT16 :: buffer
+        --}}}send and receive the buffer
+        --{{{  unpack the data               (1 byte)
+        result := buffer [0]
+        --}}}
+:
+--}}}sp.puts
+--{{{  so.puts
+PROC so.puts (CHAN OF SP fs, ts, VAL INT32 streamid, VAL []BYTE data,
+              BYTE result)
+
+  sp.puts (fs, ts, streamid, data, result)
+:
+--}}}so.puts

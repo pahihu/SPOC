@@ -1,0 +1,49 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.flush
+PROC sp.flush (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To flush the specified output stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the open stream to be
+  --           flushed
+  -- Out:      result - equal to spr.ok stream successfully flushed; otherwise 
+  --           >= spr.operation.failed - see hostio.inc or iserver
+  --           documentation for further details
+  -- Notes:    To flush means to write out any internally buffered data to
+  --           the stream that it is associated with.
+  --           The stream remains open.
+  --}}}
+  --{{{  more info
+  --           This routine is unnecessary for streamid = spid.stdout ( standard
+  --           output ) since this stream is always flushed automatically.
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (3 bytes)
+    buffer [0] := sp.flush.tag
+    
+    VAL [4]BYTE b.streamid RETYPES streamid :
+    [buffer FROM 1 FOR 4] := b.streamid
+    --}}}pack the data into the buffer (3 bytes)
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 temp.INT16 :
+    fs ? temp.INT16 :: buffer
+    --}}}send and receive the buffer
+    --{{{  copy out the result           (1 byte)
+    result := buffer [0]
+    --}}}
+:
+--}}}sp.flush
+--{{{  so.flush
+PROC so.flush (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+
+  sp.flush (fs, ts, streamid, result)
+:
+--}}}so.flush

@@ -1,0 +1,68 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FIX "FIX%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE FIX "FIX%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE FIX "FIX%f"
+#endif
+#endif
+#endif
+
+INT FUNCTION FIX (VAL REAL32 X.r)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  INT RWork :
+  VALOF
+    --{{{  Convert X to fixed point
+    -- Returns the signed fixed point fraction corresponding to X.
+    -- Assumes |X| < 1. Rounds to nearest or even.
+    VAL RealShift   IS   8(INT) :
+    VAL RealXcess   IS 127(INT) :
+    VAL BitsPerWord IS  32(INT) :
+    VAL UFlowExp IS (RealXcess - BitsPerWord) :
+    VAL INT X RETYPES X.r :
+    INT XExp, XFrac :
+    SEQ
+      INT T :   -- not needed here
+      XFrac, XExp, T := UNPACKSN (X/\(~(MOSTNEG INT)))
+      IF
+        XExp < UFlowExp  -- number too small
+          RWork := 0
+        TRUE
+          SEQ
+            XExp := RealXcess - XExp          -- Magnitude of true exponent
+            IF
+              XExp <= RealShift               -- Exact result will fit
+                RWork := XFrac >> XExp
+              TRUE                            -- Shift and round
+                INT LostBits :
+                SEQ
+                  RWork, LostBits := SHIFTRIGHT (XFrac, 0, XExp)
+                  --{{{  round RWork
+                  IF
+                    LostBits >= 0      -- Round down
+                      SKIP
+                    LostBits <> (MOSTNEG INT)  -- Round up
+                      RWork := RWork + 1
+                    (RWork /\ 1) = 1  -- Round up to even
+                      RWork := RWork + 1
+                    TRUE
+                      SKIP
+                  --}}}
+            IF
+              X < 0
+                RWork := -RWork
+              TRUE
+                SKIP
+    --}}}
+    RESULT RWork
+:

@@ -1,0 +1,56 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : abstract syntax tree extensions
+||@(#)   System : occam 2 c
+||@(#) Filename : extend.ast
+||@(#)  Version : 1.24
+||@(#)     Date : 2/16/94
+\*@(#)====================================================*/
+/*}}}*/
+
+MODULE Extend
+
+TREE Tree
+
+PROPERTY INPUT
+
+RULE
+
+DefAProc = 
+<
+  PrototypeProc = [Module:tIdent] [Lang: tLang].
+>.
+
+DefAFunc =
+<
+  PrototypeFunc = [Module:tIdent] [Lang: tLang].
+>.
+
+Process =
+<
+  CCode = [Code:tStringRef].
+  NullProcess = .
+>.
+
+Spec =
+<
+  HCode = [Code:tStringRef].
+  CallFrame = [Id: tIdent] [Sym: tSymbol].
+  ParFrame = [TId: tIdent] [FId: tIdent] [Sym: tSymbol] [Rep: int].
+>.
+
+END Extend
+
+MODULE ExtendInputs
+
+DECLARE
+  FuncCall String Table = [Depth:int INPUT].
+  Identifier Instance CCode HCode = [Scope:tSymbol INPUT].  
+  ParRep AProcess Valof Table String = [Sym:tSymbol INPUT].
+  Valof = [FuncCall:tTree].
+
+END ExtendInputs

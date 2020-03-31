@@ -1,0 +1,123 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#USE "ioconv.lib"
+--{{{  history
+-- V1.0, 1-Jul-88
+-- Added V to OPTIONs; V1.1, 22-Mar-90 SRH
+--}}}
+--{{{  STRINGTOINT32 T2
+PROC STRINGTOINT32 (BOOL Error, INT32 n, VAL []BYTE string)
+  --  String without digits beviour corrected 19.2.88
+
+  [2]INT n RETYPES n:
+  INT chars.scanned:
+  INT carry, digit:
+  BOOL Neg, More :
+  --{{{  ValidDigit
+  PROC ValidDigit (INT digit, BOOL valid, VAL BYTE ch)
+    --convert char to decimal digit and set valid flag
+    SEQ
+      digit := (INT ch)
+      IF
+        ((INT '0') <= digit) AND (digit <= (INT '9'))
+          SEQ
+            digit:= (digit - (INT '0'))
+            valid := TRUE
+        TRUE
+          valid := FALSE
+  :
+  --}}}
+  SEQ
+    n[0] := 0
+    n[1] := 0
+    Error := FALSE
+    IF
+      (SIZE string) > 0
+        SEQ
+          Neg := string[0] = '-'
+          IF
+            (string[0] = '+') OR (string[0] = '-')
+              chars.scanned := 1
+            TRUE
+              chars.scanned := 0
+          More := (SIZE string) > chars.scanned
+      TRUE
+        More := FALSE
+    digit := 0
+    WHILE More AND (chars.scanned < (SIZE string))
+      SEQ
+        carry, n[0] := LONGPROD (n[0], 10, digit)
+        carry, n[1] := LONGPROD (n[1], 10, carry)
+        Error := Error OR (carry <> 0)
+        ValidDigit (digit, More, string[chars.scanned])
+        chars.scanned := chars.scanned + 1
+    IF
+      More
+        SEQ
+          carry, n[0] := LONGPROD (n[0], 10, digit)
+          carry, n[1] := LONGPROD (n[1], 10, carry)
+          Error := Error OR (carry <> 0)
+          IF
+            Neg
+              SEQ
+                carry, n[0] := LONGDIFF (0, n[0], 0)
+                carry, n[1] := LONGDIFF (0, n[1], carry)
+                Error := Error OR (n[1] > 0)
+            TRUE
+              Error := Error OR (n[1] < 0)
+      TRUE
+        Error := TRUE
+:
+--}}}
+--{{{  INT32TOSTRING T2
+PROC INT32TOSTRING (INT len, []BYTE string, VAL INT32 n)
+
+  VAL [2]INT n RETYPES n:
+  [2]INT W:
+  INT L, R, carry:
+  BYTE b:
+  BOOL Neg:
+  SEQ
+    IF
+      n[1] < 0
+        SEQ
+          carry, W[0] := LONGDIFF (0, n[0], 0)
+          carry, W[1] := LONGDIFF (0, n[1], carry)
+          Neg := TRUE
+          len := 0
+      (n[1] \/ n[0]) = 0
+        SEQ
+          W := n
+          Neg := FALSE
+          len := 1
+          string[0] := '0'
+      TRUE
+        SEQ
+          W := n
+          Neg := FALSE
+          len := 0
+    WHILE (W[1] \/ W[0]) <> 0
+      SEQ
+        W[1], R := LONGDIV (0, W[1], 10)
+        W[0], R := LONGDIV (R, W[0], 10)
+        string[len] := (BYTE (R + (INT '0')))
+        len := len + 1
+    IF
+      Neg
+        SEQ
+          string[len] := '-'
+          len := len + 1
+      TRUE
+        SKIP
+    L := 0
+    R := (len - 1)
+    WHILE (L < R)
+      SEQ
+        b := string[L]
+        string[L] := string[R]
+        string[R] := b
+        L := L + 1
+        R := R - 1
+:
+--}}}

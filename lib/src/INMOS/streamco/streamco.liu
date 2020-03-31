@@ -1,0 +1,7 @@
+--
+-- library usage file "streamco.liu"
+--
+streamio.lib
+hostio.lib
+convert.lib
+string.lib

@@ -1,0 +1,39 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+
+REAL32 FUNCTION ReFloat (VAL INT X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V" and altered to make more efficient and avoid using
+  -- compiler libraries; V1.1 27-Mar-90 SRH
+  --}}}
+
+  --{{{  Convert X back to floating point
+  -- Assumes X is in range -2**31 + 1 to 2**31 - 1
+  REAL32 RWork.r :
+  VALOF
+    VAL INT RealXcess IS 127 :
+    INT RWork RETYPES RWork.r :
+    IF
+      X < 0
+        SEQ
+          RWork := ROUNDSN (RealXcess, -X, 0)
+          RWork := ( RWork \/ ( MOSTNEG INT ) )  -- set sign bit
+      TRUE   -- case X = 0 taken care of by ROUNDSN
+        RWork := ROUNDSN (RealXcess, X, 0)
+    RESULT RWork.r
+  --}}}
+:

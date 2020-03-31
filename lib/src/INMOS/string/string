@@ -1,0 +1,92 @@
+##############################################################################
+#
+#              Make file for occam2 toolset library string.lib
+#
+#                               25-Oct-90 SRH
+#
+#                This makefile is presently set up for UNIX
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(OCCEXTRAS)
+
+
+# T2 class modules
+STRINGT2=string0.t2h string1.t2h string2.t2h \
+	string3.t2h string4.t2h string5.t2h \
+	\
+	string0.t2x string1.t2x string2.t2x \
+	string3.t2x string4.t2x string5.t2x
+
+# TA class modules
+STRINGTA=string0.tah string1.tah string2.tah \
+	string3.tah string4.tah string5.tah \
+	\
+	string0.tax string1.tax string2.tax \
+	string3.tax string4.tax string5.tax
+
+# T8 class modules
+STRINGT8=string0.t8h string1.t8h string2.t8h \
+	string3.t8h string4.t8h string5.t8h \
+	\
+	string0.t8x string1.t8x string2.t8x \
+	string3.t8x string4.t8x string5.t8x
+
+
+#
+############################# target and rules ##############################
+#
+all: string.lib
+
+string.lib:	string.t2 string.t8 string.ta
+	$(LIBRARIAN) string.t2 string.t8 string.ta $(LIBOPT) $(SWITCH)o string.lib
+
+
+string.t2:	$(STRINGT2)
+	$(CONCATENATE) $(STRINGT2) $(INTO) string.t2
+
+string.ta:	$(STRINGTA)
+	$(CONCATENATE) $(STRINGTA) $(INTO) string.ta
+
+string.t8:	$(STRINGT8)
+	$(CONCATENATE) $(STRINGT8) $(INTO) string.t8
+
+
+# pattern matching rules
+#
+# note that string2 to string5 all #USE convert.lib
+#
+# an explicit rule is chosen in preference to a pattern matching one
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2h
+
+%.t2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+
+%.tah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tah
+
+%.tax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+
+%.t8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8h
+
+%.t8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x

@@ -1,0 +1,4 @@
+#reference VIRTUAL.OUT.WORD%
+#reference VIRTUAL.OUT.BYTE%
+#reference VIRTUAL.OUT%
+#reference VIRTUAL.IN%

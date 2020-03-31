@@ -1,0 +1,115 @@
+#H #include <stdio.h>
+#H #include <X11/Xlib.h>
+#H #include <X11/Xutil.h>
+
+#H static Display *display;
+#H static Window window;
+#H static GC gc;
+#H unsigned int fg, bg;
+
+--{{{  PROC XInitDisplay(VAL INT Width,Height,VAL []BYTE Title)
+PROC XInitDisplay(VAL INT Width,Height,VAL []BYTE Title)
+  VAL tsize IS SIZE Title:
+  SEQ
+    #C {
+    #C XColor xcolor;
+    #C XSizeHints hint;
+    #C XEvent xev;
+    #C int i,screen;
+    #C char *title = malloc($tsize);
+   
+    #C display = XOpenDisplay(getenv("DISPLAY"));
+    #C if (display == NULL) { fprintf(stderr, "Can not open display\n"); exit(-2); }
+    
+    #C screen = DefaultScreen (display);
+    #C hint.x=200;hint.y=200;hint.width=$Width,hint.height=$Height;hint.flags=PPosition|PSize;
+    #C bg=WhitePixel(display,screen);fg=BlackPixel(display,screen);
+    #C window=XCreateSimpleWindow(display,DefaultRootWindow(display),hint.x,hint.y,hint.width,hint.height,4,fg,bg);
+    #C XSelectInput(display,window,StructureNotifyMask);
+    #C XSetStandardProperties(display,window,$Title,$Title,None,NULL,0,&hint);
+    #C XMapWindow(display, window);
+    
+    #C while(1) { XNextEvent(display,&xev); if(xev.type==MapNotify && xev.xmap.event==window) break; }
+    #C XSelectInput(display,window,NoEventMask);
+    
+    #C gc=XCreateGC(display,window,0,0);
+    #C XSetForeground(display,gc,fg);
+    #C XSetBackground(display,gc,bg);
+    #C XClearWindow(display,window);
+    #C }
+:
+--}}}
+--{{{  PROC XClearWindow()
+PROC XClearWindow()
+  SEQ
+    #C XClearWindow(display,window);
+:    
+--}}}
+--{{{  PROC XDrawLine(VAL INT x1,y1,x2,y2)
+PROC XDrawLine(VAL INT x1,y1,x2,y2)
+  SEQ
+    #C XSetForeground(display,gc,fg);
+    #C XDrawLine(display,window,gc,$x1,$y1,$x2,$y2);
+:
+--}}}
+--{{{  PROC XEraseLine(VAL INT x1,y1,x2,y2)
+PROC XEraseLine(VAL INT x1,y1,x2,y2)
+  SEQ
+    #C XSetForeground(display,gc,bg);
+    #C XDrawLine(display,window,gc,$x1,$y1,$x2,$y2);
+:
+--}}}
+--{{{  PROC XClearArea(VAL INT x,y,w,h)
+PROC XClearArea(VAL INT x,y,w,h)
+  SEQ
+    #C XClearArea(display,window,$x,$y,$w,$h,0);
+:
+--}}}
+--{{{  PROC XDrawSegments(VAL INT count, VAL [][2][2]INT16 segments)
+PROC XDrawSegments(VAL INT count, VAL [][2][2]INT16 segments)
+  SEQ
+    #C XDrawSegments(display,window,gc,(XSegment *)$segments,$count);
+:
+--}}}
+--{{{  PROC XFlush()
+PROC XFlush()
+  SEQ
+    #C XFlush(display);  
+:
+--}}}
+--{{{  PROC XSync(BOOL discard)
+PROC XSync(VAL BOOL discard)
+  SEQ
+    #C XSync(display,$discard);  
+:
+--}}}
+--{{{  
+--int WaitForEvent()
+--{
+--  XEvent xev;
+--  XSelectInput(display, window, ButtonPressMask | PointerMotionMask | ButtonReleaseMask | ExposureMask);
+--
+--  XNextEvent(display, &xev);
+--  switch(xev.type)
+--  {
+--    case ButtonPress:
+--    case ButtonRelease:
+--      break;
+--
+--    case MotionNotify:
+--      break;
+--
+--    case Expose:
+--      break;
+--
+--    case DestroyNotify:
+--      return 1;
+--      
+--    default:
+--      printf("Event = %d\n",xev.type);
+--      fflush(stdout);
+--      break;
+--  }
+--  return 0;
+--}
+--}}}

@@ -1,0 +1,203 @@
+#!/bin/sh
+#{{{  File banner
+# @(#)=====================================================
+# @(#)  Project : GPMIMD ESPRIT P5404
+# @(#)  Authors : Mark Debbage, Mark Hill, Denis Nicole and Sean Wykes
+# @(#)            University of Southampton
+#  
+# @(#)    Title : Library installation script
+# @(#)   System : Occam 2 C
+# @(#) Filename : libinstall
+# @(#)  Version : 1.3
+# @(#)     Date : 4/3/97
+# @(#)====================================================
+#}}}
+INMOS=0
+
+if [ ! $SPOC ]; then
+  echo Error - You must set SPOC environment variable before installing libraries
+  exit 1
+fi
+
+if [ ! $ARCH ]; then
+  echo Error - You must set the ARCH environment variable before installing libraries
+  exit 1
+fi
+
+if [ ! -f $SPOC/bin/$ARCH/occ2c ]; then 
+  echo "Error - must have built $SPOC/bin/$ARCH/occ2c before libraries can be installed"
+  exit 1
+fi
+
+if [ ! -d $SPOC/lib/$ARCH ]; then 
+  echo "Error - must have successfully built SPOC before attempting library installation"
+  exit 1
+fi
+  
+cd $SPOC/lib/$ARCH
+
+if [ -f Makefile ]; then
+  echo "Error - Libraries have already been installed"
+  exit 1
+fi
+
+if [ ! -d ../src ]; then
+  echo Unable to find library source directory: $PWD/../src
+  exit 1
+fi
+
+echo SPOC library installation script 1.2
+echo
+echo This script will install links to the standard SPOC libraries
+if [ $INMOS_SRC ]; then
+  if [ ! -d $INMOS_SRC/hostio ]; then echo Error - Unable to find INMOS_SRC directory: $INMOS_SRC/hostio; exit 10; fi
+  if [ ! -d $INMOS_SRC/string ]; then echo Error - Unable to find INMOS_SRC directory: $INMOS_SRC/string; exit 10; fi
+  INMOS=1
+  echo and to the INMOS libraries at $INMOS_SRC
+else
+  echo and to the SPOC hostio libraries
+  echo
+  echo "If you wan to use INMOS iserver sources, restart make with" 
+  echo "INMOS_SRC equal to the root source directory e.g."
+  echo "  make lib-install INMOS_SRC=$SPOC/lib/src/INMOS"
+fi
+
+echo
+
+response=Z
+while [ $response != Y ] && [ $response != y ]; do
+  echo -n "Continue with installation (y/n)? "
+  read response
+  if [ $response = n ] || [ $response = N ]; then exit 0; fi
+done
+#
+#
+#
+echo Installing Intrinsics library
+if [ ! -d Intrinsics ]; then
+  mkdir Intrinsics
+  ( cd Intrinsics ; ln -s ../../src/Intrinsics/Intrinsics.occ  )
+fi
+rm -f Intrinsics.lib Intrinsics.hdr libIntrinsics.a
+#
+#
+#
+echo Installing convert library
+if [ ! -d convert ];    then
+  mkdir convert
+  ( cd convert ; ln -s ../../src/convert/convert.occ )
+fi
+rm -f convert.lib convert.hdr convert.liu libconvert.a
+#
+#
+#
+echo Installing maths libraries
+if [ ! -d snglmath ];    then
+  mkdir snglmath
+  (cd snglmath ; ln -s ../../src/snglmath/snglmath.occ )
+fi
+if [ ! -d dblmath ];    then
+  mkdir dblmath
+  (cd dblmath ; ln -s ../../src/dblmath/dblmath.occ )
+fi
+rm -f snglmath.lib snglmath.hdr snglmath.liu libsnglmath.a
+#
+rm -f dblmath.lib dblmath.hdr dblmath.liu libdblmath.a
+#
+rm -f mathvals.inc
+ln -s ../src/mathvals.inc mathvals.inc
+#
+#
+#
+echo Installing hostio library
+if [ ! -d hostio ]; then
+  mkdir hostio
+  rm -f hostio.inc
+  if [ $INMOS = 1 ]; then
+    ln -s $INMOS_SRC/hostio/hostio.inc hostio.inc
+    cd hostio
+    for i in $INMOS_SRC/hostio/*.occ; do ln -s $i ; done
+    ln -s ../../src/imslibs/hostio.occ 
+    ln -s ../../src/imslibs/splib.occ 
+    ln -s ../../src/imslibs/solib.occ 
+    ln -s ../../src/imslibs/readwrit.occ 
+    cd ..
+  else
+    ln -s ../src/hostio.inc hostio.inc
+    ( cd hostio ; ln -s ../../src/hostio/hostio.occ )
+  fi
+fi
+rm -f hostio.lib hostio.hdr hostio.liu libhostio.a
+#
+#
+#
+echo Installing string library
+if [ ! -d string ];    then
+  mkdir string
+  cd string
+  if [ $INMOS = 1 ]; then
+    for i in $INMOS_SRC/string/*.occ; do ln -s $i ; done
+    ln -s ../../src/imslibs/string.occ
+  else
+    ln -s ../../src/string/string.occ 
+  fi
+  cd ..
+fi
+rm -f string.lib string.hdr string.liu libstring.a
+#
+#
+#
+echo Installing spserver library
+if [ ! -d spserver ];    then
+  mkdir spserver
+  ( cd spserver ; ln -s ../../src/spserver/spserver.occ )
+fi
+rm -f spserver.lib spserver.hdr spserver.liu libspserver.a
+#
+#
+#
+if [ $INMOS = 1 ]; then
+  echo Installing streamio library
+  if [ ! -d streamio ];    then
+    mkdir streamio
+    rm -f streamio.inc
+    cd streamio
+    for i in $INMOS_SRC/streamio/*.occ; do  ln -s $i ; done
+    ln -s ../../src/imslibs/streamio.occ 
+    cd ..
+    ln -s $INMOS_SRC/streamio/streamio.inc
+  fi
+fi
+rm -f streamio.lib streamio.hdr streamio.liu libstreamio.a
+#
+#
+#
+cat ../src/libmake.mak > Makefile
+echo ARCH=$ARCH >> Makefile
+if [ $INMOS = 1 ]; then
+  echo top: deflibs imslibs >> Makefile
+  echo INMOS_SRC=$INMOS_SRC >> Makefile
+else
+  echo top: deflibs spoclibs >> Makefile
+fi
+echo >>Makefile
+cat ../src/deflibs.mak >> Makefile
+
+if [ $INMOS = 1 ]; then
+  cat ../src/imslibs.mak >> Makefile
+else
+  cat ../src/spoclibs.mak >> Makefile
+fi
+
+rm -f Omakef.tpl
+if [ $INMOS = 1 ]; then
+  cat ../src/imsmake.tpl ../src/Omakef.tpl > Omakef.tpl
+else
+  cat ../src/Omakef.tpl > Omakef.tpl
+fi
+
+echo Now running 'make' to compile and link libraries:
+echo SPOC=$SPOC make
+SPOC=$SPOC PATH=$SPOC/bin/$ARCH:$PATH make
+echo " "
+echo To remake libraries at any time cd to $PWD and type make

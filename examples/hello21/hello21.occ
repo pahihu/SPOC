@@ -1,0 +1,24 @@
+-- hello world
+#INCLUDE "hostio.inc"
+#USE "hostio.lib"
+PROC Main(CHAN OF SP fs,ts)
+  DATA TYPE STRINT
+    RECORD
+      [10]BYTE s:
+      REAL32 f:
+  :
+  DATA TYPE SS
+    RECORD
+      STRINT p:
+      REAL64 q:
+  :
+  SS h:
+  SEQ
+    h[p][s] := "Hello yall"
+    h[p][f] := 44.7
+    so.write.string.nl(fs,ts,h[p][s])
+    so.write.real32(fs,ts,h[p][f],10,10)
+    so.write.nl(fs,ts)
+    so.exit(fs,ts,sps.success)
+:
+  

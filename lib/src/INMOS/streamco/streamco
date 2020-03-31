@@ -1,0 +1,115 @@
+##############################################################################
+#
+#             Make file for occam2 toolset library streamco.lib
+#
+# Although channels are involved in streamco.lib, they are only used as
+# parameters, and no input or output is done.  We therefore do not need
+# both library and instruction I/O versions of each routine.  We choose
+# to have only library versions since both library and instruction can
+# call library, and all libraries that streamco.lib uses have library
+# versions of their routines.
+#
+#                              25-Oct-90 SRH
+#
+#                 This makefile is presently set up for UNIX
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(OCCEXTRAS)
+
+
+# T2 class modules
+STCOT2=	inter.t2h basicr.t2h basicw.t2h echo.t2h echo64.t2h \
+	ecreal.t2h readn.t2h writen.t2h control.t2h \
+	\
+	inter.t2x basicr.t2x basicw.t2x echo.t2x echo64.t2x \
+	ecreal.t2x readn.t2x writen.t2x control.t2x
+
+# TA class modules
+STCOTA= inter.tah basicr.tah basicw.tah echo.tah echo64.tah \
+	ecreal.tah readn.tah writen.tah control.tah \
+	\
+	inter.tax basicr.tax basicw.tax echo.tax echo64.tax \
+	ecreal.tax readn.tax writen.tax control.tax
+
+# T8 class modules
+STCOT8=	inter.t8h basicr.t8h basicw.t8h echo.t8h echo64.t8h \
+	ecreal.t8h readn.t8h writen.t8h control.t8h \
+	\
+	inter.t8x basicr.t8x basicw.t8x echo.t8x echo64.t8x \
+	ecreal.t8x readn.t8x writen.t8x control.t8x
+
+
+#
+############################## target and rules ##############################
+#
+all: streamco.lib
+
+streamco.lib:	streamco.t2 streamco.t8 streamco.ta
+	$(LIBRARIAN) streamco.t2 streamco.t8 streamco.ta $(SWITCH)o streamco.lib $(LIBOPT)
+
+
+streamco.t2: $(STCOT2)
+	$(CONCATENATE) $(STCOT2) $(INTO) streamco.t2
+
+streamco.ta: $(STCOTA)
+	$(CONCATENATE) $(STCOTA) $(INTO) streamco.ta
+
+streamco.t8: $(STCOT8)
+	$(CONCATENATE) $(STCOT8) $(INTO) streamco.t8
+
+
+# pattern matching rules
+# an explicit rule is chosen in preference to a pattern matching one
+#
+# note that the following files are depended upon: streamio.lib, streamio.inc
+# hostio.inc, convert.lib and string.lib ( and occam2.lib and occama.lib )
+#
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t2h
+
+%.t2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t2x
+
+%.tah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.tah
+
+%.tax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.tax
+
+%.t8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t8h
+
+%.t8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*.t8x
+
+
+# ecreal.t2_ and ecreal.ta_ require the use of the compiler libraries
+ecreal.t2h:	ecreal.occ
+	$(OCCAM) ecreal $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o ecreal.t2h
+
+ecreal.t2x:	ecreal.occ
+	$(OCCAM) ecreal $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o ecreal.t2x
+
+ecreal.tah:	ecreal.occ
+	$(OCCAM) ecreal $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o ecreal.tah
+
+ecreal.tax:	ecreal.occ
+	$(OCCAM) ecreal $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o ecreal.tax
+

@@ -1,0 +1,270 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.2 13/07/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE POWER "POWER%c"
+#endif
+
+#ifdef OCCAM
+REAL32 FUNCTION POWER (VAL REAL32 Base.r, Expn.r)
+#else
+#ifdef C
+-- NOTE - This function has been altered to work with C, compared to occam
+--        it returns one extra value and uses an extra identifier - underflow
+
+INT, REAL32 FUNCTION POWER (VAL REAL32 Base.r, Expn.r)  -- for C
+#endif
+#endif
+
+  --{{{  history
+  -- 27 Jan 88
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  -- Altered BMax from 2030 to 2046; V1.2, 13-July-90 SRH
+  --}}}
+
+  #ifdef C
+  INT underflow : -- for C
+  #endif
+  REAL32 Result :
+  VALOF
+    --{{{  definitions and variables
+    VAL sixteen IS 16.0(REAL32) :
+    VAL one.over.sixteen IS 0.0625(REAL32) :
+    VAL BMax IS  2046 : -- 16*log2(Inf-1) - 1, where Inf - 1 is MaxReal
+    VAL BMin IS -2384 : -- 16*log2(smallest real); where smallest real = 2**(-149)
+    --{{{  A1 and A2
+    VAL A1 IS [1.0(REAL32),
+               0.957603276(REAL32),
+               0.917004049(REAL32),
+               0.878126085(REAL32),
+               0.840896428(REAL32),
+               0.805245161(REAL32),
+               0.771105408(REAL32),
+               0.738413095(REAL32),
+               0.707106769(REAL32),
+               0.677127778(REAL32),
+               0.648419797(REAL32),
+               0.620928884(REAL32),
+               0.594603538(REAL32),
+               0.569394290(REAL32),
+               0.545253873(REAL32),
+               0.522136867(REAL32),
+               0.5(REAL32)] :
+    
+    VAL A2 IS [4.92266405E-09(REAL32),
+              -4.61788518E-09(REAL32),
+               4.91810858E-09(REAL32),
+              -2.25044943E-08(REAL32),
+              -5.06167463E-09(REAL32),
+               2.24841905E-08(REAL32),
+               2.69311116E-08(REAL32),
+               2.41673508E-08(REAL32)] :
+    --}}}
+    VAL BOOL ExpnNotFinite IS NOTFINITE (Expn.r) :
+    VAL base.compared.with.zero IS IEEECOMPARE (Base.r, Zero) :
+    VAL expn.compared.with.zero IS IEEECOMPARE (Expn.r, Zero) :
+    VAL base.compared.with.one  IS IEEECOMPARE (Base.r, One) :
+    VAL expn.compared.with.one  IS IEEECOMPARE (Expn.r, One) :
+    --}}}
+    SEQ
+      #ifdef C
+      underflow := 0 -- for C
+      #endif
+      IF
+        --{{{  special cases
+        --{{{  NaNs
+        (base.compared.with.zero = is.nan) OR (expn.compared.with.zero = is.nan)
+          -- incorporates precedence rule for NaNs
+          Result := REAL32OP (Base.r, Add, Expn.r)
+        --}}}
+        --{{{  Base.r < Zero
+        base.compared.with.zero = less.than
+          Result := undefined.NaN
+        --}}}
+        --{{{  Base.r = Zero
+        base.compared.with.zero = equal.to
+          IF
+            expn.compared.with.zero <= equal.to
+              Result := undefined.NaN
+            ExpnNotFinite
+              Result := unstable.NaN
+            TRUE
+              Result := Base.r
+        --}}}
+        --{{{  Zero < Base.r < 1 and Expn.r = +/- Inf
+        ExpnNotFinite AND (base.compared.with.one = less.than)
+          IF
+            expn.compared.with.zero = greater.than -- Expn.r = +Inf
+              Result := Zero
+            TRUE       -- Expn.r = -Inf
+              Result := RInf
+        --}}}
+        --{{{  Base.r = 1
+        base.compared.with.one = equal.to
+          IF
+            ExpnNotFinite
+              Result := unstable.NaN
+            TRUE
+              Result := One
+        --}}}
+        --{{{  Base.r = Inf
+        NOTFINITE (Base.r)
+          IF
+            expn.compared.with.one >= equal.to
+              Result := RInf
+            IEEECOMPARE (Expn.r, -One) <= equal.to
+              Result := Zero
+            TRUE
+              Result := undefined.NaN
+        --}}}
+        --{{{  Expn.r = 1
+        -- case Expn.r = 0 comes out exactly in any case
+        expn.compared.with.one = equal.to
+          Result := Base.r
+        --}}}
+        --{{{  Expn.r = +/- Inf
+        ExpnNotFinite -- if true, must have 1 < Base.r < Inf
+          IF
+            expn.compared.with.zero = greater.than -- Expn.r = +Inf
+              Result := RInf
+            TRUE  -- case expn = -Inf
+              Result := Zero
+        --}}}
+        --}}}
+        TRUE
+          --{{{  variables
+          INT P, M, IW1 :
+          REAL32 W, G, U1, U2, W2 :
+          --}}}
+          SEQ
+            --{{{  determine M and G
+            M, G := FLOATING.UNPACK (Base.r)
+            G := DIVBY2 (G) -- to put G into the range [0.5, 1.0)
+            M := M + 1     -- to make M still correspond to G
+            --}}}
+            --{{{  find P by binary chop
+            IF
+              G <= A1 [8]
+                P := 8
+              TRUE
+                P := 0
+            IF
+              G <= A1 [P + 4]
+                P := P + 4
+              TRUE
+                SKIP
+            IF
+              G <= A1 [P + 2]
+                P := P + 3
+              TRUE
+                P := P + 1
+            --}}}
+            --{{{  compute U2
+            VAL P1 IS 0.083357541(REAL32) :
+            VAL K  IS 4.4269504088896340736E-01(REAL32) :
+            VAL A IS A1[P+1] :
+            VAL a IS A2[P/2] :
+            REAL32 Z :
+            SEQ
+              Z := MULBY2 (((G - A) - a)/(G + A))
+              VAL R IS (P1 * (Z * Z)) * Z :
+              U2 := ((R + (K * R)) + (Z * K)) + Z
+            --}}}
+            --{{{  compute U1
+            U1 :=  (REAL32 ROUND((M * 16) - (P+1))) / sixteen
+            --}}}
+            --{{{  estimate result
+            VAL REAL32 MAXREAL  RETYPES #7F7FFFFF(INT32) :
+            VAL Log2MinReal IS 149.0(REAL32) : -- approximately, apart from minus sign!
+            VAL L IS U1 + U2 : -- can't overflow
+            -- test to check |(U1+U2)*Expn.r| < Log2(MAXREAL)
+            IF
+              ABS(L) < (Log2MinReal/MAXREAL)
+                W := MAXREAL
+              TRUE
+                SEQ  -- all underflows and most overflows detected here
+                  W2 := Log2MinReal/L
+                  W := ABS (W2)
+            --}}}
+            IF
+              --{{{  under/overflow
+              ABS (Expn.r) > W  -- underflow or overflow
+                IF
+                  Expn.r > Zero
+                    IF
+                      W2 > Zero  -- both positive
+                        Result := RInf
+                      TRUE
+                        -- Result := inexact.NaN -- alternative response
+                        Result := Zero
+                  W2 > Zero
+                    -- Result := inexact.NaN -- alternative response
+                    SEQ
+                      #ifdef C
+                      underflow := 1 -- for C
+                      #endif
+                      Result := Zero
+                  TRUE        -- both negative
+                    Result := RInf
+              --}}}
+              TRUE
+                SEQ
+                  --{{{  pseudo-extended product U*Y using FPINT
+                  REAL32 W1 :
+                  SEQ
+                    REAL32 Y1, Y2 :
+                    SEQ
+                      Y1 := one.over.sixteen * FPINT(Expn.r * sixteen)
+                      Y2 := Expn.r - Y1
+                      W := (U1 * Y2) + (U2 * Expn.r)
+                      W1 := one.over.sixteen * FPINT(W * sixteen)
+                      W2 := W - W1
+                      W := W1 + (U1 * Y1)
+                    W1 := one.over.sixteen * FPINT(W * sixteen)
+                    W2 := W2 + (W - W1)
+                    W := one.over.sixteen * FPINT(W2 * sixteen)
+                    W2 := W2 - W
+                    IW1 := INT TRUNC ((W1 + W) * sixteen)
+                  --}}}
+                  IF
+                    --{{{  overflow
+                    IW1 > BMax -- detects remaining overflow cases; we trade a small
+                               -- loss in range for increased efficiency
+                      Result := RInf
+                    --}}}
+                    TRUE
+                      SEQ
+                        --{{{  adjust W
+                        IF
+                          W2 > Zero
+                            SEQ
+                              IW1 := IW1 + 1
+                              W2 := W2 - one.over.sixteen
+                          TRUE
+                            SKIP
+                        --}}}
+                        --{{{  extract P and M
+                        IF
+                          IW1 < 0
+                            M := IW1 / 16
+                          TRUE
+                            M := (IW1 / 16) + 1
+                        P := (M * 16) - IW1
+                        --}}}
+                        --{{{  construct result
+                        VAL Q1 IS 0.69314675(REAL32) :
+                        VAL Q2 IS 0.24018510(REAL32) :
+                        VAL Q3 IS 0.054360383(REAL32) :
+                        VAL A IS A1[P] :
+                        Result := SCALEB (A + (A * (((((Q3*W2)+Q2)*W2)+Q1)*W2)), M)
+                        --}}}
+    #ifdef OCCAM
+    RESULT Result
+    #else
+    #ifdef C
+    RESULT underflow, Result  -- for C
+    #endif
+    #endif
+:

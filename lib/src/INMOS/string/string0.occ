@@ -1,0 +1,124 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "String library V1.1 01/06/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+--{{{  history
+-- V1.0 1-Jul-88
+-- Simply made the code more readable in is.hex.digit,
+-- to.upper.case, to.lower.case; V1.1 1-Jun-90 SRH
+--}}}
+--{{{  FUNC is.in.range
+--{{{  specification
+-- Purpose:  To determine whether the value of a byte lies in the
+--           inclusive range between two others.
+-- Returned: TRUE if the value of char lies in the range
+--           [value of bottom, value of top]; FALSE otherwise
+-- In:       char - the byte the value of which is to be tested to
+--           see whether it lies in a given range
+-- In:       bottom - the lowermost limit of the test range
+-- In:       top - the uppermost limit of the test range
+--}}}
+BOOL FUNCTION is.in.range (VAL BYTE char, bottom, top) IS
+ ((char >= bottom) AND (char <= top)) :
+--}}}
+--{{{  FUNC is.upper
+--{{{  specification
+-- Purpose:  To determine whether the value of a byte lies in the
+--           inclusive range that delimits upper case ASCII characters.
+-- Returned: TRUE if the value of char corresponds to an upper case
+--           ASCII character; FALSE otherwise
+-- In:       char - the byte the value of which is to be tested
+--}}}
+BOOL FUNCTION is.upper (VAL BYTE char) IS ((char >= 'A') AND (char <= 'Z')) :
+--}}}
+--{{{  FUNC is.lower
+--{{{  specification
+-- Purpose:  To determine whether the value of a byte lies in the
+--           inclusive range that delimits lower case ASCII characters.
+-- Returned: TRUE if the value of char corresponds to a lower case
+--           ASCII character; FALSE otherwise
+-- In:       char - the byte the value of which is to be tested
+--}}}
+BOOL FUNCTION is.lower (VAL BYTE char) IS ((char >= 'a') AND (char <= 'z')) :
+--}}}
+--{{{  FUNC is.digit
+--{{{  specification
+-- Purpose:  To determine whether the value of a byte lies in the
+--           inclusive range that delimits ASCII decimal digits.
+-- Returned: TRUE if the value of char corresponds to a decimal digit
+--           according to the ASCII code; FALSE otherwise
+-- In:       char - the byte the value of which is to be tested
+--}}}
+BOOL FUNCTION is.digit (VAL BYTE char) IS ((char >= '0') AND (char <= '9')) :
+--}}}
+--{{{  FUNC is.hex.digit
+--{{{  specification
+-- Purpose:  To determine whether the value of a byte corresponds to
+--           the ASCII value of any hexadecimal digit.
+-- Returned: TRUE if the value of char corresponds to a hexadecimal
+--           digit according to the ASCII code, where upper or
+--           lower case letters are allowed; FALSE otherwise
+-- In:       char - the byte the value of which is to be tested
+--}}}
+BOOL FUNCTION is.hex.digit (VAL BYTE char) IS
+ ((char >= '0') AND (char <= '9')) OR
+ ((char >= 'A') AND (char <= 'F')) OR
+ ((char >= 'a') AND (char <= 'f')) :
+--}}}
+--{{{  FUNC is.id.char
+--{{{  specification
+-- Purpose:  To determine whether the value of a byte corresponds
+--           to the ASCII code of any legal occam identifier character.
+-- Returned: TRUE if the value of char corresponds to the ASCII code of
+--           any legal occam identifier character
+-- In:       char - the byte the value of which is to be tested
+--}}}
+BOOL FUNCTION is.id.char (VAL BYTE char) IS
+    (char = '.') OR
+    ((char >= 'a') AND (char <= 'z')) OR
+    ((char >= 'A') AND (char <= 'Z')) OR
+    ((char >= '0') AND (char <= '9')) :
+--}}}
+--{{{  PROC to.upper.case
+PROC to.upper.case ([]BYTE str)
+
+  --{{{  specification
+  -- Purpose:  To convert all lower case alphabetic characters in a given
+  --           string to upper case.
+  -- In/Out:   str - the string the lower case characters of which are to
+  --           be converted to upper case
+  -- Notes:    Assumes the ASCII character set.
+  --           Characters which are not lower case letters remain unchanged.
+  --}}}
+
+  VAL to.upper IS (INT 'A') - (INT 'a') :
+  SEQ i = 0 FOR (SIZE str)
+    ch IS str[i] :
+    IF
+      is.lower(ch)
+        ch := BYTE ((INT ch) + to.upper)
+      TRUE
+        SKIP
+:
+--}}}
+--{{{  PROC to.lower.case
+PROC to.lower.case ([]BYTE str)
+
+  --{{{  specification
+  -- Purpose:  To convert all upper case alphabetic characters in a given
+  --           string to lower case.
+  -- In/Out:   str - the string the upper case characters of which are to
+  --           be converted to lower case
+  -- Notes:    Assumes the ASCII character set.
+  --           Characters which are not upper case letters remain unchanged.
+  --}}}
+
+  VAL to.lower IS (INT 'a') - (INT 'A') :
+  SEQ i = 0 FOR (SIZE str)
+    ch IS str[i] :
+    IF
+      is.upper(ch)
+        ch := BYTE ((INT ch) + to.lower)
+      TRUE
+        SKIP
+:
+--}}}

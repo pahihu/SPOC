@@ -1,0 +1,31 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+#USE "splib.lib"
+
+PROC so.test.exists (CHAN OF SP fs, ts, VAL []BYTE filename, BOOL exists)
+
+  --{{{  specification
+  -- Purpose:  To test for the existence of a file.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       filename - the name of the file to test for the existence of.
+  --           The name of the file must fit exactly into filename, i.e. there
+  --           are (SIZE filename) characters in the name of the file.  A
+  --           directory specification may form part of filename.
+  -- Out:      exists - TRUE if the file exists; FALSE otherwise
+  --}}}
+
+  BYTE  result :
+  INT32 streamid :
+
+  SEQ
+    sp.open (fs, ts, filename, spt.binary, spm.input, streamid, result)
+    IF
+      result = spr.ok
+        SEQ
+          sp.close (fs, ts, streamid, result)
+          exists := TRUE
+      TRUE
+        exists := FALSE
+:

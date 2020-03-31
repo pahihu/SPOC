@@ -1,0 +1,22 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+
+REAL32, INT32 FUNCTION RAN (VAL INT32 SeedRan)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RanOut :
+  INT32 NewSeed :
+  VALOF
+    INT RanOut RETYPES RanOut :
+    VAL A IS 1664525(INT32) :
+    SEQ
+      NewSeed := (SeedRan TIMES A) PLUS 1(INT32)
+      RanOut := ROUNDSN (RealXcess - 1, INT NewSeed, 0)
+    RESULT RanOut, NewSeed
+:

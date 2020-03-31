@@ -1,0 +1,19 @@
+--{{{  File banner
+-- @(#)=====================================================
+-- @(#)  Project : GPMIMD ESPRIT P5404
+-- @(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+-- @(#)            University of Southampton
+--  
+-- @(#)    Title : top level file for inmos string
+-- @(#)   System : Occam 2 C
+-- @(#) Filename : string.occ
+-- @(#)  Version : 1.1
+-- @(#)     Date : 12/10/93
+-- @(#)====================================================
+--}}}
+#USE "string0"
+#USE "string1"
+#USE "string2"
+#USE "string3"
+#USE "string4"
+#USE "string5"

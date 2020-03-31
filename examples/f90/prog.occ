@@ -1,0 +1,266 @@
+#INCLUDE "hostio.inc"
+
+#USE "hostio.lib"
+#USE "laplace.t"
+
+--{{{  definitions
+VAL Grid IS 4:
+VAL Procs IS Grid*Grid:
+VAL ArraySize IS 20:
+VAL Offset IS ArraySize-2:
+VAL BigArray IS (Offset*Offset):
+
+VAL BOTTOM IS 0:
+VAL TOP IS 1:
+VAL LEFT IS 2:
+VAL RIGHT IS 3:
+
+--}}}
+--{{{  PROC master(CHAN OF SP fs,ts, [Procs]CHAN OF INT::[]REAL32 fromMaster,toMaster)
+PROC master(CHAN OF SP fs,ts, [Procs]CHAN OF INT::[]REAL32 fromMaster,toMaster)
+  INT time1, time2, Ticks:
+  TIMER time:
+  [ArraySize]REAL32 ABuf:
+  INT Iter:
+  BOOL More, Running, TimeOut:
+  [BigArray][BigArray]REAL32 BigU:
+
+  SEQ
+    --{{{  Print Banner
+    so.write.nl(fs,ts)
+    so.write.string.nl(fs,ts,"Diffusion Equation Solver using Simultaneous OverRelaxation")
+    so.write.string.nl(fs,ts,"Using F90 laplace solver as calculation core")
+    so.write.nl(fs,ts)
+    --}}}
+    --{{{  Initialise arrays and variables
+    SEQ y = 0 FOR BigArray 
+      SEQ x = 0 FOR BigArray
+        IF
+          x = 0
+            BigU[y][x] := -1.0(REAL32)
+          y = 0
+            BigU[y][x] := 1.0(REAL32)
+          x = (BigArray-1)
+            BigU[y][x] := -1.0(REAL32)
+          y = (BigArray-1)
+            BigU[y][x] := 1.0(REAL32)
+          TRUE
+            BigU[y][x] := 0.0(REAL32)
+    
+    so.write.string(fs,ts,"Sending Grid: ")
+    SEQ ProcY = 0 FOR Grid
+      SEQ ProcX = 0 FOR Grid
+        VAL OffX  IS ProcX * Offset:
+        VAL OffY  IS ProcY * Offset:
+        VAL Dest IS (ProcY * Grid) + ProcX:
+        SEQ
+          SEQ y = 0 FOR ArraySize
+            VAL []REAL32 tmp IS [BigU[OffY+y] FROM OffX FOR ArraySize]:
+            SEQ
+              fromMaster[Dest]!ArraySize::tmp
+          IF
+            Dest>0
+              so.write.string(fs,ts,",")
+            TRUE
+              SKIP
+          so.write.int(fs,ts,Dest+1,0)
+    so.write.nl(fs,ts)
+    --}}}
+    --{{{  Start running
+    Running := TRUE
+    TimeOut := FALSE
+    so.write.string.nl(fs,ts,"Running")
+    time?time1
+    Iter := 0
+    --}}}
+    --{{{  Loop until converged, or exceed max iterations
+    WHILE Running
+      [Procs]REAL32 Residues:
+      REAL32 MaxResidue:
+      SEQ
+        --{{{  send start/continue signal
+        [Procs]REAL32 Temp:
+        PAR i = 0 FOR Procs
+          SEQ
+            Temp[i] := 1.0(REAL32)
+            fromMaster[i]!1::[Temp FROM i FOR 1]  
+        Iter := Iter + 1
+        --}}}
+        PAR i = 0 FOR Procs
+          SEQ
+            INT len:
+            toMaster[i] ? len::[Residues FROM i FOR 1]
+        MaxResidue := 0.0(REAL32)
+        SEQ i = 0 FOR Procs
+          IF
+            (Residues[i] > MaxResidue)
+              MaxResidue := Residues[i]
+            TRUE
+              SKIP
+        IF
+          ((Iter REM 10) = 0)
+            SEQ
+              so.write.string(fs,ts,"Iteration ")
+              so.write.int(fs,ts,Iter,4)
+              so.write.string(fs,ts,"  Res = ")
+              so.write.real32(fs,ts,MaxResidue,7,7)
+              so.write.nl(fs,ts)
+          TRUE
+            SKIP
+        IF
+          (MaxResidue < 0.0000001(REAL32))
+            Running := FALSE
+          (Iter > 1000)
+            Running,TimeOut := FALSE,TRUE
+          TRUE
+            SKIP      
+               
+    --}}}
+    --{{{  Stop running
+    SEQ
+      time?time2
+      --{{{  send stop signal
+      [Procs]REAL32 Temp:
+      PAR i = 0 FOR Procs
+        SEQ
+          Temp[i] := 0.0(REAL32)
+          fromMaster[i]!1::[Temp FROM i FOR 1]  
+      --}}}
+      so.write.string(fs,ts,"Retrieving Matrix: ")
+      SEQ ProcY = 0 FOR Grid
+        SEQ ProcX = 0 FOR Grid
+          VAL OffX  IS ProcX * Offset:
+          VAL OffY  IS ProcY * Offset:
+          VAL Dest IS (ProcY * Grid) + ProcX:
+          SEQ
+            IF
+              Dest > 1
+                so.write.string(fs,ts,",")
+              TRUE
+                SKIP
+            so.write.int(fs,ts,Dest+1,0)
+            INT len:
+            SEQ y=0 FOR ArraySize
+              SEQ
+                toMaster[Dest]?len::ABuf
+                [BigU[OffY+y] FROM OffX FOR ArraySize] := ABuf
+      so.write.nl(fs,ts)
+    --}}}
+    --{{{  Output results
+    REAL32 Elapsed:
+    SEQ
+      Ticks := time2 MINUS time1
+      Elapsed := (REAL32 ROUND(Ticks)) / 15625.0(REAL32)
+      IF
+        TimeOut
+          so.write.string(fs,ts,"Exceeded Maximum of ")
+        TRUE
+          so.write.string(fs,ts,"Matrix Converged after ")
+      
+      so.write.int(fs,ts,Iter,0)
+      so.write.string.nl(fs,ts," iterations")
+      
+      so.write.string(fs,ts,"Time Taken = ")
+      so.write.real32(fs,ts,Elapsed,3,2)
+      so.write.string(fs,ts," seconds, giving ")
+      so.write.real32(fs,ts,2.0(REAL32) * ((REAL32 ROUND(Iter * 15625))/(REAL32 ROUND(Ticks))),3,1)
+      so.write.string.nl(fs,ts," passes per second")
+      so.write.nl(fs,ts)
+    --}}}
+    so.exit(fs,ts,sps.success)
+:
+
+
+--}}}
+--{{{  PROC calc(VAL INT myX,myY, CHAN OF INT::[]REAL32 fromMaster,toMaster, [4]CHAN OF INT::[]REAL32 in,out)
+PROC calc(VAL INT myX,myY, CHAN OF INT::[]REAL32 fromMaster,toMaster, [4]CHAN OF INT::[]REAL32 in,out)
+  [ArraySize][ArraySize]REAL32 U :
+  BOOL Running:
+  [ArraySize]REAL32 ABuf:
+  VAL myProc IS (myY * Grid) + myX:
+  REAL32 LastRes:  
+  SEQ
+    --{{{  download initial array
+    INT len:
+    SEQ i = 0 FOR ArraySize
+      fromMaster?len::U[i]
+    --}}}
+    LastRes := 0.0(REAL32)
+    Running := TRUE
+    WHILE Running
+      SEQ
+        --{{{  get start/stop
+        INT len:
+        fromMaster?len::ABuf
+        IF
+          (ABuf[0] = 0.0(REAL32))
+            Running := FALSE
+          TRUE
+            SKIP
+            
+          
+        --}}}
+        IF
+          Running
+            REAL32 Residue:
+            SEQ
+              Residue := 0.0(REAL32)
+              -- Allow F90 to handle this
+              redblack(U,Residue)
+              toMaster!1::[Residue-LastRes]
+              LastRes := Residue
+              [4][ArraySize]REAL32 TBuf, RBuf:
+              SEQ
+                --{{{  Copy data to transmit buffers
+                INT pos:
+                SEQ i = 0 FOR ArraySize
+                  SEQ
+                    TBuf[BOTTOM][i] := U[1][i]
+                    TBuf[LEFT][i] := U[i][1]
+                    TBuf[TOP][i] := U[ArraySize-1][i]
+                    TBuf[RIGHT][i] := U[i][ArraySize-1]
+                
+                --}}}
+                
+                --{{{  transmit and receive results for last pass
+                PAR side = 0 FOR 4
+                  PAR
+                    out[side]!ArraySize::TBuf[side]
+                    INT len:
+                    in[side]?len::RBuf[side]
+                --}}}
+              
+                --{{{  Copy data from Recieve buffers
+                INT pos:
+                SEQ i = 0 FOR ArraySize
+                  SEQ
+                    U[1][i] := RBuf[BOTTOM][i]
+                    U[i][1] := TBuf[LEFT][i]
+                    U[ArraySize-1][i] := TBuf[TOP][i]
+                    U[i][ArraySize-1] := TBuf[RIGHT][i]
+                --}}}
+          TRUE
+            SKIP
+    --{{{  send result array
+    SEQ i = 0 FOR ArraySize
+      toMaster!ArraySize::U[i]
+    --}}}
+:
+
+--}}}
+
+PROC main(CHAN OF SP fs,ts, []INT mem)
+  [Grid][Grid][4]CHAN OF INT::[]REAL32 grid:
+  [Procs]CHAN OF INT::[]REAL32 toMaster,fromMaster:
+  PAR
+    master(fs,ts,fromMaster,toMaster)
+    PAR i = 0 FOR Grid
+      PAR j = 0 FOR Grid
+        VAL node IS j + (i * Grid) :
+        VAL iu IS (i + 1) REM Grid :
+        VAL id IS (i + (Grid-1)) REM Grid :
+        VAL jl IS (j + (Grid-1)) REM Grid :
+        VAL jr IS (j + 1) REM Grid :
+        calc(i,j,fromMaster[node],toMaster[node],grid[i][j],[grid[iu][j][BOTTOM],grid[i][jr][LEFT],grid[id][j][TOP],grid[i][jl][RIGHT]])
+:
+

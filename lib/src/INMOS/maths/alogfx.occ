@@ -1,0 +1,173 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE ALOG "ALOG%c"
+#PRAGMA TRANSLATE ALOG10 "ALOG10%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ALOG "ALOG%f"
+#PRAGMA TRANSLATE ALOGP "ALOGP%f"
+#PRAGMA TRANSLATE ALOG10 "ALOG10%f"
+#PRAGMA TRANSLATE ALOG10P "ALOG10P%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  ALOG
+REAL32 FUNCTION ALOG (VAL REAL32 X)
+
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL REAL32 C1 RETYPES #3F318000(INT32) :
+    VAL REAL32 C2 RETYPES #B95E8083(INT32) :
+    -- C1 + C2 = ln(2) to extra precision
+    VAL INT X.i RETYPES X :
+    INT XWork, N, Type :
+    --}}}
+    SEQ
+      XWork, N, Type := UNPACKSN (X.i /\ (~(MOSTNEG INT)))
+      IF
+        --{{{  special cases
+        Type = nan                 -- X is NaN
+          RWork := X               -- transmit NaNs
+        (X.i <= 0) OR (Type = inf) -- negative or Inf
+          RWork := undefined.NaN
+        --}}}
+        TRUE
+          SEQ
+            --{{{  deal with denormalised inputs
+            IF
+              N = 1    -- X denormal ?
+                SEQ
+                  INT Discard :
+                  N, XWork, Discard := NORMALISE (XWork, 0)
+                  N :=  (2 - RealXcess) - N
+              TRUE     -- normal case
+                SEQ
+                  N := N - (RealXcess - 1)
+            XWork := (XWork << 1) >> 2  -- fixed-point number in [0, 1/2)
+            --}}}
+            SEQ
+              --{{{  compute reduced Log of the fraction
+              VAL Half IS #40000000(INT) :
+              VAL Quarter IS Half >> 1 :
+              VAL C0 IS #1A82799A(INT) : -- SQRT(0.5) - 0.5 in fixed point
+              INT ZDen :
+              SEQ
+                IF
+                  XWork > C0
+                    SEQ
+                      ZDen := (XWork >> 1) + (Half + Quarter)
+                      XWork := XWork - Half
+                  TRUE
+                    SEQ
+                      N := N - 1
+                      ZDen := (XWork >> 1) + Half
+                IF
+                  XWork = 0
+                    RWork := Zero
+                  TRUE
+                    INT W, V :
+                    SEQ
+                      W := FracDiv (XWork, ZDen)
+                      W := FRACMUL (W, W)
+                      V := FracDiv (Quarter, ZDen)
+                      RWork := IncExp (ReFloat(XWork) * ReFloat(V + FRACMUL(V,
+                                       FRACMUL(W, FracDiv (#08D7E3CE,
+                                       FRACMUL (W, #F0000000) + #6A1F9D22)))), 2)
+              --}}}
+              --{{{  construct result
+              IF
+                N = 0
+                  SKIP
+                TRUE -- Result := RWork + N*ln(2)
+                  VAL RealN IS REAL32 ROUND N :
+                  RWork := (RWork + (RealN * C2)) + (RealN * C1)
+              --}}}
+    RESULT RWork
+:
+--}}}
+--{{{  ALOG10
+REAL32 FUNCTION ALOG10 (VAL REAL32 X)
+
+  REAL32 NLog :
+  VALOF
+    -- LogE = 0.43429449200630187988281250 which is closest IEEE single
+    -- precision representation to the exact 0.43429448190325182765...
+    VAL REAL32 LogE RETYPES #3EDE5BD9(INT32) :
+    SEQ
+      NLog := ALOG (X)
+      IF
+        INT NLog.i RETYPES NLog :
+        (NLog.i /\ (~(MOSTNEG INT))) > RealInf   -- NLog is NaN
+          SKIP
+        TRUE
+          NLog := NLog * LogE
+    RESULT NLog
+:
+--}}}
+#ifdef FORTRAN
+--{{{  ALOGP
+REAL32 FUNCTION ALOGP( VAL INT dummy, VAL INT X )
+
+  -- ALOGP exists for when the FORTRAN intrinsic ALOG is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ALOGP.  When ALOGP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ALOGP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for ALOGP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT ALOG( Xtemp )
+:
+--}}}
+--{{{  ALOG10P
+REAL32 FUNCTION ALOG10P( VAL INT dummy, VAL INT X )
+
+  -- ALOG10P exists for when the FORTRAN intrinsic ALOG10 is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to ALOG10P.  When ALOG10P is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts ALOG10P has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for ALOG10P because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT ALOG10( Xtemp )
+:
+--}}}
+#endif

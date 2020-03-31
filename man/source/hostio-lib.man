@@ -1,0 +1,470 @@
+'\" t
+.\"
+.\" Manual page for hostio.lib - INMOS occam toolset host file server library
+.\"
+.\" $Source: /u0/src/local/bin/oc2man/RCS/hostio-lib.man,v $
+.\"
+.\" $Id: hostio-lib.man,v 1.4 1993/02/24 14:19:30 djb1 Exp $
+.\"
+.\" Copyright (C) 1993 David Beckett, University of Kent at Canterbury
+.\"
+.\" This was derived from hostio.lib (the library) using ilist and the
+.\" perl program fixilist.pl which cleaned up the output.
+.\"
+.de tt \" Begin tt definition [.ttype]
+.ft CR
+.nf
+..     \" End tu definition
+.de tu \" Begin tu definition [.tu End ttype]
+.fi
+.ft P
+..     \" End tu definition
+.de ve \" Begin ve definition [.verb]
+.ft CR
+\\$1
+.ft P
+..
+.TH HOSTIOLIB 3L "23 February 1993" HOSTIOLIB "OCCAM LIBRARIES" HOSTIOLIB
+.SH NAME
+hostio.lib \- INMOS occam toolset host file server library
+.SH SYNOPSIS
+.tt
+#INCLUDE "hostio.inc"
+#USE "hostio.lib"
+.tu
+.SH SUMMARY
+The occam toolset library hostio.lib provides the main interface
+between the host and the transputer network.
+.LP
+.SH OVERVIEW
+To use the functions in this library do the following:
+.LP
+.tt
+#INCLUDE "hostio.inc"
+#USE "hostio.lib"
+.tu
+.LP
+The pair of channels \f(CRCHAN OF SP fs, ts\fP to and from the server
+are the first two parameters for most \f(CRhostio.lib\fR library
+procedure.
+.LP
+When a new stream is opened with \f(CRso.open\fR, a \f(CRVAL INT32
+streamid\fP is returned.  This is used to reference the stream and is
+used in all procedure calls related to files.
+.LP
+Error returns from procedures are passed out a variable called
+\f(CRresult\fP which can take the following values:
+.TS
+lf(CR) lw(5i).
+spr.ok	The operation was successful
+spr.notok	Too many temporary files opened (\f(CRso.open.temp\fP)
+spr.bad.name	Invalid name parameter
+spr.bad.type	Invalid type parameter (\f(CRso.open\fP, \f(CRso.open.temp\fP)
+spr.bad.mode	Invalid mode parameter (\f(CRso.open\fP)
+spr.bad.origin	Invalid origin parameter (\f(CRso.seek\fP)
+spr.bad.packet.size	Some data was larger than the built in buffer
+spr.buffer.overflow	Part of the operation exceeded the 256 byte buffer
+>=spr.operation.failed	Server returned a failure
+.TE
+.LP
+.SH SO Procedures
+.LP
+.tt
+PROC so.ask (CHAN OF SP fs, ts, VAL []BYTE prompt,
+            VAL []BYTE replies, VAL BOOL display.possible.replies,
+            VAL BOOL echo.reply, INT reply.number)
+.tu
+.IP
+Prompt for user keyboard response from valid replies and return
+reply.number as index.  If \f(CRdisplay.possible.replies\fP is
+\f(CRTRUE\fP then print permitted replies on the screen.  If
+\f(CRecho.reply\fP is \f(CRTRUE\fP then echo response on screen.
+.LP
+.tt
+PROC so.buffer (CHAN OF SP fs, ts,
+                CHAN OF SP from.user, to.user
+                CHAN OF BOOL stopper)
+.tu
+.IP
+This routine provides buffering of the SP protocol passing requests
+from the user to the system until any boolean is sent along
+\f(CRstopper\fP.
+.LP
+.tt
+PROC so.close (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+.tu
+.IP
+Close an open stream.
+.LP
+.tt
+PROC so.commandline (CHAN OF SP fs, ts, VAL BYTE all, INT length,
+                     []BYTE string, BYTE result)
+.tu
+.IP
+Return the command line passed by the host in string of \f(CRSIZE
+length\fP bytes.  If \f(CRall\fP is set to
+\f(CRsp.short.commandline\fP then strip server options or present
+them if \f(CRsp.whole.commandline\fP.
+.LP
+.tt
+PROC so.core (CHAN OF SP fs, ts, VAL INT32 offset, INT bytes.read,
+              []BYTE data, BYTE result)
+.tu
+.IP
+Return peeked memory of root transputer.
+.LP
+.tt
+PROC so.date.to.ascii (VAL [6]INT date, VAL BOOL long.years,
+                       VAL BOOL days.first, [19]BYTE string)
+.tu
+.IP
+See \f(CRso.time\fP and \f(CRso.time.to.ascii\fP etc.
+.LP
+.tt
+PROC so.eof (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+.tu
+.IP
+Return result \f(CRspr.ok\fP if end of file on the given stream.
+.LP
+.tt
+PROC so.exit (CHAN OF SP fs, ts, VAL INT32 status)
+.tu
+.IP
+Terminate the server and exit the program with status
+\f(CRsps.success\fP or \f(CRsps.failure\fP.
+.LP
+.tu
+PROC so.ferror (CHAN OF SP fs, ts, VAL INT32 streamid,
+                INT32 error.no, INT length, []BYTE message, BYTE result)
+.tu
+.IP
+For the given host \f(CRerror.no\fP, put a description of \f(CRSIZE length\fP
+bytes in message.
+.LP
+.tt
+PROC so.flush (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+.tu
+.IP
+Flush the output buffer of the given stream.
+.LP
+.tt
+PROC so.fwrite.char (CHAN OF SP fs, ts, VAL INT32 streamid,
+                     VAL BYTE char, BYTE result)
+PROC so.fwrite.hex.int (CHAN OF SP fs, ts, VAL INT32 streamid,
+                        VAL INT n, VAL INT width, BYTE result)
+PROC so.fwrite.hex.int32 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                          VAL INT32 n, VAL INT width, BYTE result)
+PROC so.fwrite.hex.int64 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                          VAL INT64 n, VAL INT width, BYTE result)
+PROC so.fwrite.int (CHAN OF SP fs, ts, VAL INT32 streamid,
+                    VAL INT n, VAL INT width, BYTE result)
+PROC so.fwrite.int32 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                      VAL INT32 n, VAL INT width, BYTE result)
+PROC so.fwrite.int64 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                      VAL INT64 n, VAL INT width, BYTE result)
+PROC so.fwrite.nl (CHAN OF SP fs, ts, VAL INT32 streamid,
+                   BYTE result)
+PROC so.fwrite.real32 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                       VAL REAL32 r, VAL INT Ip, VAL INT Dp,
+                       BYTE result)
+PROC so.fwrite.real64 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                       VAL REAL64 r, VAL INT Ip, VAL INT Dp,
+                       BYTE result)
+PROC so.fwrite.string (CHAN OF SP fs, ts, VAL INT32 streamid,
+                       VAL []BYTE string, BYTE result)
+PROC so.fwrite.string.nl (CHAN OF SP fs, ts, VAL INT32 streamid,
+                          VAL []BYTE string, BYTE result)
+.tu
+.IP
+Write the given data type to a stream, usually a file, formatting
+where necessary and possibly padding with spaces to a given field
+\f(CRwidth\fP or printing \f(CRIp\fP integer places and \f(CRDp\fP
+decimal places for \f(CRREAL32\fP and \f(CRREAL64\fP types. Hex
+numbers are written prefixed by a '#'. PROCedures ending in
+\f(CR.nl\fP write a newline sequence.
+.LP
+.tt
+PROC so.getenv (CHAN OF SP fs, ts, VAL []BYTE name, INT length,
+                []BYTE value, BYTE result)
+.tu
+.IP
+Return the value of the given host environment variable of \f(CRSIZE length\fP bytes.
+.LP
+.tt
+PROC so.getkey (CHAN OF SP fs, ts, BYTE key, BYTE result)
+.tu
+.IP
+Wait for keypress.
+.LP
+.tt
+PROC so.gets (CHAN OF SP fs, ts, VAL INT32 streamid,
+              INT bytes.read, []BYTE data, BYTE result)
+.tu
+.IP
+Read up to \f(CRSIZE data\fP bytes from a line of the stream and return the
+number of bytes read.  The newline is not returned.
+.LP
+.tt
+PROC so.multiplexor (CHAN OF SP fs, ts,
+                    []CHAN OF SP from.user, to.user,
+                    CHAN OF BOOL stopper)
+.tu
+.IP
+See \f(CRso.overlapped.multiplexor\fP.
+.LP
+.tt
+PROC so.open (CHAN OF SP fs, ts, VAL []BYTE name, VAL BYTE type,
+              VAL BYTE mode, INT32 streamid, BYTE result)
+.tu
+.IP
+Attempt to open the file name and return the streamid for file
+operations if successful.  Valid types are \f(CRspt.binary\fP and
+\f(CRspt.text\fP. Valid modes are \f(CRspm.input\fP,
+\f(CRspm.output\fP, \f(CRspm.append\fP, \f(CRspm.existing.update\fP,
+\f(CRspm.new.update\fP and \f(CRspm.append.update\fP.
+.LP
+.tt
+PROC so.open.temp (CHAN OF SP fs, ts, VAL BYTE type,
+                   [6]BYTE filename, INT32 streamid, BYTE result)
+.tu
+.IP
+Open a temporary file and return its \f(CRfilename\fR and streamid.
+See \f(CRso.open\fP for valid types.
+.LP
+.tt
+PROC so.overlapped.buffer (CHAN OF SP fs, ts,
+                           CHAN OF SP from.user, to.user, 
+                           CHAN OF BOOL stopper)
+.tu
+.IP
+This routine provides buffering of the SP protocol passing requests
+from the user to the system until any boolean is sent along
+\f(CRstopper\fP. Communications are overlapped allowing inputs and
+outputs to happen concurrently.
+.LP
+.tt
+PROC so.overlapped.multiplexor (CHAN OF SP fs, ts,
+                                []CHAN OF SP from.user, to.user
+                                CHAN OF BOOL stopper, []INT queue)
+PROC so.overlapped.pri.multiplexor (CHAN OF SP fs, ts,
+                                    []CHAN OF SP from.user, to.user
+                                    CHAN OF BOOL stopper,
+                                    []INT queue)
+.tu
+.IP
+These routines provide multiplexing of the SP protocol.  Procedures
+with \f(CRpri\fP in the name give priority to the lower numbered
+channels.  Procedures with \f(CRoverlapped\fP in the name, overlap
+communications allowing inputs and outputs to happen concurrently.
+.LP
+.tt
+PROC so.parse.command.line (CHAN OF SP fs, ts,
+                            VAL [][]BYTE option.strings,
+                            VAL []INT option.parameters.required,
+                            []BOOL option.exists,
+                            [][2]INT option.parameters,
+                            INT error.len, []BYTE line)
+.tu
+.IP
+Parse the command line for options.  See INMOS documentation for
+details.
+.LP
+.tt
+PROC so.pollkey (CHAN OF SP fs, ts, BYTE key, BYTE result)
+.tu
+.IP
+Read a character from the keyboard (\f(CRresult\fP = \f(CRspr.ok\fP)
+or return immediately if no key is ready (\f(CRresult\fP >=
+\f(CRspr.operation.failed\fP).
+.LP
+.tt
+PROC so.popen.read (CHAN OF SP fs, ts, VAL []BYTE filename,
+                    VAL []BYTE path.variable.name, VAL BYTE open.type,
+                    INT full.len, []BYTE full.name, INT32 stream.id,
+                    BYTE result)
+.tu
+.IP
+Open a file like \f(CRso.open\fP but use the given environment
+variable as a path to search for it.  The mode is always
+\f(CRspm.input\fP and the full name and length are returned also.
+.LP
+.tt
+PROC so.pri.multiplexor (CHAN OF SP fs, ts,
+                         []CHAN OF SP from.user, to.user,
+                         CHAN OF BOOL stopper)
+.tu
+.IP
+See \f(CRso.overlapped.multiplexor\fP.
+.LP
+.tt
+PROC so.puts (CHAN OF SP fs, ts, VAL INT32 streamid,
+              VAL []BYTE data, BYTE result)
+.tu
+.IP
+Write the given line to the stream followed by a newline.
+.LP
+.tt
+PROC so.read (CHAN OF SP fs, ts, VAL INT32 streamid,
+              INT bytes.read, []BYTE data)
+.tu
+.IP
+Read up to \f(CRSIZE data\fP bytes from the given stream and return
+the number read.
+.LP
+.tt
+PROC so.read.echo.any.int (CHAN OF SP fs, ts, INT n, BOOL error)
+PROC so.read.echo.hex.int (CHAN OF SP fs, ts, INT n, BOOL error)
+PROC so.read.echo.hex.int32 (CHAN OF SP fs, ts, INT32 n, BOOL error)
+PROC so.read.echo.hex.int64 (CHAN OF SP fs, ts, INT64 n, BOOL error)
+PROC so.read.echo.int (CHAN OF SP fs, ts, INT n, BOOL error)
+PROC so.read.echo.int32 (CHAN OF SP fs, ts, INT32 n, BOOL error)
+PROC so.read.echo.int64 (CHAN OF SP fs, ts, INT64 n, BOOL error)
+PROC so.read.echo.line (CHAN OF SP fs, ts, INT len, []BYTE line,
+                        BYTE result)
+.tu
+.IP
+Read some data from the keyboard terminated by return, echoing output
+to the screen.  Hex numbers can be prefixed by a '#' or '$' or with
+'%' which adds \f(CRMOSTNEG INT\fP to the value.
+.LP
+.tt
+PROC so.read.echo.real32 (CHAN OF SP fs, ts, REAL32 n, BOOL error)
+PROC so.read.echo.real64 (CHAN OF SP fs, ts, REAL64 n, BOOL error)
+.tu
+.LP
+.tt
+PROC so.read.line (CHAN OF SP fs, ts, INT len, []BYTE line,
+                   BYTE result)
+.tu
+.IP
+Read a line of\f(CR SIZE len\fP bytes from the keyboard with no
+screen echo. The line terminator is removed.  See also
+\f(CRso.read.echo.line\fP.
+.LP
+.tt
+PROC so.remove (CHAN OF SP fs, ts, VAL []BYTE name, BYTE result)
+.tu
+.IP
+Attempt to delete the given file.
+.LP
+.tt
+PROC so.rename (CHAN OF SP fs, ts, VAL []BYTE oldname,
+                VAL []BYTE newname, BYTE result)
+.tu
+.IP
+Attempt to rename file oldname to newname.
+.LP
+.tt
+PROC so.seek (CHAN OF SP fs, ts, VAL INT32 streamid,
+              VAL INT32 offset, VAL INT32 origin, BYTE result)
+.tu
+.IP
+Move the file pointer on the given stream to a new offset.  Origin
+can be \f(CRspo.start\fP, \f(CRspo.current\fP or \f(CRspo.end\fP.
+.LP
+.tt
+PROC so.system (CHAN OF SP fs, ts, VAL []BYTE command,
+                INT32 status, BYTE result)
+.tu
+.IP
+Execute the given command on the host server.
+.LP
+.tt
+PROC so.tell (CHAN OF SP fs, ts, VAL INT32 streamid,
+              INT32 position, BYTE result)
+.tu
+.IP
+Return the position of the file pointer for the given stream.
+.LP
+.tt
+PROC so.test.exists (CHAN OF SP fs, ts, VAL []BYTE filename,
+                     BOOL exists)
+.tu
+.IP
+Return \f(CRTRUE\fP in \f(CRexists\fP if the file exists.
+.LP
+.tt
+PROC so.time (CHAN OF SP fs, ts, INT32 localtime, INT32 UTCtime)
+.tu
+.IP
+Return the local and UTC time (UNIX format - see time(3)).
+.LP
+.tt
+PROC so.time.to.ascii (VAL INT32 time, VAL BOOL long.years,
+                       VAL BOOL days.first, [19]BYTE string)
+PROC so.time.to.date (VAL INT32 input.time, [6]INT date)
+PROC so.today.ascii (CHAN OF SP fs, ts, VAL BOOL long.years,
+                     VAL BOOL days.first, [19]BYTE string)
+PROC so.today.date (CHAN OF SP fs, ts, [6]INT date)
+.tu
+.IP
+Various time and date to/from ascii conversions.  See also
+\f(CRso.date.to.ascii\fP, \f(CRso.time\fP and
+\fBtime\fP(3). \f(CR[6]INT date\fP is \f(CR[seconds, minutes, hour,
+day, month, year]\fP  Date format is \f(CR"HH:MM:SS\ DD/MM/YYYY"\fP.
+If \f(CRlong.years\fP is \f(CRFALSE\fP use 2 digit years.  If
+\f(CRdays.first\fP is \f(CRFALSE\fP then swap DD and MM (for U.S.)
+.LP
+.tt
+PROC so.version (CHAN OF SP fs, ts, BYTE version, BYTE host,
+                 BYTE os, BYTE board)
+.tu
+.IP
+Return version information.  See INMOS documentation for values.
+.LP
+.tt
+PROC so.write (CHAN OF SP fs, ts, VAL INT32 streamid,
+               VAL []BYTE data, INT length)
+.tu
+.IP
+Write up to \f(CRSIZE data\fP bytes to the given stream and return
+the \f(CRlength\fP written.
+.LP
+.tt
+PROC so.write.char (CHAN OF SP fs, ts, VAL BYTE char)
+PROC so.write.hex.int (CHAN OF SP fs, ts, VAL INT n, 
+                       VAL INT width)
+PROC so.write.hex.int32 (CHAN OF SP fs, ts, VAL INT32 n,
+                         VAL INT width)
+PROC so.write.hex.int64 (CHAN OF SP fs, ts, VAL INT64 n,
+                         VAL INT width)
+PROC so.write.int (CHAN OF SP fs, ts, VAL INT n, VAL INT width)
+PROC so.write.int32 (CHAN OF SP fs, ts, VAL INT32 n, VAL INT width)
+PROC so.write.int64 (CHAN OF SP fs, ts, VAL INT64 n, VAL INT width)
+PROC so.write.nl (CHAN OF SP fs, ts)
+PROC so.write.real32 (CHAN OF SP fs, ts, VAL REAL32 r, VAL INT Ip,
+                      VAL INT Dp)
+PROC so.write.real64 (CHAN OF SP fs, ts, VAL REAL64 r, VAL INT Ip,
+                      VAL INT Dp)
+PROC so.write.string (CHAN OF SP fs, ts, VAL []BYTE string)
+PROC so.write.string.nl (CHAN OF SP fs, ts, VAL []BYTE string)
+.tu
+.IP
+Write the given data type to the screen, formatting where necessary
+and possibly padding with spaces to a given field width or printing
+\f(CRIp\fP integer places and \f(CRDp\fP decimal places for
+\f(CRREAL32\fP and \f(CRREAL64\fP types. Hex numbers are written
+prefixed by a '#'. PROCedures ending in \f(CR.nl\fP write a newline
+sequence.
+.LP
+.SH SP Procedures
+.LP
+.tt
+PROC sp.receive.packet (CHAN OF SP fs, INT16 length,
+                        []BYTE packet, BOOL error)
+PROC sp.send.packet (CHAN OF SP ts, VAL []BYTE packet,
+                     BOOL error)
+.tu
+.LP
+See section H.3 of the INMOS manual for descriptions of these
+procedures.
+.LP
+.SH SEE ALSO
+INMOS  occam 2 toolset user manual - part 2 (occam libraries and
+appendices) INMOS document number 72 TDS 276 02.
+.SH AUTHOR
+This document is Copyright (C) 1993 David Beckett, University of Kent
+at Canterbury.
+.LP
+The library contents are Copyright (C) 1991 INMOS Limited.
+

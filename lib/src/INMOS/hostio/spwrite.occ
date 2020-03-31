@@ -1,0 +1,68 @@
+#COMMENT "Host i/o library, V1.1, 14/05/90"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.write
+PROC sp.write (CHAN OF SP fs, ts, VAL INT32 streamid, VAL []BYTE data,
+               INT length.written, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To write a limited number of bytes to a stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the open stream to
+  --           write to
+  -- In:       data - a string of bytes ALL of which are to be written to
+  --           the stream
+  -- Out:      length.written - this gives the number of bytes written.
+  --           If length.written <> (SIZE data) then an error occurred.
+  --           0 <= length.written <= sp.max.writebuffer.size
+  -- Out:      result - if not equal to spr.bad.packet.size meaning that too
+  --           many bytes were requested, ie (SIZE data) > sp.max.writebuffer.size,
+  --           then it is equal to spr.ok
+  --}}}
+
+  IF
+    (SIZE data) > sp.max.writebuffer.size
+      SEQ
+        result := spr.bad.packet.size
+        length.written := 0
+    TRUE
+      [sp.max.packet.data.size]BYTE buffer :
+      INT16 temp.INT16 :
+      SEQ
+        --{{{  pack the data into the buffer (7 bytes plus data)
+        buffer [0] := sp.write.tag
+        
+        VAL [4]BYTE b.streamid RETYPES streamid :
+        [buffer FROM 1 FOR 4] := b.streamid
+        
+        temp.INT16 := INT16 (SIZE data)
+        VAL [2]BYTE b.temp RETYPES temp.INT16 :
+        [buffer FROM 5 FOR 2] := b.temp
+        
+        [buffer FROM 7 FOR SIZE data] := data
+        --}}}pack the data into the buffer (7 bytes plus data)
+        --{{{  send and receive the buffer
+        INT len :
+        SEQ
+          -- Size of buffer is (SIZE data) + 7.
+          -- Add 1, then mask off bottom bit, to ensure it is even
+          len := ((SIZE data) + 8) /\ ((-1) << 1)
+          IF
+            len < sp.min.packet.data.size
+              temp.INT16 := INT16 sp.min.packet.data.size
+            TRUE
+              temp.INT16 := INT16 len
+        
+        ts ! temp.INT16 :: buffer
+        fs ? temp.INT16 :: buffer
+        --}}}send and receive the buffer
+        --{{{  unpack the data               (3 bytes)
+        result := buffer [0]  -- always 0 for sp.write.tag
+        
+        [2]BYTE b.temp RETYPES temp.INT16 :
+        b.temp := [buffer FROM 1 FOR 2]
+        length.written := INT temp.INT16
+        --}}}unpack the data               (3 bytes)
+:
+--}}}sp.write

@@ -1,0 +1,43 @@
+.MAKE_VERSION:	VERSION-1.0
+.BUILT_LAST_MAKE_RUN:
+Idents.o:	ratc.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h 
+	gcc -O -DUNIX -DSUN -c Idents.c
+.BUILT_LAST_MAKE_RUN:
+Sets.o:	ratc.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h 
+	gcc -O -DUNIX -DSUN -c Sets.c
+.BUILT_LAST_MAKE_RUN:
+Time.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h System.h 
+	gcc -O -DUNIX -DSUN -c Time.c
+.BUILT_LAST_MAKE_RUN:
+General.o:	ratc.h 
+	gcc -O -DUNIX -DSUN -c General.c
+.BUILT_LAST_MAKE_RUN:
+StringMem.o:	ratc.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h General.h Memory.h 
+	gcc -O -DUNIX -DSUN -c StringMem.c
+.BUILT_LAST_MAKE_RUN:
+Positions.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h 
+	gcc -O -DUNIX -DSUN -c Positions.c
+clean:
+	rm -f *.o *Drv core
+.BUILT_LAST_MAKE_RUN:
+DynArray.o:	ratc.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h General.h 
+	gcc -O -DUNIX -DSUN -c DynArray.c
+.BUILT_LAST_MAKE_RUN:
+System.o:	System.h /usr/include/fcntl.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h /usr/include/sys/fcntl.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/stat.h /usr/include/sys/times.h /usr/include/errno.h /usr/include/sys/errno.h 
+	gcc -O -DUNIX -DSUN -c System.c
+.BUILT_LAST_MAKE_RUN:
+Memory.o:	ratc.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h 
+	gcc -O -DUNIX -DSUN -c Memory.c
+.BUILT_LAST_MAKE_RUN:
+Errors.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h ratc.h System.h Memory.h Sets.h Idents.h StringMem.h 
+	gcc -O -DUNIX -DSUN -c Errors.c
+.BUILT_LAST_MAKE_RUN:
+SUN:
+	ranlib libreuse.a
+.BUILT_LAST_MAKE_RUN:
+Source.o:
+	gcc -O -DUNIX -DSUN -c Source.c
+.BUILT_LAST_MAKE_RUN:
+libreuse.a:
+	ar ruc libreuse.a System.o General.o Memory.o DynArray.o StringMem.o Idents.o Sets.o Time.o  Errors.o Positions.o Source.o
+	ranlib libreuse.a

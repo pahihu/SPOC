@@ -1,0 +1,1219 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Code Transformations for C output
+||@(#)   System : OCCAM 2 C
+||@(#) Filename : trans.trafo
+||@(#)  Version : 1.72
+||@(#)     Date : 2/16/94
+\*@(#)====================================================*/
+/*}}}*/
+
+TRAFO Transform TREE occam
+
+/*{{{  PUBLIC*/
+PUBLIC
+  Transform
+/*}}}*/
+
+EXTERN
+
+/*{{{  GLOBAL*/
+GLOBAL
+{
+  #include <stdlib.h>
+  #include "TypeChk.h"
+
+  #define writetIdent(a)  { if (a != NoIdent && a != 0) WriteIdent(yyf,a); else fputs("NoIdent",yyf); }
+  #define writetSymbol(a) { if (Symbol(a).CId != NoIdent && Symbol(a).CId != 0) WriteIdent(yyf,Symbol(a).CId); else fputs("NoSymbol",yyf); }
+  #define NewLine()       { fputc('\n',yyf); }
+
+  /*{{{  static tIdent EnsureUniqueId(tSymbol,char *prefix)*/
+  static tIdent EnsureUniqueId(tSymbol S,char *prefix,bool check)
+  {
+    int i;
+    tIdent PId = PrefixId(MakeIdent(prefix,strlen(prefix)),Symbol(S).CId,'_');
+    
+    if (check)
+    {
+      for(i = Symbol(S).Scope; i > 0; i = Symbol(i).Scope)
+      {
+        if (Symbol(i).CId == PId)
+        {
+          int len = LengthSt(GetStringRef(PId));
+          char *str;
+        
+          if (!(str = (char *)malloc(len + 10))) Message("Out of Heap",xxFatal,NoPosition);
+          GetString(PId,str);
+          sprintf(&str[len],"_%d",i);
+          /*
+            printf("Name Clash on symbol %d - ",S);
+            printf("renaming to %s\n",str);
+          */
+          Symbol(i).CId = MakeIdent(str,strlen(str));
+          free(str);
+          break;
+        }
+      }
+    }
+  
+    return PId;
+  }
+  /*}}}*/
+
+}
+/*}}}*/
+
+/*{{{  Tree transformation*/
+/*{{{  PROCEDURE Transform(Tree)*/
+PROCEDURE Transform(Tree)
+
+/*
+   Purpose   : To transform the abstract syntax tree
+                 - a serialised list of functions is generated (CGNext)
+                 - call frames are generated for all function/procedural calls
+                 - parallel processes are transformed to procedures
+                 - in-line valof blocks are transformed to functions
+                 - all table/string references are moved to abbreviations
+
+   Tree      : The Tree, which is updated by side-effect
+
+   Created   : smw md (17-8-93)
+*/ 
+
+  S:Start(NullProcess(_,SL)) ?  AddCGNext(S); TransOuterSpecList(SL);.
+/*}}}*/
+
+/*{{{  FUNCTION  TransOuterSpecList(SpecList) SpecList*/
+PROCEDURE  TransOuterSpecList(SpecList)
+
+  ASpec(S,N) ? 
+    S := TransDefIs2Func(S);
+    TransOuterSpec(S);
+    TransOuterSpecList(N);
+    .
+
+  NoSpec()  ? .
+/*}}}*/
+/*{{{  FUNCTION  TransOuterSpec(Spec) SpecList*/
+PROCEDURE  TransOuterSpec(Spec)
+
+/*
+   Purpose   : To transform a Spec entry
+   Spec      : The Spec entry, which is updated by side-effect
+   RESULT    : A SpecList to procede the Spec entry
+
+   Created   : smw md (17-8-93)
+*/ 
+
+
+  D:DefProc(_,S,_,P) ?
+    /*{{{  Translate entry symbol and add Spec to CGNext*/
+    ResetUniqueIds();
+    D->DefProc.isPar := false;
+    TreeRoot->Start.OuterProc := S;
+    TransProc(P);
+    AddCGNext(D);
+    Symbol(S).CId := EnsureUniqueId(S,"P",true);
+    .
+    /*}}}*/
+
+  D:PrototypeProc(_,S,F,M,L) ? (L==xxOccam || L==xxAtomicOccam);
+    AddCGNext(D);
+    Symbol(S).CId := EnsureUniqueId(S,"P",false);
+    .
+  D:PrototypeProc(_,S,..) ?
+    AddCGNext(D);
+    Symbol(S).CId := Symbol(S).Id; 
+    .
+
+  D:DefFunc(_,S,_,_,Valof(_,SL2,P,EL)) ?
+    /*{{{  Translate entry symbol and add Spec to CGNext*/
+    ResetUniqueIds();
+    TreeRoot->Start.OuterProc := S;
+    SL2 := TransSpecList(SL2) ;
+    TransProc(P);
+    SL2 := CatSpecList(SL2,TransExprList(EL,false));
+    AddCGNext(D);
+    Symbol(S).CId := EnsureUniqueId(S,"F",true);
+    .
+    /*}}}*/
+ 
+  D:PrototypeFunc(_,S,T,F,M,L) ? (L==xxOccam || L==xxAtomicOccam);
+    AddCGNext(D);
+    Symbol(S).CId := EnsureUniqueId(S,"F",false);
+    .
+
+  D:PrototypeFunc(_,S,..) ?
+    AddCGNext(D);
+    Symbol(S).CId := Symbol(S).Id;
+    .
+
+  D:HCode(..) ?
+    AddCGNext(D);
+  .
+
+  NullSpec(_) ? .
+  AVal(_,_,S,E) ? Symbol(S).CId := EnsureUniqueId(S,"S",true); .
+  DefSeqPro(..) ?.
+  DefTagPro(..) ?.
+  DeclType(..) ? .
+
+  SP ? "Fallen through TransOuterSpec with kind " ; printf("%d",SP->Kind) ; "\n" ; .
+/*}}}*/
+
+/*{{{  PROCEDURE TransProc(T:Process)*/
+PROCEDURE TransProc(Process)
+
+  Assign(_,SL,LE,RE) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransExprList(LE,false));SL := CatSpecList(SL,TransExprList(RE,false)); .
+
+  Alt(_,SL,PRI,AL) 			? SL := TransSpecList(SL); TransAltList(AL); .
+  AltRep(_,SL,PRI,R,AL) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransRepl(R)); TransAltList(AL); .
+
+  Input(_,SL,EL,ExprList) 	? SL := TransSpecList(SL); SL := CatSpecList(SL,TransElement(EL)); SL := CatSpecList(SL,TransExprList(ExprList,false));.
+  Output(_,SL,EL,ExprList) 	? SL := TransSpecList(SL); SL := CatSpecList(SL,TransElement(EL)); SL := CatSpecList(SL,TransExprList(ExprList,false));.
+  CaseIn(_,SL,EL,CL) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransElement(EL)); SL := CatSpecList(SL,TransCaseList(CL)); .
+  After(_,SL,EL,Expr) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransElement(EL)); SL := CatSpecList(SL,TransExpr(Expr,false,false));.
+
+  Seq(_,SL,PL) 			? SL := TransSpecList(SL); TransProcList(PL); .
+  SeqRep(_,SL,R,P) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransRepl(R)); TransProc(P);.
+
+  Par(Pos,SL,PRI,PL)		? (PRI==xxPlacedPar); SL := TransSpecList(SL); TransPlacedList(PL,Pos); .
+  T:ParRep(Pos,SL,PRI,R,P)	? (PRI==xxPlacedPar); SL := TransSpecList(SL); TransPlaced(P,Pos,R,T->ParRep.Sym); SL := CatSpecList(SL,TransRepl(R)); .
+
+  Par(Pos,SL,PRI,PL)		? SL := TransSpecList(SL); TransParProcList(PL,Pos); .
+  T:ParRep(Pos,SL,PRI,R,P)	? SL := TransSpecList(SL); P := TransParProc(P,Pos,R,T->ParRep.Sym); SL := CatSpecList(SL,TransRepl(R)); .
+
+  If(_,SL,CL) 			? SL := TransSpecList(SL); TransChoiceList(CL); .
+  IfRep(_,SL,R,CL) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransRepl(R)); TransChoiceList(CL); .
+
+  Case(_,SL,Expr,CL) 		? SL := TransSpecList(SL); SL := CatSpecList(SL,TransExpr(Expr,false,false)); TransChoiceList(CL); .
+  While(_,SL,Expr,Proc) 	? SL := TransSpecList(SL); SL := CatSpecList(SL,TransExpr(Expr,false,false)); TransProc(Proc); .
+
+  Skip(_,SL) 			? SL := TransSpecList(SL); .
+  Stop(_,SL) 			? SL := TransSpecList(SL); .
+
+  CCode(_,SL,_)			? SL := TransSpecList(SL); .
+
+  T:Instance(Pos,SL,S,ExprList)	? 
+    SL := TransSpecList(SL); 
+    SL := CatSpecList(SL,TransParamList(ExprList,SymbolKind(S)->DefAProc.Formals)); 
+    T->Instance.Frame := TransCall(S,Pos) ;
+    SL := AppendSpec(SL,T->Instance.Frame) ; .
+  
+  NullProcess(_,SL) 		? SL := TransSpecList(SL);.
+/*}}}*/
+/*{{{  PROCEDURE TransProcList(ProcList)*/
+PROCEDURE TransProcList(ProcList)
+
+  AProcess(N,P) ? TransProc(P); TransProcList(N); .
+  NoProcess() ? .
+/*}}}*/
+/*{{{  PROCEDURE TransParProcList(ProcList,tPosition)*/
+PROCEDURE TransParProcList(ProcList,tPosition)
+
+  A:AProcess(N,P),Pos ? P := TransParProc(P,Pos,NoTree,A->AProcess.Sym); TransParProcList(N,Pos); .
+  NoProcess(),Pos ? .
+
+/*}}}*/
+/*{{{  FUNCTION  TransParProc(Process,tPosition,Replicator,tSymbol) Process*/
+FUNCTION  TransParProc(Process,tPosition,Replicator,tSymbol) Process
+
+  LOCAL { tTree NewP,SL; tFrame Frame;}
+
+  Processor(_,SL,EX,ID,P),Pos,R,S RETURN NewP ?
+    NewP := TransParProc(P,Pos,R,S);
+    .
+
+  P,Pos,Rep,S RETURN NewP ? (Rep == NoTree);
+    NewP := Par2Instance(P,Pos,Rep,S);
+    NewP->Instance.Scope := S;
+    SL:=NewP->Instance.SpecList;
+    SL := CatSpecList(SL,TransExprList(NewP->Instance.ExprList,false)) ;
+    Frame := mParFrame(Pos, UniqueId('T'),UniqueId('C'),S,-1);
+    SL := AppendSpec(SL,Frame) ;
+    NewP->Instance.SpecList := SL;
+    NewP->Instance.Frame := Frame;
+    .  
+  P,Pos,Rep,S RETURN NewP ? (ValConstInt(Rep->Replicator.For)<=0);
+    NewP := mSkip(Pos,mNoSpec());
+    .
+  P,Pos,Rep,S RETURN NewP ?
+    NewP := Par2Instance(P,Pos,Rep,S);
+    NewP->Instance.Scope := S;
+    SL:=NewP->Instance.SpecList;
+    SL := CatSpecList(SL,TransExprList(NewP->Instance.ExprList,false)) ;
+    Frame := mParFrame(Pos, UniqueId('T'),UniqueId('C'),S,ValConstInt(Rep->Replicator.For));
+    SL := AppendSpec(SL,Frame) ;
+    NewP->Instance.SpecList := SL;
+    NewP->Instance.Frame := Frame;
+    .  
+
+/*}}}*/
+/*{{{  PROCEDURE TransPlacedList(ProcList,tPosition)*/
+PROCEDURE TransPlacedList(ProcList,tPosition)
+
+  A:AProcess(N,P),Pos ? TransPlaced(P,Pos,NoTree,A->AProcess.Sym); TransPlacedList(N,Pos); .
+  NoProcess(),Pos ? .
+
+/*}}}*/
+/*{{{  FUNCTION  TransPlaced(Process,tPosition,Replicator,tSymbol) Process*/
+PROCEDURE TransPlaced(Process,tPosition,Replicator,tSymbol)
+
+  Processor(_,SL,EX,ID,P),Pos,R,S ?
+    P := TransParProc(P,Pos,R,S);
+    .
+
+  Par(_,SL,PRI,PL),Pos,R,S ?
+    TransPlacedList(PL,Pos);
+    .
+
+  T:ParRep(_,SL,PRI,R,P),Pos,R2,S ?
+    TransPlaced(P,Pos,R,T->ParRep.Sym );
+
+    .
+/*}}}*/
+
+/*{{{  FUNCTION  TransCall(tSymbol,tPosition) CallFrame*/
+FUNCTION  TransCall(tSymbol,tPosition) CallFrame
+
+ S,Pos RETURN CallFrame(Pos,UniqueId('C'),S) ? ; .
+/*}}}*/
+/*{{{  FUNCTION  TransExprList(ExprList,bool) SpecList*/
+FUNCTION  TransExprList(ExprList,bool) SpecList
+
+  AnExpr(N, E),BL RETURN CatSpecList(TransExpr(E,false,BL),TransExprList(N,BL)) ? ; .
+  NoExpr(),_      RETURN NoSpec() ? ;  .
+/*}}}*/
+/*{{{  FUNCTION  TransParamList(ExprList,Formals) SpecList*/
+FUNCTION  TransParamList(ExprList,Formals) SpecList
+
+  AnExpr(N, E),AFormal(NF,_,ByRef(),..)  RETURN CatSpecList(TransParamExpr(E,false),TransParamList(N,NF)) ? ; .
+  AnExpr(N, E),AFormal(NF,_,ByVal(),..)  RETURN CatSpecList(TransParamExpr(E,true),TransParamList(N,NF)) ? ; .
+  NoExpr(),_                             RETURN NoSpec() ? ;  .
+/*}}}*/
+/*{{{  FUNCTION  TransParamExpr(REF E:Expr, bool) SpecList*/
+FUNCTION  TransParamExpr(REF E:Expr, bool) SpecList
+  LOCAL { tTree SL; }
+
+  ElementalExpr(_,TE:TableElement(Pos,..)),{false} RETURN SL ?
+    SL := TransTableElement(TE,true => TMP1);
+    E->ElementalExpr.Elemental := TMP1; .
+
+  _,_ RETURN TransExpr(E,false,false); .
+/*}}}*/
+/*{{{  FUNCTION  TransExpr(REF E:Expr, bool) SpecList*/
+FUNCTION  TransExpr(REF E:Expr, bool, bool) SpecList
+
+/*
+   Purpose   : To transform an Expr entry
+   Expr      : The Expr entry, which is updated by side-effect
+   bool      : Set if expression is on the RHS of a VAL IS.
+   bool      : Set if expression is immediately within a table
+   RESULT    : A SpecList to procede the Expr entry
+
+   Created   : smw md (17-8-93)
+   Note      : Integer constant folding removed, now done in back-end
+*/ 
+
+  LOCAL { tTree SL; tTree TMP1; }
+
+  ElementalExpr(_,TE:TableElement(..)),RHS,BL RETURN SL ? 
+    /*{{{  Simplify table elements*/
+    TMP1 := SimplifyTableElement(TE);
+    (TE != TMP1);
+    {
+      if (Tree_IsType(TMP1,kTableElement))
+        E->ElementalExpr.Elemental = TMP1;
+      else
+        E = TMP1;
+    } ;
+    SL := TransExpr(E,RHS,BL); .
+    /*}}}*/
+
+  SE:StringElement(..),RHS,BL RETURN SL ? 
+    /*{{{  Simplify string elements*/
+    TMP1 := SimplifyStringElement(SE); 
+    (E != TMP1);
+    E  := TMP1;
+    SL := TransExpr(E,RHS,BL);
+    (false);
+     .
+    /*}}}*/
+
+  Binary(_,LE, RE, _),_,_ RETURN SL ?
+    SL := CatSpecList(TransExpr(LE,false,false),TransExpr(RE,false,false)); 
+    .
+
+  Unary(_,EX,_),_,_ RETURN SL ?
+    SL := TransExpr(EX,false,false);
+    .
+
+  Valof(Pos,SL2,P,EL),RHS,BL RETURN SL ? (!E->Valof.C) ; (E->Valof.FuncCall!=NoTree);
+    /* revert to original call as constant fold was unsuccessful */
+    E := E->Valof.FuncCall;
+    SL := TransExpr(E,RHS,BL);
+    .
+
+  Valof(Pos,SL2,P,EL),RHS,BL RETURN SL ? (!E->Valof.C || !IsScalarType(E->Valof.SynType));   
+    /* Function definition will be first in SL */    
+    TMP1 := mInlineDefFunc(Pos,E->Valof.Sym,ForceTypeList(E->Valof.SynType),NoFormal(),E);
+    SymbolKind(TMP1->DefFunc.Sym) := TMP1;
+    SymbolType(TMP1->DefFunc.Sym) := E->Valof.SynType;
+    SL := ASpec(TMP1,TransSpec(TMP1)) ;
+    TMP1->DefFunc.PUOut := E->Valof.PUOut;
+    /*Generate function call*/
+    E := mFuncCall(Pos,E->Valof.Sym,mNoExpr(),E->Valof.VS);
+    E->FuncCall.SynType := TMP1->DefFunc.TypeList;
+    SL := CatSpecList(SL,TransExpr(E,RHS,BL));
+    .
+
+  FuncCall(P,S,EL),_,_ RETURN TransParamList(EL,SymbolKind(S)->DefAFunc.Formals) ?.
+
+  Convert(_,Type,Expr),_,_ RETURN TransExpr(Expr,false,false) ? ; .
+
+  Round(_,Type,Expr),_,_ RETURN TransExpr(Expr,false,false) ? ; .
+
+  Trunc(_,Type,Expr),_,_ RETURN TransExpr(Expr,false,false) ? ; .
+
+  CountArray(_,Len,Expr),_,_ RETURN CatSpecList(TransExpr(Len,false,false),TransExpr(Expr,false,false)) ? ; .
+
+  ElementalExpr(_,Element:Element(..)),_,_ RETURN TransElement(Element) ? ; .
+
+  ElementalExpr(_,TE:Table(..)),{false},{false} RETURN SL ?
+    SL := TransTableElement(TE,false => TMP1);
+    E->ElementalExpr.Elemental := TMP1; .
+
+  ElementalExpr(_,TE:Table),_,_ RETURN SL ?
+    SL := RecurseTableElement(TE); .
+
+  ElementalExpr(_,TE:TableElement(..)),_,_ RETURN SL ?
+    SL := TransTableElement(TE,false => TMP1);
+    E->ElementalExpr.Elemental := TMP1; .
+
+  SE:StringElement(Pos,..),{false},_ RETURN SL ?
+    SL := TransStringElement(SE => TMP1) ;
+    E  := ElementalExpr(Pos,TMP1) ;
+    ConstFlag(E->Expr) := false;
+    ExprType(E) := ElementType(TMP1) ; .
+
+  StringElement(Pos,..),_,_ RETURN SL ?
+    SL := RecurseStringElement(E); .
+
+  _,_,_ RETURN NoSpec() ? ; .
+/*}}}*/
+/*{{{  FUNCTION  TransCaseList(CaseList) SpecList*/
+FUNCTION  TransCaseList(CaseList) SpecList
+
+  ACase(N,SL,EL,P) RETURN TransCaseList(N) ?
+    SL := TransSpecList(SL) ;
+    SL := CatSpecList(SL,TransExprList(EL,false)) ;
+    TransProc(P) ; .
+
+  NoCase()      RETURN NoSpec() ? ; .
+/*}}}*/
+
+/*{{{  FUNCTION  TransElemental(Elemental) SpecList*/
+FUNCTION  TransElemental(Elemental) SpecList
+
+  /* This is only called from an IS declaration
+     so there is no need to transform tables */
+
+  EL:Element(..)      RETURN TransElement(EL) ? .
+  EL:TableElement(..) RETURN RecurseTableElement(EL) ? .
+
+/*}}}*/
+/*{{{  FUNCTION  TransElement(Element) SpecList*/
+FUNCTION  TransElement(Element) SpecList
+  LOCAL { tTree SL; }
+
+  Identifier(..)   RETURN NoSpec() ? ; .
+
+  Subscript(_,N,E) RETURN CatSpecList(TransElement(N),TransExpr(E,false,false)) ? ; .
+
+  R:Range(_,N,E1,E2:FuncCall(..)) RETURN SL ?
+   SL := CatSpecList(CatSpecList(TransElement(N),TransExpr(E1,false,false)),TransExpr(E2,false,false));
+   R->Range.SynType->Array.Expr := E2;
+   .
+
+  Range(_,N,E1,E2) RETURN CatSpecList(CatSpecList(TransElement(N),TransExpr(E1,false,false)),TransExpr(E2,false,false)) ? ; .
+
+/*}}}*/
+/*{{{  FUNCTION  TransTableElement(TableElement,bool => Element) SpecList*/
+FUNCTION  TransTableElement(TableElement,bool => Element) SpecList
+
+/*
+   Purpose     : To translate a table reference from in-line to a VAL or IS
+   TableElement: to be transformed
+   bool        : true transforms to IS, otherwise VAL
+   Created     : md 13-8-93
+*/ 
+
+  LOCAL { tTree TMP1, TMP2, SL;}
+
+  TAB:TableExpr(P,E,S), _ => TMP2 RETURN SL ?
+    SL := TransExpr(E,false,false); 
+    TMP1 := mVal(P, ElementType(TAB), S, E);
+    Symbol(S).CId := UniqueId('V');
+    Symbol(S).Kind := TMP1;
+    Symbol(S).Type := ElementType(TAB);
+    SL := AppendSpec(SL,TMP1) ;
+    TMP2 := mIdentifier(P,S,S);
+    ElementType(TMP2) := ElementType(TAB);
+    ConstFlag(TMP2->Element) := ConstFlag(TAB->TableElement);
+    ElementalConst(TMP2) := ElementalConst(TAB);
+    .
+        
+  TAB:Table(Pos,EL),IsFlag => TMP2 RETURN SL ?
+    { tTree T; tSymbol Sym = TAB->Table.Sym; };
+    SL := TransExprList(EL,ConstFlag(TAB->TableElement)); 
+    /* MD: multi-dim tables are broken up by above */
+
+    TMP1 := ElementalExpr(Pos,TAB);
+    ExprType(TMP1) := ElementType(TAB);
+    ConstFlag(TMP1->Expr) := ConstFlag(TAB->TableElement);
+    ElementalConst(TMP1) := ElementalConst(TAB);
+
+    { if (IsFlag) T = mIs(Pos, ElementType(TAB), Sym, TAB);
+      else T = mVal(Pos, ElementType(TAB), Sym, TMP1); };
+
+    Symbol(Sym).CId := UniqueId('V');
+    Symbol(Sym).Kind := T;
+    Symbol(Sym).Type := T->Val.Type;
+    SL := AppendSpec(SL,T) ;
+
+    TMP2 := mIdentifier(Pos,Sym,Sym);
+    ElementType(TMP2) := ElementType(TAB);
+    ConstFlag(TMP2->Element) := ConstFlag(TAB->TableElement);
+    ElementalConst(TMP2) := ElementalConst(TAB);
+    .
+
+  TableSubscript(Pos,N,Sub),IsFlag => TMP2 RETURN SL ?
+    SL   := TransTableElement(N,IsFlag => TMP1);
+    TMP2 := Subscript(Pos,TMP1,Sub) ;
+    ElementType(TMP2) := TypeSubscript(Sub,ElementType(TMP1),ExprFieldList(Sub),Pos);
+    ConstFlag(TMP2->Element) := false;
+    SL  := CatSpecList(SL,TransExpr(Sub,false,false)) ;
+    .
+
+  T:TableRange(Pos,N,From,For:FuncCall(..)),IsFlag => TMP2 RETURN SL ?
+    SL   := TransTableElement(N,IsFlag => TMP1);
+    TMP2 := Range(Pos,TMP1,From,For) ;
+    ElementType(TMP2) := TypeRange(From,For,ElementType(TMP1),Pos);
+    T->TableRange.SynType->Array.Expr := For;
+    ConstFlag(TMP2->Element) := false;
+    SL  := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    .
+
+  TableRange(Pos,N,From,For),IsFlag => TMP2 RETURN SL ?
+    SL   := TransTableElement(N,IsFlag => TMP1);
+    TMP2 := Range(Pos,TMP1,From,For) ;
+    ElementType(TMP2) := TypeRange(From,For,ElementType(TMP1),Pos);
+    ConstFlag(TMP2->Element) := false;
+    SL  := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    .
+/*}}}*/
+/*{{{  FUNCTION  TransStringElement(StringElement => Element) SpecList*/
+FUNCTION  TransStringElement(StringElement => Element) SpecList
+
+/*
+   Purpose   : To translate a string reference from an in-line to a VAL
+   Created   : md 13-8-93
+*/ 
+
+  LOCAL { tTree TMP1; tTree TMP2; tTree SL; }
+
+  E:String(Pos,_,_) => TMP1 RETURN SL ?
+    { tTree T; tSymbol Sym = E->String.Sym; };
+    T := Val(Pos, ExprType(E), Sym, E);
+    Symbol(Sym).CId := UniqueId('V');
+    SymbolKind(Sym) := T;
+    SymbolType(Sym) := T->Val.Type;
+    SL := ASpec(T,NoSpec()) ;
+    TMP1 := mIdentifier(Pos,Sym,Sym);
+    ElementType(TMP1) := ExprType(E); 
+    ConstFlag(TMP1->Element) := IsConstExpr(E);
+    ElementalConst(TMP1) := StringConst(E);
+    .
+
+  StringSubscript(Pos,N,Sub) => TMP2
+    RETURN SL ?
+    SL  := TransStringElement(N => TMP1) ;
+    TMP2:= Subscript(Pos,TMP1,Sub) ;
+    ElementType(TMP2) := TypeSubscript(Sub,ElementType(TMP1),NoTree,Pos);
+    SL  := CatSpecList(SL,TransExpr(Sub,false,false)) ;
+    ConstFlag(TMP2->Element) := false;
+    .
+
+  S:StringRange(Pos,N,From,For:FuncCall(..)) => TMP2
+    RETURN SL ?
+    SL  := TransStringElement(N => TMP1) ;
+    TMP2:= Range(Pos,TMP1,From,For) ;
+    ElementType(TMP2) := TypeRange(From,For,ElementType(TMP1),Pos);
+    SL  := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    S->StringRange.SynType->Array.Expr := For;
+    ConstFlag(TMP2->Element) := false;
+    .
+
+  StringRange(Pos,N,From,For) => TMP2
+    RETURN SL ?
+    SL  := TransStringElement(N => TMP1) ;
+    TMP2:= Range(Pos,TMP1,From,For) ;
+    ElementType(TMP2) := TypeRange(From,For,ElementType(TMP1),Pos);
+    SL  := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    ConstFlag(TMP2->Element) := false;
+    .
+
+/*}}}*/
+/*{{{  FUNCTION  RecurseTableElement(TableElement) SpecList*/
+FUNCTION  RecurseTableElement(TableElement) SpecList
+
+/*
+   Purpose   : To recurse through table references
+   Created   : md 13-9-93
+*/ 
+
+  LOCAL { tTree SL;}
+
+  E:Table(Pos,EL) RETURN SL ?
+    SL := TransExprList(EL,IsConstExprList(EL));
+    .
+
+  TableSubscript(Pos,N,Sub) RETURN SL ?
+    SL := RecurseTableElement(N);
+    SL := CatSpecList(SL,TransExpr(Sub,false,false)) ;
+    .
+
+  T:TableRange(Pos,N,From,For:FuncCall(..)) RETURN SL ?
+    SL := RecurseTableElement(N);
+    SL := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    .
+
+  TableRange(Pos,N,From,For) RETURN SL ?
+    SL := RecurseTableElement(N);
+    SL := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    .
+/*}}}*/
+/*{{{  FUNCTION  RecurseStringElement(Expr) SpecList*/
+FUNCTION  RecurseStringElement(Expr) SpecList
+
+/*
+   Purpose   : To recurse through string references
+   Created   : md 13-9-93
+*/ 
+
+  LOCAL { tTree SL;}
+
+  String(..) RETURN NoSpec() ? .
+
+  StringSubscript(Pos,N,Sub) RETURN SL ?
+    SL := RecurseStringElement(N);
+    SL := CatSpecList(SL,TransExpr(Sub,false,false)) ;
+    .
+
+  T:StringRange(Pos,N,From,For:FuncCall(..)) RETURN SL ?
+    SL := RecurseStringElement(N);
+    SL := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    .
+
+  StringRange(Pos,N,From,For) RETURN SL ?
+    SL := RecurseStringElement(N);
+    SL := CatSpecList(SL,CatSpecList(TransExpr(From,false,false),TransExpr(For,false,false))) ;
+    .
+/*}}}*/
+/*{{{  FUNCTION  TransRepl(Replicator) SpecList*/
+FUNCTION  TransRepl(Replicator) SpecList
+
+  Replicator(S,E1,E2) RETURN CatSpecList(TransExpr(E1,false,false),TransExpr(E2,false,false)) ? .
+/*}}}*/
+
+/*{{{  PROCEDURE TransAltList(AltList)*/
+PROCEDURE TransAltList(AltList)
+
+  AnAlt(SL,N,G) ? 
+    SL := TransSpecList(SL); 
+    SL := CatSpecList(SL,TransGuard(G)); 
+    TransAltList(N); .
+
+  ANewAlt(SL,N,P) ? 
+    SL := TransSpecList(SL); 
+    TransAltList(N); 
+    TransProc(P) ; .
+/*}}}*/
+/*{{{  FUNCTION  TransGuard(Guard) SpecList*/
+FUNCTION  TransGuard(Guard) SpecList
+
+  LOCAL { tTree SL; }
+
+  AltInput(_,BL,Input(_,SL2,E,EL),P) RETURN SL ? 
+    SL  := TransExpr(BL,false,false); 
+    SL2 := TransSpecList(SL2); 
+    SL2 := CatSpecList(SL2,TransElement(E)) ; 
+    SL2 := CatSpecList(SL2,TransExprList(EL,false));
+    TransProc(P) ; .
+
+  AltTimer(_,BL,After(_,SL2,E,EX),P) RETURN SL ? 
+    SL  := TransExpr(BL,false,false); 
+    SL2 := TransSpecList(SL2); 
+    SL2 := CatSpecList(SL2,TransElement(E)) ; 
+    SL2 := CatSpecList(SL2,TransExpr(EX,false,false)) ;
+    TransProc(P) ; .
+
+  AltCaseIn(_,BL,CaseIn(_,SL2,E,CL)) RETURN SL ? 
+    SL  := TransExpr(BL,false,false); 
+    SL2 := TransSpecList(SL2); 
+    SL2 := CatSpecList(SL2,TransElement(E)) ; 
+    SL2 := CatSpecList(SL2,TransCaseList(CL)) ; .
+
+  NoInput(_,BL,P) RETURN SL ?
+    SL := TransExpr(BL,false,false) ;
+    TransProc(P) ; .
+
+/*}}}*/
+/*{{{  PROCEDURE TransChoiceList(ChoiceList)*/
+PROCEDURE TransChoiceList(ChoiceList)
+
+  AChoice(SL,N,EL,P) ? 
+    SL := TransSpecList(SL); 
+    TransChoiceList(N) ; 
+    SL := CatSpecList(SL,TransExprList(EL,false));
+    TransProc(P) ; .
+
+  ANewIf(SL,N,P) ? 
+    SL := TransSpecList(SL); 
+    TransChoiceList(N); 
+    TransProc(P) ; . 
+
+  NoChoice() ? ; .
+/*}}}*/
+
+/*{{{  FUNCTION  TransSpecList(SpecList) SpecList*/
+FUNCTION  TransSpecList(SpecList) SpecList
+
+/*
+   Purpose   : To propagate SpecList recursion, transforms DefIsFunc into DefFunc
+   SpecList  : SpecList to transform
+   RESULT    : Concatenation of -
+                 Any SpecList generated by transforming the head Spec
+                 The head Spec itself
+                 The remainder of the SpecList
+
+               The effect is that any Spec's generated by the transformation
+               of the head Spec are skipped over. They must therefore be fully
+               handled by the single call to transform the head Spec.
+
+   Created   : md 17-8-93
+*/ 
+  LOCAL { tTree SL; }
+
+  ASpec(S,N) RETURN CatSpecList(AppendSpec(SL,S),TransSpecList(N)) ? 
+    S := TransDefIs2Func(S);
+    SL := TransSpec(S);
+    .
+
+  N:NoSpec() RETURN N ? ; .
+/*}}}*/
+/*{{{  FUNCTION  TransSpec(Spec) SpecList*/
+FUNCTION  TransSpec(Spec) SpecList
+
+/*
+   Purpose   : To transform a Spec entry
+   Spec      : The Spec entry, which is updated by side-effect
+   RESULT    : A SpecList to procede the Spec entry
+
+   Created   : smw md (17-8-93)
+*/ 
+
+  LOCAL { tTree SL ; }
+
+  Is(_,_,_,EL) RETURN TransElemental(EL) ? ; .
+  Retypes(_,_,_,EL:Element(..)) RETURN TransElement(EL) ? ; .
+  R:Retypes(_,_,_,EL:TableElement(..)) RETURN SL ? 
+    /*{{{  Transform into IS, followed by RETYPE*/
+    SL := TransTableElement(EL,true => TMP);
+    R->Retypes.Elemental := TMP;
+    .
+    /*}}}*/
+
+  V:Val(_,_,_,E) RETURN TransExpr(E,true,false) ? .
+
+  ValRetypes(_,T,S,EX:ElementalExpr(..)) RETURN TransExpr(EX,false,false) ? .
+  ValRetypes(_,T,S,EX) RETURN TransExpr(EX,false,false) ? (IsScalarType(T)); (!IS_Mode(xxEmulate));.
+  ValRetypes(P,T,S,EX) RETURN SL ?
+    /*{{{  Transform into IS, followed by VAL RETYPE*/
+    { tTree TMP1,TMP2,TMP3; tSymbol Sym = TempSymbol(SymbolDepth(S)); };
+    
+    TMP2 := mIdentifier(P,Sym,Sym);
+    ElementType(TMP2) := ExprType(EX);
+    ConstFlag(TMP2->Element) := false;
+    
+    TMP1 := ElementalExpr(P,TMP2);
+    ExprType(TMP1) := ExprType(EX);
+    ConstFlag(TMP1->Expr) := false;
+    
+    SL := TransExpr(EX,false,false);
+    SL := AppendSpec(SL,TMP3=Val(P, ExprType(EX), Sym, EX));
+    
+    Symbol(Sym).CId := UniqueId('V');
+    SymbolKind(Sym) := TMP3;
+    SymbolScope(Sym) := SymbolScope(S);
+    SymbolType(Sym) := ExprType(EX);
+    EX := TMP1;
+    .
+    /*}}}*/
+
+
+  D:DefProc(_,S,_,P) RETURN NoSpec() ?
+    /*{{{  Translate entry symbol and add Spec to CGNext*/
+    D->DefProc.isPar := false;
+    TransProc(P);
+    AddCGNext(D);
+    Symbol(S).CId := PrefixId(MakeIdent("P",1),Symbol(S).CId,'_');
+    .
+    /*}}}*/
+
+  D:DefFunc(_,S,_,_,Valof(_,SL2,P,EL)) RETURN NoSpec() ?
+    /*{{{  Translate entry symbol and add Spec to CGNext*/
+    SL2 := TransSpecList(SL2) ;
+    TransProc(P);
+    SL2 := CatSpecList(SL2,TransExprList(EL,false));
+    AddCGNext(D);
+    Symbol(S).CId := PrefixId(MakeIdent("F",1),Symbol(S).CId,'_');
+    .
+    /*}}}*/
+
+  D:PrototypeProc(_,S,..) RETURN NoSpec() ?
+    AddCGNext(D);
+    Symbol(S).CId := PrefixId(MakeIdent("P",1),Symbol(S).CId,'_');
+    .
+ 
+  D:PrototypeFunc(_,S,..) RETURN NoSpec() ?
+    AddCGNext(D);
+    Symbol(S).CId := PrefixId(MakeIdent("F",1),Symbol(S).CId,'_');
+    .
+
+  DeclType(..) RETURN NoSpec() ? ; .
+  Decl(..) RETURN NoSpec() ? ; .
+  NullSpec(_) RETURN NoSpec() ? ; .
+  DefSeqPro(..) RETURN NoSpec() ? ;.
+  DefTagPro(..) RETURN NoSpec() ? ;.
+
+  D:HCode(P,..) RETURN NoSpec() ? 
+    Message("#H directive ignored : only valid at outermost scope",xxWarning,P);
+  .
+  SP RETURN NoSpec() ? "Fallen through TransSpec with kind " ; printf("%d",SP->Kind) ; "\n" ; .
+/*}}}*/
+
+/*{{{  FUNCTION  TransDefIs2Func(DefIsFunc) Spec*/
+FUNCTION  TransDefIs2Func(Spec) Spec
+  LOCAL { tTree Func; }
+
+  D:InlineDefIsFunc(Pos,Sym,TL,F,EL) RETURN Func ?
+    Func := mInlineDefFunc(Pos,Sym,TL,F,mValof(Pos,mNoSpec(),mSkip(Pos,mNoSpec()),EL,Sym,Symbol(Sym).Depth));
+    SymbolKind(Sym) := Func;
+    .
+  D:DefIsFunc(Pos,Sym,TL,F,EL) RETURN Func ?
+    Func := mDefFunc(Pos,Sym,TL,F,mValof(Pos,mNoSpec(),mSkip(Pos,mNoSpec()),EL,Sym,Symbol(Sym).Depth));
+    SymbolKind(Sym) := Func;
+    .
+
+  S:Spec RETURN S ? .  
+/*}}}*/
+/*{{{  FUNCTION  Par2Instance(Process,tPosition,Replicator,tSymbol) Process*/
+FUNCTION  Par2Instance(Process,tPosition,Replicator,tSymbol) Process
+
+  LOCAL {tTree SL,DP,EX,FL; }
+
+  P,Pos,Rep,S  RETURN Instance(Pos,SL,S,EX) ?
+    { if (Rep != NoTree)
+      {
+        tSymbol RS,FS;
+        tTree TMP1,TMP2;
+        int TMP3;
+
+        RS = Rep->Replicator.Sym; FS=RS+1;
+
+        /* Copy Replicator stuff into S+1 */
+        SymbolKind(FS)=SymbolKind(RS);
+        SymbolType(FS)=SymbolType(RS);
+        Symbol(FS).CId = Symbol(RS).CId;
+        Symbol(FS).Id = Symbol(RS).Id;
+
+        /* Swap Depth's */
+        TMP3 = Symbol(FS).Depth;
+        Symbol(FS).Depth = Symbol(RS).Depth;
+        Symbol(RS).Depth = TMP3;
+
+        /* RS+1 becomes Replicator */
+        /* RS  becomes AFormal */
+        FL = mAFormal(mNoFormal(),Pos,mByVal(),SymbolType(RS),RS);
+        SymbolKind(RS)=FL;
+        Rep->Replicator.Sym = FS;
+
+        TMP1 = mIdentifier(Pos,FS,FS);
+        ElementType(TMP1) = SymbolType(FS);
+        ConstFlag(TMP1->Element) = false;
+
+        TMP2 = mElementalExpr(Pos,TMP1);
+        ExprType(TMP2) = ElementType(TMP1);
+        ConstFlag(TMP2->Expr) = false;
+
+        EX = mAnExpr(mNoExpr(),TMP2);
+        ExprType(EX) = ElementType(TMP2);
+        ConstFlag(EX->AnExpr) = false;
+
+      }
+      else
+      {
+        EX = mNoExpr();
+        FL = mNoFormal();
+      }
+    };
+    DP := DefProc(Pos,S,FL,P);
+    SL := TransSpecList(ASpec(DP,NoSpec())) ;
+    DP->DefProc.isPar := true;
+    DP->DefProc.ATOMIC := P->Process.ATOMIC;
+    SymbolKind(DP->DefProc.Sym) := DP;
+    DP->DefProc.PUOut := CreateUsage(Pos); Include(&DP->DefProc.PUOut->R,S); 
+    .
+/*}}}*/
+
+/*{{{  FUNCTION  CatSpecList(SpecList,SpecList) SpecList*/
+FUNCTION  CatSpecList(SpecList,SpecList) SpecList
+
+/*
+   Purpose   : To concatenate SpecLists
+   SpecList  : SpecList for front
+   SpecList  : SpecList for rear
+   RESULT    : Resultant SpecList
+
+   Created   : md 16-8-93
+*/ 
+
+  NoSpec(),SL2       RETURN SL2 ? ; .
+
+  SL1:ASpec(_,N),SL2 RETURN SL1 ? ; N := CatSpecList (N,SL2) ; .
+/*}}}*/
+/*{{{  FUNCTION  AppendSpec(SpecList, Spec) SpecList*/
+FUNCTION  AppendSpec(SpecList, Spec) SpecList
+
+/* 
+   Purpose   : To append a Spec to a SpecList 
+   Created   : smw
+*/ 
+
+  SL:NoSpec(),S       RETURN ASpec(S,SL) ? ; .
+  SL:ASpec(_, Next),S RETURN SL          ? Next := AppendSpec(Next,S) ; .
+
+/*}}}*/
+
+/*{{{  FUNCTION  ForceTypeList(Type) TypeList*/
+FUNCTION  ForceTypeList(Type) TypeList
+
+/*
+   Purpose   : Force Type into a single element TypeList
+   Created   : md 12-8-93
+*/ 
+
+  T:AType RETURN T  ? .
+  T       RETURN AType(NoType(),T)  ? .
+/*}}}*/
+
+/*{{{  FUNCTION  CountTypeList (TypeList) int*/
+FUNCTION  CountTypeList (TypeList) int
+  NoType()    RETURN 0 ? .
+  AType(N,_)  RETURN CountTypeList(N)+1 ? .
+/*}}}*/
+/*}}}*/
+
+/*{{{  Simplify string and table elements*/
+/*{{{  FUNCTION  SimplifyTableElement(E:TableElement) Tree*/
+FUNCTION  SimplifyTableElement(E:TableElement) Tree
+
+/*
+   Purpose   : To simplify table expressions
+   Expr      : Arbitrary table expression
+   RESULT    : Simplified table expression
+
+   Created   : md 12-8-93
+*/ 
+
+  _  RETURN E ? (ConstFlag(E->TableElement)); .
+
+  Table(_,EL) RETURN E ? .
+
+  TableExpr(..) RETURN E ? .
+
+  TableSubscript(_,N,Sub)
+    RETURN E ?
+    N := EnsureTableElement(SimplifyTableElement(N)) ;
+    (false) ; .
+
+  TableSubscript(_,Table(_,EL),Sub) 
+    RETURN EvalExprListSubscript(EL,ValConstInt(Sub)) ?
+    (IsConstInt(Sub)) ; .
+
+  TableSubscript(_,N,Sub) RETURN E ? .
+
+  TableRange(_,N,From,For) 
+    RETURN E ? 
+    N := EnsureTableElement(SimplifyTableElement(N)) ; 
+    (false) ; .
+    
+  T:TableRange(Pos,TAB:Table(_,EL),From,For) 
+    RETURN TAB ?
+    (IsConstInt(From)) ; 
+    (IsConstInt(For)) ; 
+    EL := EvalExprListConstantSlice(EL,ValConstInt(From),ValConstInt(For)) ;
+    ExprType(TAB) := ExprType(T) ; .
+    
+  T:TableRange(_,TAB:Table(Pos,EL),From,For)
+    RETURN T ?
+    (IsConstInt(From)) ; 
+    EL := EvalExprListVariableSlice(EL,ValConstInt(From)) ;
+    ExprType(TAB) := ReduceOneDimArraySize(ExprType(TAB),ValConstInt(From)) ;
+    From->Const.Value.Number := 0 ;
+    ValConstInt(From)   := 0 ; .
+
+  TableRange(_,N,From,For) RETURN E ? .
+/*}}}*/
+/*{{{  FUNCTION  SimplifyStringElement(E:StringElement) Expr*/
+FUNCTION  SimplifyStringElement(E:StringElement) Expr
+
+/*
+   Purpose   : To simplify string expressions
+   Expr      : Arbitrary string expression
+   RESULT    : Simplified string expression
+
+   Created   : md 12-8-93
+*/ 
+
+  _          RETURN E ? (IsConstExpr(E)); .
+
+  String(..) RETURN E ? .
+
+  StringSubscript(_,N,Sub)
+    RETURN E ?
+    N := EnsureStringElement(SimplifyStringElement(N)) ;
+    (false) ; .
+
+  StringSubscript(_,STR:String,Sub) 
+    RETURN EvalStringSubscript(STR,ValConstInt(Sub)) ?
+    (IsConstInt(Sub)) ; .
+
+  StringSubscript(_,N,Sub) RETURN E ? .
+
+  StringRange(_,N,From,For) 
+    RETURN E ? 
+    N := EnsureStringElement(SimplifyStringElement(N)) ; 
+    (false) ; .
+    
+  S:StringRange(_,STR:String,From,For) 
+    RETURN STR ?
+    (IsConstInt(From)) ; 
+    (IsConstInt(For)) ; 
+    STR := EvalStringConstantSlice(STR,ValConstInt(From),ValConstInt(For)) ;
+    ExprType(STR) := ExprType(S) ; .
+
+  S:StringRange(_,STR:String,From,For)
+    RETURN S ?
+    (IsConstInt(From)) ; 
+    STR := EvalStringVariableSlice(STR,ValConstInt(From)) ;
+    ExprType(STR) := ReduceOneDimArraySize(ExprType(STR),ValConstInt(From)) ;
+    From->Const.Value.Number := 0 ;
+    ValConstInt(From)   := 0 ; .
+
+  StringRange(_,N,From,For) RETURN E ? .
+/*}}}*/
+
+/*{{{  FUNCTION  EvalExprListSubscript(ExprList,int) Expr*/
+FUNCTION  EvalExprListSubscript(ExprList,int) Expr
+
+/*
+   Purpose   : To evaluate constant table subscription
+   ExprList  : Expression list to index into
+   int       : Constant subscript
+   RESULT    : Expression from subscripted list 
+
+   Assumes   : Subscript is in range
+   Created   : md 12-8-93
+*/ 
+
+  AnExpr(EL,EX),Sub  RETURN EX ? (Sub==0) ; .
+  AnExpr(EL,_),Sub   RETURN EvalExprListSubscript(EL,Sub-1) ? (Sub>0) ; .
+/*}}}*/
+/*{{{  FUNCTION  EvalExprListConstantSlice(ExprList,int,int) ExprList*/
+FUNCTION  EvalExprListConstantSlice(ExprList,int,int) ExprList
+
+/* 
+   Purpose   : To evaluate constant-size slices of tables
+   ExprList  : Expression list to index into
+   int       : From constant
+   int       : For constant
+   RESULT    : Sliced expression list 
+
+   Assumes   : From and for constants are in range
+   Created   : md 12-8-93
+*/
+
+  A:AnExpr(EL,EX),From,For  RETURN NoExpr() ? (For==0); .
+  A:AnExpr(EL,EX),From,For  RETURN A ? (From==0) ; (For==1); EL := NoExpr() ; .
+  A:AnExpr(EL,EX),From,For  RETURN A ? (From==0) ; (For>1) ; EL := EvalExprListConstantSlice(EL,From,For-1) ; .
+  AnExpr(EL,EX),From,For    RETURN EvalExprListConstantSlice(EL,From-1,For) ? (From>0) ; .
+/*}}}*/
+/*{{{  FUNCTION  EvalExprListVariableSlice(ExprList,int) ExprList*/
+FUNCTION  EvalExprListVariableSlice(ExprList,int) ExprList
+
+/*
+   Purpose   : To evaluate variable-size slices of tables
+   ExprList  : Expression list to index into
+   int       : From constant
+   RESULT    : Sliced expression list 
+
+   Assumes   : From constant is in range
+   Created   : md 12-8-93
+*/
+
+  EL,From             RETURN EL ? (From==0) ; .
+  AnExpr(EL,EX),From  RETURN EvalExprListVariableSlice(EL,From-1) ? (From>0) ; .
+/*}}}*/
+
+/*{{{  FUNCTION  EvalStringSubscript(String,int) Const*/
+FUNCTION  EvalStringSubscript(String,int) Const
+
+/*
+   Purpose   : To evaluate string subscription
+   String    : String to index into
+   int       : Constant subscript
+   RESULT    : Byte constant from subscripted string
+
+   Assumes   : Subscript is in range
+   Created   : md 12-8-93
+*/ 
+
+  LOCAL {char c; char *tmp; tTree TMP; tValue v;}
+
+  String(Pos,STR,_),Sub RETURN TMP ?
+    { int len=LengthSt(STR);
+      if ((tmp = malloc((len==0)?1:len)) == NULL)
+        Message("Out of heap allocating string",xxError,Pos);
+      StGetString(STR,tmp) ;
+      c = tmp[Sub] ;
+      free(tmp) ; 
+
+      v.Number = c;
+      TMP = mConst(Pos,v,mByte()) ;
+      ConstFlag(TMP->Expr) = true;
+      ValConstInt(TMP) = c;
+      ExprType(TMP) = mByte();
+    } ; .    
+/*}}}*/
+/*{{{  FUNCTION  EvalStringConstantSlice(String,int,int) String*/
+FUNCTION  EvalStringConstantSlice(String,int,int) String
+
+/*
+   Purpose   : To evaluate constant-size slices of string
+   String    : String to index into
+   int       : From constant
+   int       : For constant
+   RESULT    : Byte constant from subscripted string
+
+   Assumes   : From and for constants are in range
+   Created   : md 12-8-93
+*/ 
+
+  LOCAL { char *tmp; }
+
+  S:String(Pos,STR,_),From,For RETURN S ?
+    { int len=LengthSt(STR);
+      if ((tmp = malloc((len==0)?1:len)) == NULL)
+        Message("Out of heap allocating string",xxError,Pos);
+      StGetString(STR,tmp) ;
+      STR = PutString (&tmp[From],For) ;
+      free(tmp) ;
+    } ; .
+/*}}}*/
+/*{{{  FUNCTION  EvalStringVariableSlice(String,int) String*/
+FUNCTION  EvalStringVariableSlice(String,int) String
+
+/*
+   Purpose   : To evaluate variable-size slices of string
+   String    : String to index into
+   int       : From constant
+   RESULT    : Byte constant from subscripted string
+
+   Assumes   : From constant is in range
+   Created   : md 12-8-93
+*/ 
+
+  LOCAL { char *tmp;}
+
+  S:String(Pos,STR,_),From RETURN S ?
+    { int len=LengthSt(STR);
+      if ((tmp = malloc((len==0)?1:len)) == NULL)
+        Message("Out of heap allocating string",xxError,Pos);
+      StGetString(STR,tmp) ;
+      STR = PutString (&tmp[From],LengthSt(STR)-From) ;
+      free(tmp) ; } ; .
+/*}}}*/
+
+/*{{{  FUNCTION  ReduceOneDimArraySize(Type,int) Type*/
+FUNCTION  ReduceOneDimArraySize(Type,int) Type
+
+/*
+   Purpose   : To reduce a one-d array type by a given amount
+   Type      : In array type
+   int       : Reduction constant
+   RESULT    : Out array type
+
+   Assumes   : Reduction constant is in range
+   Created   : md 13-8-93
+*/ 
+
+  A:Array(Const(_,I,_),_),size RETURN A ? { I.Number = I.Number - size;} ; .
+/*}}}*/
+/*{{{  FUNCTION  EnsureTableElement(Tree) TableElement*/
+FUNCTION  EnsureTableElement(Tree) TableElement
+
+/*
+   Purpose   : Convert a Tree node into TableElement (if valid)
+   Created   : md 12-8-93
+*/ 
+
+T:TableElement RETURN T ? .
+ElementalExpr(_,T:TableElement(..)) RETURN T ? .
+/*}}}*/
+/*{{{  FUNCTION  EnsureStringElement(Expr) StringElement*/
+FUNCTION  EnsureStringElement(Expr) StringElement
+
+/*
+   Purpose   : Convert an Expr into StringElement (if valid)
+   Created   : md 12-8-93
+*/ 
+
+S:StringElement RETURN S ? .
+/*}}}*/
+/*}}}*/
+
+/*{{{  Code to create list of generated routines*/
+/*{{{  PROCEDURE AddCGNext(T:Tree)*/
+PROCEDURE AddCGNext(T:Tree)
+  LOCAL { static tTree CGLast; }
+  
+  Start(_) ? CGLast := NoTree; .
+
+  _ ? (CGLast == NoTree); TreeRoot->Start.CGNext := T; CGLast := T; SetCGNext(T,TreeRoot); .
+
+  _ ? SetCGNext(CGLast,T); CGLast := T; SetCGNext(T,TreeRoot); .
+ 
+/*}}}*/
+/*{{{  PROCEDURE SetCGNext(T:Tree, N:Tree)*/
+PROCEDURE SetCGNext(T:Tree, N:Tree)
+  DefAProc(..),_ ?  T->DefAProc.CGNext := N; .
+  DefAFunc(..),_ ?  T->DefAFunc.CGNext := N; .
+  HCode(..),_ ? T->HCode.CGNext := N;.
+/*}}}*/
+/*}}}*/

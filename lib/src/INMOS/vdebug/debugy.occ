@@ -1,0 +1,60 @@
+#OPTION "E V W"    --  see README or ELSE for the rest !
+#COMMENT "Debug support library, V1.0 13/07/90"
+#COMMENT "(c) Copyright INMOS Limited 1990"
+
+--{{{  README or ELSE !
+--  NONE OF THESE MUST USE VECTOR SPACE
+
+--  Steven: 13 July 1990
+
+--  Must be built with:  oc -x -e -v -w -y {-t8, -ta, -t2}
+
+--                       -x  = universal mode
+--                       -e  = disable compiler libraries
+--                       -v  = disable separate vector space
+--                       -w  = full ASM code insertion
+--                       -y  = disable interactive debugging
+
+-- The compiler will probably give a warning that the parameter
+-- message is not used.  This is all right because it is
+-- deliberately not used in DEBUG.MESSAGE in this file.
+
+-- We provide these even for no interactive debugging because 
+-- it decreases the code size ( since the semaphores are not
+-- required or any of the overhead stuff ), and these versions
+-- are faster.  TS/0499 SRH
+--}}}  
+
+--{{{  DEBUG.MESSAGE
+PROC DEBUG.MESSAGE (VAL []BYTE message)
+
+  -- The debugger is not running, so no action.
+
+  SKIP
+:
+--}}}  
+--{{{  DEBUG.ASSERT
+PROC DEBUG.ASSERT (VAL BOOL assertion)
+
+  -- The debugger is not running, so simply stop
+  -- if the assertion failed and do nothing otherwise.
+
+  IF
+    NOT assertion
+      ASM  -- assertion failed
+        SETERR    -- just in case in HALT mode
+        STOPP     -- just in case in STOP mode
+    TRUE
+      SKIP
+:
+--}}}  
+--{{{  DEBUG.STOP
+PROC DEBUG.STOP ()
+
+  -- The debugger is not running, so stop.
+
+  ASM
+    SETERR    -- just in case in HALT mode
+    STOPP     -- just in case in STOP mode
+:
+--}}}  

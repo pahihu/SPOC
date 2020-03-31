@@ -1,0 +1,64 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "String library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#USE "convert.lib"
+--{{{  history
+-- V1.0 1-Jul-88
+-- V1.1 22-Mar-90 SRH
+--}}}
+--{{{  append.real32
+PROC append.real32 (INT len, []BYTE str,
+                    VAL REAL32 number, VAL INT Ip, Dp)
+
+  --{{{  specification
+  -- Purpose:  To write an ASCII representation of a single precision
+  --           real number into a given string.
+  -- In/Out:   len - on entry: the index of str at which the first character
+  --           of the representation of number is to be placed; on
+  --           exit: the index of str of the byte immediately following the
+  --           last character in str of the representation of number,
+  --           or (SIZE str) if the last character of the representation
+  --           was placed into the last byte of str
+  -- Out:      str - the string into which to place the ASCII representation
+  --           of number
+  -- In:       number - a single precision real number in IEEE format
+  -- In, In:   Ip, Dp - formatting values for the real number; see
+  --           REAL32TOSTRING for their effect
+  -- Notes:    If str overflows this routine acts as an invalid process.
+  --}}}
+
+  INT addlen:
+  SEQ
+    VAL rest IS (SIZE str) - len:
+    REAL32TOSTRING (addlen, [str FROM len FOR rest], number, Ip, Dp)
+    len := len + addlen
+:
+--}}}
+--{{{  append.real64
+PROC append.real64 (INT len, []BYTE str,
+                    VAL REAL64 number, VAL INT Ip, Dp)
+
+  --{{{  specification
+  -- Purpose:  To write an ASCII representation of a double precision
+  --           real number into a given string.
+  -- In/Out:   len - on entry: the index of str at which the first character
+  --           of the representation of number is to be placed; on
+  --           exit: the index of str of the byte immediately following the
+  --           last character in str of the representation of number,
+  --           or (SIZE str) if the last character of the representation
+  --           was placed into the last byte of str
+  -- Out:      str - the string into which to place the ASCII representation
+  --           of number
+  -- In:       number - a double precision real number in IEEE format
+  -- In, In:   Ip, Dp - formatting values for the real number; see
+  --           REAL64TOSTRING for their effect
+  -- Notes:    If str overflows this routine acts as an invalid process.
+  --}}}
+
+  INT addlen:
+  SEQ
+    VAL rest IS (SIZE str) - len:
+    REAL64TOSTRING (addlen, [str FROM len FOR rest], number, Ip, Dp)
+    len := len + addlen
+:
+--}}}

@@ -1,0 +1,44 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.send.packet
+PROC sp.send.packet (CHAN OF SP ts, VAL []BYTE packet, BOOL error)
+
+  --{{{  specification
+  -- Purpose:  To send an SP protocol packet.
+  -- Channel:  ts - the channel on which to send the packet
+  -- In:       packet - the packet to send
+  -- Out:      error - FALSE if the packet size is greater than or equal to
+  --           sp.min.packet.data.size, and is less than or equal to
+  --           sp.max.packet.data.size, and is even; TRUE otherwise, in which
+  --           case the packet is not sent
+  --}}}
+
+  IF
+    ((SIZE packet) < sp.min.packet.data.size) OR
+    ((SIZE packet) > sp.max.packet.data.size) OR
+    (((SIZE packet) /\ 1) <> 0)  -- check that the packet length is EVEN
+      error := TRUE
+    TRUE
+      SEQ
+        ts ! INT16 (SIZE packet) :: packet
+        error := FALSE
+:
+--}}}sp.send.packet
+--{{{  sp.receive.packet
+PROC sp.receive.packet (CHAN OF SP fs, INT16 length, []BYTE packet, BOOL error)
+
+  --{{{  specification
+  -- Purpose:  To receive an SP protocol packet.
+  -- Channel:  fs - the channel on which to receive the packet
+  -- Out:      length - the number of bytes in the received packet
+  -- Out:      packet - the received packet, left justified
+  -- Out:      error - TRUE if length is greater than sp.max.packet.data.size;
+  --           FALSE otherwise
+  --}}}
+
+  SEQ
+    fs ? length :: packet
+    error := ((INT length) > sp.max.packet.data.size)
+:
+--}}}sp.receive.packet

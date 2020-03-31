@@ -1,0 +1,70 @@
+--{{{  #OPTION and #PRAGMA TRANSLATEs
+-- This whole section commented out for SPOC 
+-- Denis A Nicole, 10/4/97
+--#ifdef C   -- for the C libraries
+--#OPTION "V"  -- no vector space
+--#PRAGMA TRANSLATE sp.exit "sp.exit%c"
+--#PRAGMA TRANSLATE so.exit "so.exit%c"
+--#else
+--#ifdef FORTRAN -- for the FORTRAN libraries
+--#OPTION "V"  -- no vector space
+--#PRAGMA TRANSLATE sp.exit "sp.exit%f"
+--#PRAGMA TRANSLATE so.exit "so.exit%f"
+--#endif FORTRAN
+--#endif C
+--}}}
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.exit
+PROC sp.exit (CHAN OF SP fs, ts, VAL INT32 status, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To terminate the server.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       status - a value which the server passes directly on to the
+  --           host environment, except in the following two cases:
+  --             sps.success - a host specific success result is passed on
+  --             sps.failure - a host specific failure result is passed on
+  -- Out:      result - equals spr.ok if the operation succeeded; otherwise
+  --           >= spr.operation.failed - see hostio.inc or iserver documentation
+  --           for further details
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (5 bytes)
+    buffer [0] := sp.exit.tag
+    
+    VAL [4]BYTE b.status RETYPES status :
+    [buffer FROM 1 FOR 4] := b.status
+    --}}}pack the data into the buffer (5 bytes)
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 len :
+    fs ?  len :: buffer
+    --}}}send and receive the buffer
+    --{{{  copy out the result           (1 byte)
+    result := buffer [0]
+    --}}}
+:
+--}}}sp.exit
+--{{{  so.exit
+PROC so.exit (CHAN OF SP fs, ts, VAL INT32 status)
+
+  --{{{  specification
+  -- Purpose:  To terminate the server.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       status - a value which the server passes directly on to the
+  --           host environment, except in the following two cases:
+  --             sps.success - a host specific success result is passed on
+  --             sps.failure - a host specific failure result is passed on
+  --}}}
+
+  BYTE result:
+  sp.exit (fs, ts, status, result)
+:
+--}}}so.exit

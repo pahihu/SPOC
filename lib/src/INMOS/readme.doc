@@ -1,0 +1,31 @@
+The command line
+
+         make -f Makefile.tp
+
+or
+
+         make -f Makefile.tp all
+
+if given from .../build/libs/occ/tp will cause a build of the C
+catenations, the FORTRAN catenations, the occam2 toolset libraries and
+the occam configurer library, occonfio.lib, leaving the desiderata in
+.../build/libs/occ/tp; relevant .inc, .lnk and .liu files will also be
+copied to this directory. It will also cause the sources of those
+libraries that are given away with the occam2 toolset to be copied into
+a set of directories under .../occ/tp/rel.
+
+
+The command line
+
+	make -f Makefile.tp test
+
+will do some testing of the libraries, leaving test.log in
+.../build/libs/occ/src, and more detailed logs in .../build/libs/occ/tp/TESTS.
+
+
+ISEARCH *must* have .../build/libs/occ/tp/  in it.
+OCCAMLIBS *must* be .../build/libs/occ/tp .
+
+
+Steven R Huggins
+15 February 91

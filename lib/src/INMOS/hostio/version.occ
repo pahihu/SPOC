@@ -1,0 +1,68 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.version
+PROC sp.version (CHAN OF SP fs, ts,
+                 BYTE version, host, os, board, result)
+
+  --{{{  specification
+  -- Purpose:  To return identification information about the server and the
+  --           host that it is running on.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      version - on division by 10 this gives the version of the server
+  -- Out:      host - identifies the host via sph. constants
+  -- Out:      os - identifies the host environment via spo. constants
+  -- Out:      board - identifies the interface board via spb. constants
+  -- Out:      result - spr.ok if the request was successful; otherwise
+  --           >= spr.operation.failed - refer to hostio.inc or iserver
+  --           documentation for further details
+  -- Notes:    If any of the information ( except result ) has the value zero
+  --           then that information is not available.
+  --           The parameter version cannot distinguish between e.g. 1.41 and
+  --           1.42.
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (1 byte)
+    buffer [0] := sp.version.tag
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 len :
+    fs ?  len :: buffer
+    --}}}send and receive the buffer
+    --{{{  unpack the data               (5 bytes)
+    result  := buffer [0]
+    version := buffer [1]
+    host    := buffer [2]
+    os      := buffer [3]
+    board   := buffer [4]
+    --}}}unpack the data               (5 bytes)
+:
+--}}}sp.version
+--{{{  so.version
+PROC so.version (CHAN OF SP fs, ts,
+                 BYTE version, host, os, board)
+
+  --{{{  specification
+  -- Purpose:  To return identification information about the server and the
+  --           host that it is running on.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      version - on division by 10 this gives the version of the server
+  -- Out:      host - identifies the host via sph. constants
+  -- Out:      os - identifies the host environment via spo. constants
+  -- Out:      board - identifies the interface board via spb. constants
+  -- Notes:    If any of the information has the value zero then that
+  --           information is not available.
+  --           The parameter version cannot distinguish between e.g. 1.41 and
+  --           1.42.
+  --}}}
+
+  BYTE result:
+  sp.version (fs, ts, version, host, os, board, result)
+:
+--}}}so.version

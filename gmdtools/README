@@ -1,0 +1,405 @@
+*************************************************************************
+*                                                                       *
+*  Compiler Construction Tool Box                                       *
+*  ==============================                                       *
+*                                                                       *
+*  Version 9208                                                         *
+*                                                                       *
+*  Copyright (c) 1989, 1990, 1991, 1992 by                              *
+*                                                                       *
+*  Gesellschaft fuer Mathematik und Datenverarbeitung                   *
+*  (German National Research Center for Computer Science)               *
+*  Forschungsstelle fuer Programmstrukturen                             *
+*  an der Universitaet Karlsruhe                                        *
+*                                                                       *
+*  All rights reserved. GMD assumes no responsibility for the use       *
+*  or reliability of its software.                                      *
+*                                                                       *
+*************************************************************************
+
+
+Direct requests, comments, questions, and error reports to:
+
+   Josef Grosch
+   GMD Forschungsstelle
+   Vincenz-Priessnitz-Str. 1
+   D-7500 Karlsruhe 1
+   Phone: +721-662226
+   Email: grosch@karlsruhe.gmd.de
+
+
+Distribution Format:
+--------------------
+
+The compiler construction tool box is distributed via anonymous ftp in
+compressed tar format or in plain tar format on the following media:
+
+- DC300/600 data cartridge (streamer tape) 
+- TK 50
+- Exabyte
+- 1/2" magnetic tape (1600 bpi)
+
+To read a tape use:
+
+   tar -xvfb /dev/rst0 20  or  tar -xvb 20  or similar commands
+
+
+The directories and their contents are as follows:
+--------------------------------------------------
+
+directory       contents
+------------------------------------------------------------------------
+README          this file
+Makefile        compilation and installation of the tools
+doc.ps          documentation in postscript format
+doc.me          documentation in troff format, me macros
+man             manual pages  in troff format, man macros
+rex             Scanner Generator
+lalr            LALR(1) Parser Generator
+ell             LL(1) Recursive Descent Parser Generator
+bnf             Transforms Grammars from Extended BNF to Plain BNF
+front           Common Front-End of Lalr, Ell, and Bnf
+reuse           Library of Reusable Modules
+common          Library for estra and ell
+specs           Example Specifications for the Above Tools
+cg              Common Program implementing Ast and Ag
+                Ast = Generator for Abstract Syntax Trees
+                Ag  = Attribute Evaluator Generator
+puma            Transformation Tool based on Pattern Matching
+l2r             Transforms Lex  input to Rex  input
+y2l             Transforms Yacc input to Lalr input
+r2l             Transforms Rex  input to Lex  input
+rpp             Rex PreProcessor: rpp + cg extract most of a scanner
+                specification out of a parser specification
+estra           Transformation of attributed trees (prototype)
+hexa            contains the scanner and parser tables of Rex and Front
+                (= front-end of Lalr and Bnf) converted from binary to
+                ascii hexadecimal representation
+bin             shell scripts (my version)
+lib             executables, table and data files (for SUN 3/SunOS 4.0)
+(mtc            Modula-2 to C translator)
+
+The names of the subdirectories indicate the following types of information:
+
+sub directory   contents
+------------------------------------------------------------------------
+src             source files in Modula-2
+m2c             source files in C (generated from the Modula-2 sources)
+c               source files in C (hand-written)
+lib             data files, module skeletons
+test            test environment for a tool
+
+
+Documentation:
+--------------
+
+The directories doc.ps and doc.me contain documentation in postscript format
+and in troff format (me macros). The document entitled "Toolbox Introduction"
+in the files intro.ps or intro.me gives an overview and introduces into the
+toolbox. It should be read first. The following documents are available:
+
+Filename        Title
+------------------------------------------------------------------------
+intro           Toolbox Introduction
+toolbox         A Tool Box for Compiler Construction
+werkzeuge       Werkzeuge fu"r den U"bersetzerbau
+reuse           Reusable Software - A Collection of Modula-2-Modules
+prepro          Preprocessors
+rex             Rex - A Scanner Generator
+scanex          Selected Examples of Scanner Specifications
+scangen         Efficient Generation of Table-Driven Scanners
+lalr-ell        The Parser Generators Lalr and Ell
+lalr            Lalr - A Generator for Efficient Parsers
+ell             Efficient and Comfortable Error Recovery in Recursive
+                   Descent Parsers
+highspeed       Generators for High-Speed Front-Ends
+autogen         Automatische Generierung effizienter Compiler
+ast             Ast - A Generator for Abstract Syntax Trees
+toolsupp        Tool Support for Data Structures
+ag              Ag - An Attribute Evaluator Generator
+ooags           Object-Oriented Attribute Grammars
+estra           Spezifikation und Implementierung der Transformation
+                   attributierter Ba"ume
+puma            Puma - A Generator for the Transformation of Attributed Trees
+trafo           Transformation of Attributed Trees Using Pattern Matching
+(minilax        Specification of a MiniLAX-Interpreter)
+(begmanual      BEG - a Back End Generator - User Manual)
+
+
+References:
+-----------
+
+1.   J. Grosch, `Generators  for  High-Speed  Front-Ends',  LNCS,
+     371, 81-92 (Oct. 1988), Springer Verlag.
+
+2.   H. Emmelmann, F. W. Schroeer, Rudolf Landwehr, ` BEG - a Generator
+     for Efficient Back Ends', Sigplan Notices, 24, 227-237 (Jul. 1989)
+
+3.   W. M. Waite, J. Grosch and F. W.  Schroeer,  `Three  Compiler
+     Specifications', GMD-Studie Nr. 166, GMD Forschungsstelle an
+     der Universitaet Karlsruhe, Aug. 1989.
+
+4.   J. Grosch,  `Efficient  Generation  of  Lexical  Analysers',
+     Software-Practice & Experience, 19, 1089-1103 (Nov. 1989).
+
+5.   J. Grosch, `Efficient and Comfortable Error Recovery in Recursive
+     Descent Parsers', Structured Programming, 11, 129-140 (1990).
+
+6.   J. Grosch, H. Emmelmann, `A Tool Box for Compiler Construction',
+     LNCS, 477, 106-116 (Oct. 1990), Springer Verlag.
+
+7.   J. Grosch, `Object-Oriented Attribute Grammars', in: Proceedings of the
+     Fifth International Symposium on Computer and Information Sciences (ISCIS V)
+     (Eds. A. E. Harmanci, E. Gelenbe), Cappadocia, Nevsehir, Turkey, 807-816,
+     (Oct. 1990).
+
+8.   J. Grosch,  `Lalr - a Generator for Efficient Parsers',
+     Software-Practice & Experience, 20, 1115-1135 (Nov. 1990).
+
+9.   J. Grosch, `Tool Support for Data Structures',
+     Structured Programming, 12, 31-38 (1991).
+
+
+Machine Dependencies:
+---------------------
+
+All machine dependent code is isolated in the file System.c which is written
+in C. This file is set up to work under UNIX. There are three copies of this
+file in the following directories:
+
+   reuse/c
+   reuse/src
+   reuse/m2c
+
+The UNIX command 'install' is used during installation. Unfortunately, this
+command is not as standard as it should be. If 'install' is missing on your
+machine or it complains about the calls then the shell script in the file
+hexa/install can simulate the desired behaviour.
+
+
+Installation:
+-------------
+
+The Makefile at the global level controls the compilation and installation
+of the individual tools. It activates the tool specific Makefiles.
+
+Several tools use binary data files called Scan.Tab and Pars.Tab whose internal
+representation depends on whether the machine is little-endian or big-endian.
+All machines store integer numbers in a sequence of bytes with increasing adresses.
+An integer number usually consists of four bytes where the bytes at both ends are
+termed most significat byte (MSB) and least significant byte (LSB). Big-endian
+machines store the MSB at the lowest address and the LSB at the highest address.
+Little-endian machines store the bytes the other way round.
+Big-endian are e. g. MC 680x0, SUN/3, SUN/4, SPARC,
+little-endian are e. g. VAX, DEC Station.
+
+Initially the binary data files are configured for big-endian machines.
+To find out in which class your machine is in execute:
+
+   make endian
+
+To convert the binary files from big-endian to little-endian or vice versa execute:
+
+   make bin.conv
+
+Edit the first couple of lines in the Makefile to accomodate your needs.
+To compile the programs execute:
+
+   make
+
+To install the programs execute:
+
+   make install
+
+
+Recent Changes
+--------------
+
+Version 9208:
+
+- The scanner generator 'rex' and the parser generators 'lalr' and 'ell'
+  allow to chose arbitrary names for the generated modules. Therefore, it is
+  possible to have several scanners and parsers in one program.
+
+- The length of a token and the lookahead in scanners generated by 'rex' is no
+  longer restricted to 256 characters. Both, tokens and lookahead can be of
+  arbitrary length. A restriction in the size of the tables generated by 'lalr'
+  has been removed. Now it is possible to generate rather huge parsers.
+
+- The attribute grammar tool 'ag' has been extended to generate attribute
+  evaluators for well-defined attribute grammars (WAGs). The program checks
+  grammars whether they obey this property. It is possible to access
+  non-local attributes and to compute attributes on a restricted form of
+  graphs.
+
+- The auxiliary modules 'Errors' and 'Source' have been included into the
+  library of reusable modules called 'reuse'. The 'Errors' module has been
+  extended to support messages with a string argument. It allows to store
+  the messages and print them sorted by the source position. An extra module
+  named 'Positions' has been introduced in 'reuse', too, for the handling of
+  source positions.
+
+- The program 'cg' which implements 'ast' and 'ag' accepts several input files.
+  Instead of one file that communicates a tree definition to 'puma' with the
+  fixed name 'TREE.TS' it is possible to produce several of those with different
+  names. This is of interest if different "views" have to be communicated.
+
+- The extern declarations for malloc, free, and exit have been removed from
+  the generated C code.
+
+- All tools do not generate # line directives by default, only upon request.
+
+- In case of fatal errors during the execution of generated modules a user
+  defined exception routine can be called instead of the predefined 'exit (1)'.
+
+Version 9202:
+
+- The Toolbox contains a new tool for the transformation of attributed trees
+  called 'puma'. It is based on pattern-matching. It replaces its predecessor
+  'estra' and comes with documentation in English.
+
+- The tool for abstract syntax trees 'ast' has been extended from single to
+  multiple inheritance. So-called "subunits" allow the implementation of one
+  abstract tree by several compilation units. The concept of "views" makes
+  it possible to derive from a common specification several abstract syntax
+  trees which represent subsets.
+
+- The attribute grammar tool 'ag' has analogously been extended to process
+  object-oriented attribute grammars with multiple inheritance. It supports the
+  generation of several attribute evaluators that run one after the other.
+
+- The error handling module for the parser generators 'lalr' and 'ell' are
+  independent of the parser module or the grammar. The manual for these parser
+  generators has been completely rewritten.
+
+- The Modula-2 to C translator 'mtc' has a new code-generator. This brings
+  big efficiency improvements: 30% smaller program, 10% faster, 75% less
+  dynamic memory consumption. It generates ANSI C as well as K&R C.
+  
+- The sources of all tools are in ANSI C as well as in K&R C.
+
+- All tools generate modules in the target languages C (ANSI + K&R), C++,
+  and Modula-2.
+
+- The interface to the operating system has been redesigned. It allows to
+  switch IO operations between UNIX system calls and C library calls.
+  This should assure much better portability.
+  
+
+
+              Compiler Construction Tool Box
+              ==============================
+
+     Rex (Regular EXpression tool) is a scanner  generator  whose
+specifications  are  based  on  regular expressions and arbitrary
+semantic actions written in one of  the  target  languages  C  or
+Modula-2.  As  scanners sometimes have to consider the context to
+unambiguously recognize a token the right context can  be  speci-
+fied by an additional regular expression and the left context can
+be handled by so-called  start  states.  The  generated  scanners
+automatically  compute the line and column position of the tokens
+and offer an efficient mechanism  to  normalize  identifiers  and
+keywords  to upper or lower case letters. The scanners are table-
+driven and run at a speed of 180,000 to 195,000 lines per  minute
+on a MC 68020 processor.
+
+     Lalr is a LALR(1) parser generator accepting grammars  writ-
+ten  in  extended BNF notation which may be augmented by semantic
+actions expressed by statements of the target language. The  gen-
+erator  provides  a  mechanism  for  S-attribution,  that is syn-
+thesized attributes can be computed during parsing.  In  case  of
+LR-conflicts  unlike  other tools Lalr provides not only informa-
+tion about an internal state consisting of a set of items but  it
+prints a derivation tree which is much more useful to analyze the
+problem. Conflicts can be resolved by specifying  precedence  and
+associativity of operators and productions. The generated parsers
+include automatic  error  recovery,  error  messages,  and  error
+repair.  The  parsers  are  table-driven  and  run  at a speed of
+560,000 lines per minute. Currently parsers can be  generated  in
+the target languages C and Modula-2.
+
+     Ell is a LL(1) parser generator accepting the same  specifi-
+cation  language  as  Lalr except that the grammars must obey the
+LL(1) property. It  is  possible  to  evaluate  an  L-attribution
+during parsing. The generated  parsers  include  automatic  error
+recovery,  error  messages,  and  error  repair  like  Lalr.  The
+parsers are implemented following the  recursive  descent  method
+and  reach a speed of 810,000 lines per minute. The possible tar-
+get languages are again C and Modula-2.
+
+Ast - A Generator for Abstract Syntax Trees
+
+- generates abstract data types (program modules) to handle trees
+- the trees may be attributed
+- besides trees graphs are handled as well
+- nodes may be associated with arbitrary many attributes of arbitrary type
+- specifications are based on extended context-free grammars
+- common notation for concrete and abstract syntax
+- as well as for attributed trees and graphs
+- an extension mechanism provides single inheritance
+- trees are stored as linked records
+- generates efficient program modules
+- generates modules in Modula-2 or C
+- provides many tree operations (procedures):
+- node constructors combine aggregate notation and storage management
+- ascii graph reader and writer
+- binary graph reader and writer
+- reversal of lists
+- top down and bottom up traversal
+- interactive graph browser
+
+Ag - An Attribute Evaluator Generator
+
+- processes ordered attribute grammars (OAGs)
+- processes higher order attribute grammars (HAGs)
+- operates on abstract syntax
+- is based on tree modules generated by Ast
+- the tree structure is fully known
+- terminals and nonterminals may have arbitrary many attributes
+- attributes can have any target language type
+- allows tree-valued attributes
+- differentiates input and output attributes
+- allows attributes local to rules
+- allows to eliminate chain rules
+- offers an extension mechanism (single inheritance)
+- attributes are denoted by unique selector names
+   instead of nonterminal names with subscripts
+- attribute computations are expressed in the target language
+- attribute computations are written in a functional style
+- attribute computations can call external functions
+- non-functional statements and side-effects are possible
+- allows to write compact, modular, and readable specifications
+- AGs can consist of several modules
+- the context-free grammar is specified only once
+- checks an AG for completeness of the attribute computations
+- checks for unused attributes
+- checks an AG for the classes SNC, DNC, OAG, LAG, and SAG
+- the evaluators are directly coded using recursive procedures
+- generates efficient evaluators
+- generates evaluators in Modula-2 (or C)
+
+Puma - Transformation Tool based on Pattern Matching
+
+- last but not least
+
+
+A comparison of the above tools with the corresponding UNIX
+tools shows that significant improvements in terms of error handling
+as well as efficiency have been achieved:
+Rex generated scanners are 4 times faster than those of LEX.
+Lalr generated parsers are 2-3 times faster than those of YACC.
+Ell generated parsers are 4 times faster than those of YACC.
+The input languages of the tools are improvements of the LEX and YACC
+inputs. The tools also understand LEX and YACC syntax with the help of
+the preprocessors l2r and y2l.
+
+The tool box is publicly copyable. It has been developed since 1987.
+It has been tested by generating scanners and parsers for
+e. g. Pascal, Modula, Oberon, Ada and found stable.
+
+The tool box is implemented in Modula-2. It has been developed using our
+own Modula-2 compiler called MOCKA on a MC 68020 based UNIX workstation.
+It has been ported to the SUN workstation and been compiled successfully
+using the SUN Modula-2 compiler. The tools also run on VAX/BSD UNIX and
+VAX/ULTRIX machines. This should assure a reasonable level of portability
+for the Modula-2 code. Meanwhile the sources exist in C, too.

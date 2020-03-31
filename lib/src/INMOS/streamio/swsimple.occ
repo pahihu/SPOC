@@ -1,0 +1,78 @@
+#OPTION "E"  -- no compliler libs
+#COMMENT "Stream i/o library, V0.01 23/12/88"
+#COMMENT "(c) Copyright INMOS Limited, 1988"
+#INCLUDE "streamio.inc"
+
+--{{{  ss.write.char
+PROC ss.write.char (CHAN OF SS scrn, VAL BYTE char)
+
+  --{{{  specification
+  -- Purpose:  To send a character to the given screen stream.
+  -- Channels: scrn - for output
+  -- In:       char - the byte to send on the channel
+  --}}}
+  -- Lines must be terminated by '*c'.
+
+  scrn ! st.out.byte; char
+:
+--}}}
+--{{{  ss.write.string
+PROC ss.write.string (CHAN OF SS scrn, VAL []BYTE str)
+
+  --{{{  specification
+  -- Purpose:  To send the given string on the given screen stream.
+  -- Channels: scrn - for output
+  -- In:       str - a string all the characters of which are sent
+  --           on scrn.
+  --}}}
+
+  scrn ! st.out.string; INT32 (SIZE str) :: str
+:
+--}}}
+--{{{  ss.write.nl
+PROC ss.write.nl (CHAN OF SS scrn)
+
+  --{{{  specification
+  -- Purpose:  To send "*c*n" on the given screen stream.
+  -- Channels: scrn - for output
+  --}}}
+  -- Notes:    *c*n is the 'newline' sequence on DOS
+
+  VAL newline.string IS "*c*n" :
+  scrn ! st.out.string; INT32(SIZE newline.string) :: newline.string
+:
+--}}}
+--{{{  ss.write.endstream
+PROC ss.write.endstream (CHAN OF SS scrn)
+
+  --{{{  specification
+  -- Purpose:  To write a st.endstream tag on the given screen stream
+  -- Channels: scrn - for output
+  --}}}
+  -- Notes:    Needed if scrn is a file interface, should be innocuous
+  --           otherwise.
+
+  scrn ! st.endstream
+:
+--}}}
+--{{{  ss.write.text.line
+PROC ss.write.text.line (CHAN OF SS scrn, VAL []BYTE str)
+
+  --{{{  specification
+  -- Purpose:  To send a text line on the given screen stream.
+  -- Channels: scrn - for output
+  -- In:       str - the string of characters to send.  This
+  --           string may be terminated by '*c' or not, but
+  --           in either case, the last two characters written
+  --           are "*c*n".
+  --}}}
+
+  SEQ
+    IF
+      ((SIZE str) > 0) AND (str[(SIZE str) - 1] = '*c')
+        ss.write.string( scrn, [str FROM 0 FOR (SIZE str) - 1] )
+      TRUE
+        ss.write.string( scrn, str )
+    ss.write.nl( scrn )
+:
+--}}}

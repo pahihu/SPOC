@@ -1,0 +1,92 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE EXP "EXP%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE EXP "EXP%f"
+#PRAGMA TRANSLATE EXPP "EXPP%f"
+#endif
+#endif
+
+REAL32 FUNCTION EXP (VAL REAL32 X)
+
+  --{{{  history
+  -- version F2.4 14-oct-87
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL REAL32 XMax RETYPES #42B17218(INT32) :
+    VAL REAL32 XMin RETYPES #42CE8ED1(INT32) :
+    VAL REAL32 InvLn2  RETYPES #3FB8AA3B(INT32) :
+    --}}}
+    IF
+      NOTFINITE (X)
+        --{{{  Infs and NaNs
+        INT order :
+        SEQ
+          order := IEEECOMPARE (X, Zero)
+          CASE order
+            less.than
+              RWork := Zero -- underflow
+            greater.than
+              RWork := RInf
+            is.nan
+              RWork := X
+        --}}}
+      TRUE
+        VAL PosX IS ABS (X) : -- not to be evaluated until certainly finite
+        IF
+          X > XMax
+            RWork := RInf
+          PosX > XMin     --  if true, X must be negative
+            RWork := Zero --  underflow to 0
+          TRUE
+            --{{{  compute rational function
+            REAL32 XWork :
+            INT32 N :
+            SEQ
+              N := INT32 ROUND (X * InvLn2)
+              XWork := REAL32 ROUND ((REAL64 X) - ((REAL64 ROUND N) * DLn2))
+              --{{{  coefficients
+              VAL A0 IS 4.1602886268E-3(REAL32) :
+              VAL A1 IS 2.4999999950E-1(REAL32) :
+              VAL B0 IS 0.5(REAL32) :
+              VAL B1 IS 4.9987178778E-2(REAL32) :
+              --}}}
+              VAL Z   IS XWork * XWork :
+              VAL GPZ IS XWork * ((Z * A0) + A1) :
+              RWork := SCALEB (B0 + (GPZ / ((B0 + (Z * B1)) - GPZ)), (INT N) + 1)
+            --}}}
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  EXPP
+REAL32 FUNCTION EXPP( VAL INT dummy, VAL INT X )
+
+  -- EXPP exists for when the FORTRAN intrinsic EXP is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to EXPP.  When EXPP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts EXPP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for EXPP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT EXP( Xtemp )
+:
+--}}}
+#endif

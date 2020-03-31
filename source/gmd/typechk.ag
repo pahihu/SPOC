@@ -1,0 +1,539 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attribute grammar for controlling type checking
+||@(#)   System : occam 2 c
+||@(#) Filename : typechk.ag
+||@(#)  Version : 1.33
+||@(#)     Date : 9/20/93
+\*@(#)====================================================*/
+/*}}}*/
+
+
+/*{{{  MODULE TypeCheck*/
+MODULE TypeCheck
+
+EVAL TypeChkAg
+
+RULE
+  Expr = { SynType := NoTree; }.
+  ExprList = { SynType := NoTree; }.
+  ChoiceList = { SynType := NoTree; }.
+  AnExpr = { SynType :- Expr:SynType; }.
+  Elemental = { SynType := NoTree; }.
+  Element = { SynType := NoTree; }.
+  TableElement = { SynType := NoTree; }.
+  StringElement = { SynType := NoTree; }.
+
+  /*{{{  specifications*/
+  Val = { CHECK (!IsChanOrTimerType(Expr:SynType)) ==> Message("Cannot VAL abbreviate a CHAN or TIMER",xxError,Pos);
+	  CHECK FALSE ==>  { SymbolType(Sym)=TypeAbbrev(Type,Expr:SynType,Pos);}; }.
+  Is = { CHECK FALSE ==>  { SymbolType(Sym)=TypeAbbrev(Type,Elemental:SynType,Pos);};
+	 CHECK (Elemental:W) ==> Message("Abbreviated element is not assignable",xxError,Pos); }.
+  Retypes = { CHECK FALSE ==> TypeCheckRetypes(SELF,Type,Elemental:SynType,Pos);
+	      CHECK (Elemental:W) ==> Message("Retyped element is not assignable",xxError,Pos); }. 
+  Reshapes = { CHECK (IsArrayType(Type) && IsArrayType(Elemental:SynType) && SameBaseType(Type,Elemental:SynType)) ==>
+		   Message("Only allowed to reshape arrays to same base type",xxError,Pos); }.
+  ValRetypes = { CHECK FALSE ==> TypeCheckRetypes(SELF,Type,Expr:SynType,Pos); }. 
+  ValReshapes = { CHECK (IsArrayType(Type) && IsArrayType(Expr:SynType) && SameBaseType(Type,Expr:SynType)) ==>
+		 Message("Only allowed to reshape arrays to same base type",xxError,Pos); }.
+  Named = {  CHECK Tree_IsType(SymbolKind(Sym),kDefAPro) ==> Message("Channel protocol not declared as a protocol",xxError,Pos); }.
+  DefAFunc = { 
+    CHECK CheckForVals(Formals) ==> Message("All formal parameters of functions must be passed by value",xxError,Pos); 
+    CHECK CheckFuncType(TypeList) ==> Message("Function returns invalid type",xxError,Pos);
+  }.
+  DefIsFunc = { CHECK FALSE ==> TypeCheckResults(TypeList,DEP(ExprList,ExprList:SynType),Pos); }.
+  DefFunc = { CHECK FALSE ==> TypeCheckResults(TypeList,Valof->\Valof.ExprList,Pos); }.
+  Decl = { CHECK CheckValidDeclType(Type) ==> Message("Invalid type for declaration",xxError,Pos); }.
+  DeclType = { CHECK CheckValidDeclType(Type) ==> Message("Invalid type for named type",xxError,Pos)
+	       CHECK CheckValidUserType(Type) ==> Message("User struct has fields of inappropriate type",xxError,Pos); }. 
+  /*}}}*/
+  /*{{{  elements*/
+  Identifier = { SynType := ((Tree_IsType(SymbolKind(Sym),kAField))?mInt():SymbolType(Sym)); }.
+  Subscript = { CHECK (ExprFieldList(Expr)!=NoTree || Tree_IsType(Expr:SynType,kInt)) ==> Message("Array subscript not of type INT",xxError,Pos);
+		CB := { CB = (ag_phase==0) \? (!Expr:C) \: CB; };  /* dont recompute on second phase */
+		SynType := TypeSubscript(Expr,Next:SynType,ExprFieldList(Expr),Pos); }.
+  Range = { CHECK Tree_IsType(From:SynType,kInt) ==> Message("Range FROM expression not of type INT",xxError,Pos);
+	    CHECK Tree_IsType(For:SynType,kInt) ==> Message("Range FOR expression not of type INT",xxError,Pos);
+	    CLB := { CLB = (ag_phase==0) \? (!From:C) \: CLB; };          /* dont recompute on second phase */
+	    CUB := { CUB = (ag_phase==0) \? (!(From:C&&For:C)) \: CUB; };  /* dont recompute on second phase */
+	    SynType := DEP(TypeRange(From,For,Next:SynType,Pos),For:C); }.
+  
+  Table = { SynType := TypeTable(ExprList,ExprList:SynType,InhType); }.
+  TableExpr = { SynType :- Expr:SynType; }.
+  TableSubscript = { SynType := TypeSubscript(Expr,Next:SynType,ExprFieldList(Expr),Expr:Pos); }.
+  
+  TableRange = { CHECK Tree_IsType(From:SynType,kInt) ==> Message("Table range FROM expression not of type INT",xxError,Pos);
+		 CHECK Tree_IsType(For:SynType,kInt) ==> Message("Table range FOR expression not of type INT",xxError,Pos);
+		 SynType := TypeRange(From,For,Next:SynType,Pos); }.
+  
+  String = { SynType := TypeString(LengthSt(Value),InheritLhsType(Type,InhType),Pos);}. 
+  
+  StringSubscript = { SynType := TypeSubscript(Expr,Next:SynType,NoTree,Pos); }.
+  StringRange = { CHECK Tree_IsType(From:SynType,kInt) ==> Message("String range FROM expression not of type INT",xxError,Pos);
+		  CHECK Tree_IsType(For:SynType,kInt) ==> Message("String range FOR expression not of type INT",xxError,Pos);
+		  SynType := TypeRange(From,For,Next:SynType,Pos); }.
+  
+  /*}}}*/
+  /*{{{  expressions*/
+  Binary = { SynType := TypeBinary(Lop:SynType,Op,Rop:SynType,Pos); }.
+  Unary = { SynType := TypeUnary(Op,Expr:SynType,Pos); }.
+  
+  Const = { SynType := InheritLhsType(Type,InhType);
+	    CHECK (!Tree_IsType(Type,kUntypedReal) || Tree_IsType(SynType,kReal)) ==> Message("Implied type of real constant not a real data type",xxError,Pos);  }.
+  UserLiteral = { SynType :- Type; }.
+  
+  Valof = { SynType := DEP(TypeExprList(ExprList),ExprList:SynType); }.
+  FuncCall = { CHECK Tree_IsType(SymbolKind(Sym),kDefAFunc) ==> Message("Not declared as a Function",xxError,Pos) ;
+	       CHECK DEP(FALSE,ExprList:SynType) ==> TypeCheckParameters(SymbolKind(Sym)->DefAFunc.Formals,ExprList,Pos,0); 
+	       CHECK (Depth>0) ==> Message("Only inline functions can be called at outermost scope",xxError,Pos) ;
+	       SynType := StripTypeList(SymbolType(Sym)); }.
+  
+  ElementalExpr = { SynType :- Elemental:SynType; }.
+  
+  Round = { SynType :- Type; 
+	    CHECK IsComputableType(Type)||Tree_IsType(Type,kReal) ==> Message("Attempted ROUND to non-numeric type",xxError,Pos) 
+	    CHECK IsComputableType(Expr:SynType)||Tree_IsType(Expr:SynType,kReal) ==> Message("Attempted ROUND of non-numeric type",xxError,Expr:Pos)
+	    CHECK Tree_IsType(Type,kReal)||Tree_IsType(Expr:SynType,kReal) ==> Message("Attempted ROUND without involving real type",xxError,Pos); }.
+  Trunc = { SynType :- Type; 
+	    CHECK IsComputableType(Type)||Tree_IsType(Type,kReal) ==> Message("Attempted TRUNC to non-numeric type",xxError,Pos) 
+	    CHECK IsComputableType(Expr:SynType)||Tree_IsType(Expr:SynType,kReal) ==> Message("Attempted TRUNC of non-numeric type",xxError,Expr:Pos)
+	    CHECK Tree_IsType(Type,kReal)||Tree_IsType(Expr:SynType,kReal) ==> Message("Attempted TRUNC without involving real type",xxError,Pos); }.
+  Convert = { SynType :- Type; 
+	      CHECK !(Tree_IsType(Type,kReal64)&&Tree_IsType(Expr:SynType,kReal)) ==>
+	      CHECK !(Tree_IsType(Type,kReal32)&&Tree_IsType(Expr:SynType,kReal32)) ==>
+	      CHECK (Tree_IsType(Type,kPrimitive)&&(!Tree_IsType(Type,kReal))) ==> Message("Attempted conversion to type other than integer, boolean or byte",xxError,Pos)
+	      CHECK (Tree_IsType(Expr:SynType,kPrimitive)&&(!Tree_IsType(Expr:SynType,kReal))) ==> Message("Attempted conversion from type other than Integer, BOOL or BYTE",xxError,Expr:Pos); }.
+  
+  MostPos = { SynType :- Type; CHECK IsComputableType(Type) ==> Message("MOSTPOS can only be applied to integer types",xxError,Pos); }.
+  MostNeg = { SynType :- Type; CHECK IsComputableType(Type) ==> Message("MOSTNEG can only be applied to integer types",xxError,Pos); }.
+  BytesIn = { SynType := mInt(); }.
+  OffsetOf = { SynType := mInt(); 
+	      CHECK (UnmappedIdentifier:Sym!=NoSymbol) ==> Message("Invalid parameters to OFFSETOF operator",xxError,Pos); }.
+  SizeOf = { SynType := mInt();  CHECK IsArrayType(Type) ==> Message("Can only apply SIZE operator to array types",xxError,Pos); }.
+  /*}}}*/
+  
+  /*{{{  processes*/
+  Assign = { CHECK CheckValofScope(Lval,VS) ==> Message("Free variable modified within VALOF",xxError,Pos);
+	     CHECK FALSE ==> DEP(DEP(TypeCheckAssign(Lval,Rval,Pos),Lval:SynType),Rval:SynType); }.
+  
+  Instance = { CHECK Tree_IsType(SymbolKind(Sym),kDefAProc) ==> Message("Identifier not declared as a procedure",xxError,Pos)
+	       CHECK DEP(FALSE,ExprList:SynType) ==> TypeCheckParameters(SymbolKind(Sym)->DefAProc.Formals,ExprList,Pos,VS); }.
+  
+  Input = { CHECK CheckValofScope(ExprList,VS) ==> Message("Free variable modified within VALOF",xxError,Pos);
+	    CHECK (!Tree_IsType(Element:SynType,kTimer)) ==> TypeCheckTimerInput(ExprList,Pos)
+	    CHECK Tree_IsType(Element:SynType,kChan) ==> Message("Attempted input on non-channel",xxError,Pos)
+	    CHECK DEP(FALSE,ExprList:SynType) ==> TypeCheckInputProtocol(Element:SynType->Chan.Protocol,ExprList,Pos); }.
+  
+  Output = { CHECK Tree_IsType(Element:SynType,kChan) ==> Message("Attempted output on non-channel",xxError,Pos)
+	     CHECK DEP(FALSE,ExprList:SynType) ==> TypeCheckOutputProtocol(Element:SynType->Chan.Protocol,ExprList,Pos); }.
+  
+  CaseIn = { CHECK Tree_IsType(T=Element:SynType,kChan) ==> Message("Attempted input on non-channel",xxError,Pos)
+	     CHECK Tree_IsType(T=T->Chan.Protocol,kNamed) ==> Message("Attempted CASE input on non-named protocol channel",xxError,Pos)
+	     CHECK Tree_IsType(T=SymbolKind(T->Named.Sym),kDefTagPro) ==> Message("Attempted CASE input on a channel which does not support a tagged protocol",xxError,Pos)
+	     CHECK FALSE ==> TypeCheckCaseInputs(T->DefTagPro.TagProList, CaseList, Pos); }.
+  
+  After = { CHECK Tree_IsType(Element:SynType,kTimer) ==> Message("Attempted delayed input on an identifier which is not a timer",xxError,Pos)
+	    CHECK Tree_IsType(Expr:SynType,kInt) ==> Message("Delayed input expression is not of type INT",xxError,Pos); }.
+  
+  While = { CHECK Tree_IsType(Expr:SynType,kBool) ==> Message("Conditional not of type BOOL",xxError,Pos); }.
+  
+  IfRep = { CHECK DEP(FALSE,ChoiceList:SynType) ==> TypeCheckIfList(ChoiceList); }.
+  
+  If = { CHECK DEP(FALSE,ChoiceList:SynType) ==> TypeCheckIfList(ChoiceList); }.
+  
+  Case = { CHECK (Tree_IsType(Selector:SynType,kInteger)||Tree_IsType(Selector:SynType,kByte)||Tree_IsType(Selector:SynType,kBool)) ==> Message ("CASE selector must be of integer or BYTE (or BOOL) type",xxError,Pos)
+	 CHECK DEP(FALSE,ChoiceList:SynType) ==> TypeCheckCaseList(Selector:SynType,ChoiceList,false); }.
+  
+  ParType = { CHECK((PType!=xxPlacedPar)||IS_Mode(xxSupportPlaced)) ==> Message("PLACED PAR not allowed",xxError,Pos); }.
+  /*}}}*/
+  Simple = { CHECK (!IsChanOrTimerType(Type)) ==> Message("CHAN and TIMER cannot be part of PROTOCOL",xxError,Pos); }.
+
+  Guard   = { CHECK Tree_IsType(Expr:SynType,kBool) ==> Message("Alternation guard is not of type boolean",xxError,Pos); }.
+  
+  Replicator = { CHECK Tree_IsType(From:SynType,kInt) ==> Message("Replicator FROM expression not of type INT",xxError,From:Pos);
+		 CHECK Tree_IsType(For:SynType,kInt) ==> Message("Replicator FOR expression not of type INT",xxError,For:Pos); }.
+
+  
+END TypeCheck
+/*}}}*/
+/*{{{  MODULE InheritType*/
+MODULE InheritType
+/* This is necessary for implicit typing of literals */
+EVAL TypeChkAg
+  
+RULE
+  /* Inheritance rules for exprlist */
+  AnExpr = { Expr:InhType := {/*NO ACTION - value filled in earlier*/}; } .
+  DefIsFunc = { ExprList:InhType := {InheritFromType(TypeList,ExprList);} ; }.
+  Instance = { ExprList:InhType :=  {InheritFromFormals(SymbolKind(Sym),ExprList);} ; }.
+  FuncCall = { ExprList:InhType :=  {InheritFromFormals(SymbolKind(Sym),ExprList);} ; }.
+  Valof = { ExprList:InhType :=  {InheritFromType(InhType,ExprList);} ;}.
+  Output = { ExprList:InhType := {InheritFromProtocol(Element:SynType,ExprList);} ; }.
+  Input = { ExprList:InhType := {InheritFromProtocol(Element:SynType,ExprList);} ; }.
+  CaseIn = { CaseList:InhType := Element:SynType; }.
+  TableExpr = { Expr:InhType :- InhType; }.
+  Table = { ExprList:InhType := {InheritFromTable(InhType,ExprList);} ;}.
+  If = { ChoiceList:InhType := NoTree; }.
+  IfRep = { ChoiceList:InhType := NoTree; }.
+  Case = { ChoiceList:InhType :- Selector:SynType; }.
+  AChoice = { ExprList:InhType := {InheritFromType(InheritLhsType(InhType,ExprList->\ExprList.DefType),ExprList);} ; }.  
+  ACase = { ExprList:InhType := {InheritFromProtocol(InhType,ExprList);} ; }.
+  Assign = { Lval:InhType := {InheritFromType(NoTree,Lval);} ;. 
+	     Rval:InhType := {InheritFromType(TypeExprList(DEP(Lval,Lval:SynType)),Rval);} ; }.
+
+  /* Inheritance rules for elements propagate NULLs for non-constant*/
+  Is = { Elemental:InhType := NoTree; }.
+  Retypes = { Elemental:InhType := NoTree; }.
+  Input = { Element:InhType := NoTree; }.
+  Output = { Element:InhType := NoTree; }.
+  CaseIn = { Element:InhType := NoTree; }.
+  After = { Element:InhType := NoTree; }.
+ 
+  /* Inheritance rules for expressions*/
+  ElementalExpr = { Elemental:InhType := { Elemental=TransformUserLiterals(InhType,Elemental); Elemental:InhType = InhType;} ; }.
+  Case = { Selector:InhType := DefaultType(Selector); }.
+  While = { Expr:InhType := mBool(); }.
+  Guard = { Expr:InhType := mBool(); }.
+  DefFunc = { Valof:InhType := TypeList; }.
+  Processor = { Expr:InhType := mInt(); }.
+  After = { Expr:InhType := mInt(); }.
+  AVal = { Expr:InhType := DefaultType(Expr); }.
+  Val = { Expr:InhType := InheritLhsType(Type,DefaultType(Expr)); }.
+  Replicator = { From:InhType := mInt(); For:InhType := mInt(); }.
+  Array = { Expr:InhType := mInt(); }.
+  Convert = { Expr:InhType := DefaultType(Expr); }.
+  Round = { Expr:InhType := DefaultType(Expr); }.
+  Trunc = { Expr:InhType := DefaultType(Expr); }.
+  Binary = { 
+    Lop:InhType := ((Tree_IsType(Op,kRelOp)) \? DefaultType(SELF) \:InhType);
+    Rop:InhType := ((Tree_IsType(Op,kShiftOp)) \? mInt() \: ((Tree_IsType(Op,kRelOp)) \? DefaultType(SELF) \:InhType)); 
+    }.
+  CountArray = { Expr:InhType := InhType; Length:InhType := {}; }.
+  StringSubscript = { Expr:InhType := mInt(); }.
+  StringRange = { From:InhType := mInt(); For:InhType := mInt(); }.
+  TableSubscript = { Expr:InhType := mInt(); }.
+  TableRange = { From:InhType := mInt(); For:InhType := mInt(); }.
+  Subscript = { Expr:InhType := mInt(); }.
+  Range = { From:InhType := mInt(); For:InhType := mInt(); }. 
+
+END InheritType
+/*}}}*/
+
+/*{{{  MODULE Writable*/
+MODULE Writable
+
+EVAL TypeChkAg
+
+RULE
+  Elemental = { W := true; }.
+
+  Element = { W := true; }.
+  Identifier = { W := CheckWritable(SymbolKind(Sym)); }.
+  Subscript = { W :- Next:W; }.
+  Range = { W :- Next:W; }.
+
+  TableElement = { W := true; }.
+  Table = { W := CheckWritableExprList(ExprList); }.
+  TableExpr = { W := false; }.
+  TableSubscript = { W :- Next:W; }.
+  TableRange = { W :- Next:W; }.
+END Writable
+/*}}}*/
+
+/*{{{  MODULE ValofScope*/
+MODULE ValofScope
+
+EVAL TypeChkAg
+
+RULE
+  Valof = { Process:VS :- VS; }.
+  Start = { Process:VS := 0; }.
+END ValofScope
+/*}}}*/
+/*{{{  MODULE TreeOrder*/
+MODULE TreeOrder
+
+EVAL TypeChkAg
+
+RULE
+  AField = {Type:VIn := 0; }.
+  Start = { Process:VIn := 0; }.
+  Simple = {Type:VIn := 0; }.
+  Counted = {Length:VIn := 0; }.
+
+END TreeOrder
+/*}}}*/
+/*{{{  MODULE ConstExpr*/
+MODULE ConstExpr
+  
+EVAL TypeChkAg
+
+RULE
+  Expr = { C := false; CV := { CV.Number = 0; }; }.
+  BytesIn = { C:= false; CV := { CV.Number = 0; }; }.
+  Const = { C := true;  CV := { 
+     if (Tree_IsType(Type,kUntypedInteger)) {
+       CV = CheckConst(Pos,SynType,Value.Number,Tree_IsType(Type,kUntypedHex));
+     } else {
+       CV = Value;
+     } 
+  } ; }.
+
+  Valof = { C := ExprList:C && (CountExprs(ExprList)==1);
+	    CV := { if (C) CV=ExprList->AnExpr.Expr->Expr.\CV; }; }.
+  MostPos = { C := IsComputableType(Type);
+	      CV := { if (C) CV.Number = EvalMostPos(Type); }; }.
+ 
+  MostNeg = { C := IsComputableType(Type);
+	      CV := { if (C) CV.Number = EvalMostNeg(Type); }; }.
+
+  Convert = { C := Expr:C && CheckConstConvert(Type);
+	      CV := { if (C) CV=EvalConstConvert(Pos,Type,Expr); else CV.Number=0;};}.
+
+  Round   = { C := Expr:C && CheckConstRoundTrunc(Type,ExprType(Expr));
+	      CV := { if (C) CV=EvalConstRound(Pos,Type,ExprType(Expr),Expr:CV); else CV.Number=0;};}.
+
+  Trunc = { C := Expr:C && CheckConstRoundTrunc(Type,ExprType(Expr));
+	      CV := { if (C) CV=EvalConstTrunc(Pos,Type,ExprType(Expr),Expr:CV); else CV.Number=0;};}.
+
+  Binary = { C :=  Lop:C && Rop:C && CheckEvalBiOp(Op,SynType) ;
+	     CV := { if (C) CV=EvalBiExpr(Pos,Lop:SynType,Lop:CV,Op,Rop:CV); else CV.Number=0; }; }.
+
+  Unary =  { C := CheckEvalUniOp(ExprType(Expr),Op,Expr);
+	     CV := { if (C) CV=EvalUniExpr(ExprType(Expr),Op,Expr); else CV.Number=0;}; }.
+  
+  ElementalExpr = { C :- Elemental:C; CV :- Elemental:CV; }.
+
+  BytesInType = { C := CheckValidDeclType(Type); 
+		  CV := { if (C) CV.Number = CalcTypeSize(Type);}; 
+		}. 
+  BytesInExpr = { C := CheckValidDeclType(Expr:SynType); 
+		  CV := { if (C) CV.Number = CalcTypeSize(Expr:SynType);}; 
+		}.   
+  SizeOf = { C := (IsArrayType(Type) && IsConstExpr(Type->Array.Expr));
+	     CV := { if (C) CV.Number = ValConstInt(Type->Array.Expr); else CV.Number=0;};
+	   }.
+  OffsetOf = { C := (UnmappedIdentifier:Sym!=NoSymbol); 
+	       CV := { if (C) CV.Number = CalcOffset(Type,SymbolKind(UnmappedIdentifier:Sym)); else CV.Number=0;};
+	   }.
+  /*{{{  Elemental*/
+  Elemental = { C := false; CV := { CV.Number = 0; }; }.
+  
+  /*{{{  Element*/
+  Element = { C := false;  CV := { CV.Number = 0; }; }.
+  
+  Identifier = { C := CheckConstId(SymbolKind(Sym));
+		 CV := {if (C) CV=EvalConstId(SymbolKind(Sym)); else CV.Number=0;};
+	       }.
+  
+  Subscript = { C := Next:C && Expr:C; 
+		CV := { if (C && !IsArrayType(SynType)) CV = EvalConstSubscript(SynType,ValConstInt(Expr),Next:CA); }; }.
+  
+  Range =     { C := Next:C && From:C && For:C; }.
+  /*}}}*/
+  
+  /*{{{  TableElement*/
+  TableElement = { C := false; }.
+  
+  Table = { C :- ExprList:C; }.
+  TableExpr = { C :- Expr:C; }.
+  
+  TableSubscript = { C := Next:C && Expr:C;
+		CV := { if (C && !IsArrayType(SynType)) CV = EvalConstSubscript(SynType,ValConstInt(Expr),Next:CA); }; }.
+  
+  TableRange = { C := Next:C && From:C && For:C; }.
+  
+  
+  /*}}}*/
+  /*}}}*/
+				      
+  /*{{{  StringElement*/
+  StringElement = { C := false; }.
+  
+  String = { C := true;
+	     CV := { CV.Number = 0; }; }.
+  
+  StringSubscript = { C := Next:C && Expr:C;
+		CV := { if (C && !IsArrayType(SynType)) CV = EvalConstSubscript(SynType,ValConstInt(Expr),Next:CA); }; }.
+  
+  StringRange = { C := Next:C && From:C && For:C; }.
+  /*}}}*/
+
+  ExprList = { C := true; }.
+  AnExpr   = { C := Next:C && Expr:C; }.
+  NoExpr   = { C := true; }.
+END ConstIntExpr
+/*}}}*/
+/*{{{  MODULE ConstArray*/
+MODULE ConstArray
+
+EVAL TypeChkAg
+
+RULE
+  /*{{{  Elemental*/
+  Elemental = { CA := NoConstArray; }.
+  
+  /*{{{  Element*/
+  Element = { CA := NoConstArray; }.
+  
+  Identifier = { CA := { if (C && !IsScalarType(SynType)) CA = ConstArrayFromDecl(SynType,SymbolKind(Sym)); else CA = NoConstArray; }; }.
+  
+  Subscript = { CA := { if (C && !IsScalarType(SynType)) CA = SubscriptConstArray(SynType,Next:CA,Expr,Next:SynType); else CA = NoConstArray; }; }.
+  
+  Range = { CA := { if (C) CA = RangeConstArray(SynType,Next:CA,ValConstInt(From)); else CA = NoConstArray; }; }.
+  
+  /*}}}*/
+  
+  /*{{{  TableElement*/
+  TableElement = { CA := NoConstArray; }.
+  
+  Table = { CA := { if (C) CA = ConstArrayFromExprList(SynType,ExprList); else CA = NoConstArray; }; }.
+  TableExpr = { CA := { if (C) Message("Constant TableExpr not implemented",xxError, Pos); }; }.
+  TableSubscript = { CA := { if (C) CA = SubscriptConstArray(SynType,Next:CA,Expr,Next:SynType); else CA = NoConstArray; }; }.
+  
+  TableRange = { CA := { if (C) CA = RangeConstArray(SynType,Next:CA,ValConstInt(From)); else CA = NoConstArray; }; }.
+  
+  /*}}}*/
+  
+  /*}}}*/
+				      
+  /*{{{  StringElement*/
+  StringElement = { CA := NoConstArray; }.
+  
+  String = { CA := { if (C) CA = ConstArrayFromString(SynType,Value); else CA = NoConstArray; }; }.
+  
+  StringSubscript = { CA := NoConstArray; }.
+  
+  StringRange = { CA := { if (C) CA = RangeConstArray(SynType,Next:CA,ValConstInt(From)); else CA = NoConstArray; }; }.
+  
+  /*}}}*/
+
+END ConstArray
+/*}}}*/
+/*{{{  MODULE SimplifyElements*/
+MODULE SimplifyElements
+
+EVAL TypeChkAg
+
+RULE
+  Is = { CHECK DEP(FALSE,Elemental:SynType) => { Elemental = ReduceElemental(Elemental);}; }.
+  Retypes = { CHECK DEP(FALSE,Elemental:SynType) => { Elemental = ReduceElemental(Elemental);}; }.
+  ElementalExpr = { CHECK DEP(FALSE,Elemental:SynType) => { Elemental = ReduceElemental(Elemental);}; }.
+  Input = { CHECK DEP(FALSE,Element:SynType) => { Element = ReduceElement(Element,NoTree);}; }.
+  Output = { CHECK DEP(FALSE,Element:SynType) => { Element = ReduceElement(Element,NoTree);}; }.
+  CaseIn = { CHECK DEP(FALSE,Element:SynType) => { Element = ReduceElement(Element,NoTree);}; }.
+  After = { CHECK DEP(FALSE,Element:SynType) => { Element = ReduceElement(Element,NoTree);}; }.
+END SimplifyElements
+/*}}}*/
+/*{{{  MODULE MarkUsed*/
+MODULE MarkUsed
+
+EVAL TypeChkAg
+
+RULE
+  OffsetOf = {UnmappedIdentifier:U := xxUsed;}.
+  Is = {Elemental:U := xxUsed;}.
+  Retypes = {Elemental:U := xxUsed;}.
+  ElementalExpr = {Elemental:U := xxUsed;}.
+  Input  = { Element:U := xxInput;}.
+  CaseIn = { Element:U := xxInput;}.
+  After  = { Element:U := xxInput;}.
+  Output = { Element:U := xxOutput; }.
+  
+  Subscript = { Next:U :- U; }.
+  Range = { Next:U :- U; }.
+  Identifier = { CHECK DEP(FALSE,FLOut) => UpdateElementalUsage(SELF,U); }.
+
+  DefAProc = { U := xxUnused; Formals:InPrototype := false;}.
+  PrototypeProc = { Formals:InPrototype := true; }.
+  DefAFunc = { U := xxUnused; Formals:InPrototype := false; }.
+  AFormal = { U := {
+		     if (InPrototype)
+		     {
+		       if (MakeIdent("out",3)==Symbol(Sym).Id) U=xxOutput;
+		       if (MakeIdent("in",2)==Symbol(Sym).Id) U=xxInput;
+		     }
+		     else 
+		       U=xxUnused;
+		   }; }.
+  AnId = { U := xxUnused; }.
+  Is = { U :=xxUnused; }.
+
+  FuncCall = { CHECK DEP(FALSE,SpecList) => { SymbolKind(Sym)->DefAFunc.\U=xxUsed; }; }.
+  Instance = { CHECK DEP(FALSE,SpecList) => { SymbolKind(Sym)->DefAProc.\U=xxUsed; }; }.
+END MarkUsed
+/*}}}*/
+/*{{{  MODULE MarkTempRequired*/
+MODULE MarkTempRequired
+
+EVAL TypeChkAg
+
+RULE
+  ExprList = { TR := false; }.
+  NoExpr = { TR := false; }.
+  AnExpr = { TR := { TR = (ag_phase==0)? !(Tree_IsType(Next,kNoExpr)||Expr:C) : TR;};  }.
+END MarkTempRequired 
+
+
+
+/*}}}*/
+/*{{{  MODULE AtomicProcesses*/
+MODULE AtomicProcesses
+
+EVAL
+
+RULE
+  Process    = { ATOMIC := false; } .
+  ChoiceList = { ATOMIC := false; } .
+  ProcList   = { ATOMIC := false; } .
+  AltType    = { ATOMIC := false; } .
+
+  Assign    = { ATOMIC := true; } .
+  CCode     = { ATOMIC := true; } .
+  Alt       = { ATOMIC := false; } .
+  AltRep    = { ATOMIC := false; } .
+  Input     = { ATOMIC := !IsChanType(Element:SynType); } .
+  Output    = { ATOMIC := false; } .
+  CaseIn    = { ATOMIC := false; } .
+  After     = { ATOMIC := false; } .
+  Par       = { ATOMIC := false; } .
+  ParRep    = { ATOMIC := false; } .
+  Seq       = { ATOMIC := ProcList:ATOMIC; } .
+  SeqRep    = { ATOMIC := Process:ATOMIC; } .
+
+  If        = { ATOMIC := ChoiceList:ATOMIC;
+		CHECK (ATOMIC) ==> MarkNonAtomicIf(SELF);
+	      }.
+  IfRep     = { ATOMIC := ChoiceList:ATOMIC;
+		CHECK (ATOMIC) ==> MarkNonAtomicIf(SELF);
+	      }.
+
+  Case      = { ATOMIC := ChoiceList:ATOMIC; } .
+  While     = { ATOMIC := Process:ATOMIC; } .
+
+  Skip      = { ATOMIC := true; } .
+  Stop      = { ATOMIC := true; } .
+
+  Instance  = { ATOMIC := IsAtomicProc(Symbol(Sym).Kind); } .
+
+  NoProcess = { ATOMIC := true; } .
+  AProcess  = { ATOMIC := (Next:ATOMIC && Process:ATOMIC); } .
+
+  NoChoice  = { ATOMIC := true; } .
+  AChoice   = { ATOMIC := (Next:ATOMIC && Process:ATOMIC); } .
+  ANewIf    = { ATOMIC := (Next:ATOMIC && IfType:ATOMIC); } .
+
+  DefProc   = { ATOMIC := Process:ATOMIC; } .
+  DefFunc   = { ATOMIC := true; } .
+  DefIsFunc = { ATOMIC := true; } .
+
+  Valof     = { CHECK (Process:ATOMIC) ==> Message("Function process must be atomic",xxError,Pos); }.
+
+END AtomicProcesses
+/*}}}*/
+

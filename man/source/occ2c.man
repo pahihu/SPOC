@@ -1,0 +1,228 @@
+.TH occ2C 1 "1st March 1994" "SPOC Tools V1.1" "SPOC Tools"
+
+.SH NAME
+occ2c \- Translator from Occam Source into C 
+.SH SYNOPSIS
+.B occ2c [options] file 
+.br
+.br
+Options: [\-dghHilsuvw] [\-o <file>] [\-m[acefilmnprvw]] [\-e[s|t|c] [[\-t<number>] [\-p[acopts]] [\-z[cdelnqstvx]]
+
+.SH DESCRIPTION
+
+This manual page documents versions 0.9b and later of
+.B occ2c,
+the Occam to C translator of the
+.B SPOC (Southampton Portable Occam Compilation) system. 
+The standard action of the command
+
+.B occ2c <file>.occ
+
+is to take the occam program contained in
+.I <file>.occ
+and produce an ANSI C version of the program in 
+.I <file>.c
+The default settings of all the various options can be seen with the 
+.B -h
+option.
+
+.br
+The translation system internally consists of several phases:
+.br
+    Lexical Analysis and Parsing
+.br
+    Type Checking
+.br
+    Attribute evaluation
+.br
+    Code Transformation
+.br
+    Code Generation.
+.br
+
+.SH TRANSLATION AND COMPILATION
+
+An Occam program consists of a number of code modules and libraries.
+The outer-level code module (main module) may reference any number of
+library units, which can be sub-modules of the same program, or actual
+libraries.
+
+.SH ENVIRONMENT
+
+.B occ2c
+requires a number of predefined header and template files to be
+available, both for internal usage, and for include and library files.
+The defaults for these files are located through the
+.I SPOC
+environment variable which should be directed towards the root
+directory of the compiler installation.
+These files can be superceded either by placing them in
+the current working directory or by adding an
+.I OSEARCH
+environment variable containing a sequence of space-seperated
+paths, each terminated by a slash. The search order is current working
+directory, left to right through the directies listed in 
+.I OSEARCH
+and finally default locations relative to the
+.I SPOC
+environment variable.
+
+.SH GENERAL OPTIONS
+
+.TP
+.I "\-d"
+Enable inline C directives in the Occam source. These are generally
+used in library files for access to host i/o facilities. There are two 
+directives, 
+
+.I #H <line_of_C_code> 
+
+which is only allowed at the outermost level (typically for include C header files) and
+
+.I #C <line_of_C_code>
+
+which is valid anywhere an occam process is allowed.  Simple occam variables
+can be used within the C code by prefixing them with a \$.
+
+.TP
+.I "\-o <file>"
+Outputs the generated C code to the 
+.I <file>,
+the filename \- can be used direct the code to standard out.
+
+.TP
+.I "\-s"
+This option forks off an SP server as a separate Unix process which talks
+SP protocol via a socket to the SP channels passed in to the top
+of an application. This gives full inmos iserver compatibility but degrades IO
+performance and introduces a dependence on the proprietary Inmos libraries.
+When used versions of the spserver.lib and the associated proprietary Inmos 
+libraries MUST APPEAR on the OSEARCH path.
+
+.TP
+.I "\-t<number>"
+Sets tab to be equivalent to
+.I <number>
+spaces, the default is 8. If no number is supplied then the option toggles
+whether tabs are allowed in the occam source at all.
+
+.TP
+.I "\-u"
+Generates warnings for usage violations, rather than errors. This
+allows translation to continue to code generation, despite the presence
+of a range of errors including parallel usage errors (such as writing
+to a variable in multiple parallel threads) and alias errors (such as
+writing to an abbreviated variable/array).
+
+.TP
+.I "\-v"
+Generate verbose translation information, including the translator
+version and build date, and messages describing the various translation
+phases as they are performed.
+
+.TP
+.I "\-w"
+Suppress warning messages. No warning messages will be displayed, only errors.
+
+.SH CODE GENERATION OPTIONS
+
+.TP
+.I "\-e[s|t|c]"
+.B Select error mode. Occam programs handle errors in one of three
+ways, either  ignoring the error, stopping the erroneous process, or
+terminating the application. The error mode is selected by a suffix
+letter:
+.br
+    s \- Stop process on error
+.br
+    t \- Terminate application on error (the default)
+.br
+    c \- Continue on error (ignore errors)
+.br
+
+.TP
+.I "\-g"
+Enable source level Occam debugging.
+
+.TP
+.I "\-l"
+Enable/Disable generation of library units (as opposed to a main module).
+.TP
+.I "\-m"
+Change code generation mode, suffixed by any combination of:
+.br
+    a - disable Array checks
+.br
+    c - disable Conversion checks
+.br
+    f - enable calls to NAG F90
+.br
+    m - enable coMmunication checks
+.br
+    r - disable Range checks
+.br
+    n - disable generatation of occam line Numbers
+.br
+    e - does all RETYPE constant folding assuming a target of OPPOSITE
+endianness to the machine running the compiler.
+.br
+    i - generate target independent code to perform RETYPES at run-time
+.br 
+    l - enable INT64 support by using GNU C's 
+.I long long 
+data type.
+.br 
+    w - use default INT size of 16-bit. BEWARE code generated this
+way CANNOT be used with any modules/libraries compiled for 32-bits.
+.br
+    p - enable PLACED PAR support
+.br
+    v - enable free variable access from within PLACED PAR
+
+.SH INTERNAL TRANSLATOR DEBUGGING OPTIONS
+
+.TP
+.I "\-i"
+Enable / Disable automatic inclusion of standard Occam intrinsic
+function library. This option is enabled by default, but must be
+disabled to compile the intrinsic library itself.
+
+.TP
+.I "\-p
+Control internal compilation phases. Suffix by any combination of: 
+.br
+    a - disable c output Attribute calculations
+.br
+    c - disable c code generation
+.br
+    o - enable occam code generation (to standard out) 
+.br
+    p - disable parallel usage Attribute calculations
+.br
+    t - disable typecheck Attribute calculations
+.br
+    s - disable code Simplification/transformation
+
+.TP
+.I "\-z"
+Enable/Disable internal debugging options, suffix by any combination of:
+.br
+    c - Enable CodeGenerator Debugging
+.br
+    d - Debug parser
+.br
+    e - Sort error messages (enabled by default)
+.br
+    l - Lex only
+.br
+    n - output Occam line numbers as comments within generated C
+.br
+    q - Query syntax tree
+.br
+    s - show Symbol table
+.br
+    t - show abstract syntax Tree
+.br
+    v - show variable declaration details
+.br
+    x - leXical debug

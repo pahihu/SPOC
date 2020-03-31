@@ -1,0 +1,467 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attribute grammar for parallel usage checking
+||@(#)   System : occam 2 c
+||@(#) Filename : parusage.ag
+||@(#)  Version : 1.31
+||@(#)     Date : 11/26/93
+\*@(#)====================================================*/
+/*}}}*/
+
+/*{{{  MODULE ParallelUsage*/
+MODULE ParallelUsage
+/*{{{  about*/
+/*
+This module traverse the program calling the appropriate primtitives to perform
+the usage checking. The core of the usage checking is performed by the following
+routines:
+
+CreateUsage   : This creates a new structure for collecting usage information.
+AddWriteUsage : Adds a Write access on an element to a usage struct. The
+		function returns true if the access is distinct from all the other usages
+		collected.
+AddReadUsage  : Adds a Read access on an element to a usage struct. The
+		function returns true if the access is distinct from all the other usages
+		collected.
+CombineUsage  : Merges the second specified Usage structs into the first and returns
+		a pointer to the first. All symbols at a symbol table depth greater than that passed
+		in are discarded.
+CheckUsage    : Merges the second specified Usage structs into the first and returns
+		a pointer to the first. All symbols at a symbol table depth greater than that passed
+		in are discarded. If the Usage structs are not disjoint then error messages are generated.
+
+Other routines perform the following tasks.
+
+CheckRepUsage : Performs Replicated Par usage checking the Usage struct. Ignoring all
+		symbols below a specified depth.
+
+CombineFuncUsage : As CombineUsage but picks up parameters from tree.
+
+AllowNoAbbrevInProc : At a procedure instance checks that any storage elements that have been abbreviated
+		since declaration of a procedure are not accessed by that procedure.
+
+This module is independent of their implementation.
+
+The PAR attribute marks ExprLists (in multi-value assignmments) and ProcLists
+(in PAR threads) as being PARALLEL.
+
+*/
+/*}}}*/
+
+EVAL ParUsageAg
+
+/*{{{  GLOBAL*/
+GLOBAL
+{
+  #define IsMVAssign(EL) (Tree_IsType(EL->AnExpr.Next,kAnExpr))
+  #define BIGDEPTH 10000
+}
+/*}}}*/
+/*{{{  BEGIN*/
+BEGIN
+{
+  BeginParUsage();
+}
+/*}}}*/
+/*{{{  CLOSE*/
+CLOSE
+{
+  CloseParUsage();
+}
+/*}}}*/
+
+RULE
+  /*{{{  Start = */
+  Start = 
+  { 
+    Process:PUIn := CreateUsage(Process:Pos); 
+  }.
+  /*}}}*/
+  /*{{{  Seq = */
+  Seq = 
+  { 
+    ProcList:PAR := false; 
+  }.
+  /*}}}*/
+  /*{{{  Par = */
+  Par = 
+  { 
+    ProcList:PAR := true;
+    PUOut := CombineUsage(PUIn,ProcList:PUOut,BIGDEPTH); 
+  }.
+  /*}}}*/
+  /*{{{  ParRep = */
+  ParRep = 
+  { 
+    Process:PUIn := DEP(CreateUsage(Pos),Replicator:PUOut); 
+    PUOut := CheckRepUsage(PUIn, Process:PUOut, Replicator,Pos, Symbol(Sym).Depth);
+  }.
+  /*}}}*/
+  /*{{{  UserLiteral =*/
+  UserLiteral =
+  {
+    ExprList:PAR := false;
+  }.
+  /*}}}*/
+  /*{{{  AProcess =*/
+  AProcess =
+  { 
+    Process:PUIn := (PAR) ? CreateUsage(Pos) : Next:PUOut; 
+    PUOut := (PAR) ? CheckUsage(Next:PUOut,Process:PUOut,Process:Pos,Symbol(Sym).Depth) : Next:PUOut; 
+  }.
+  /*}}}*/
+  /*{{{  NoProcess = */
+  NoProcess = 
+  { 
+    PUOut := (PAR) ? CreateUsage(Pos) : PUIn;
+  }.
+  /*}}}*/
+  /*{{{  DefProc = */
+  DefProc = 
+  { 
+    Process:PUIn := DEP(CreateUsage(Pos),Formals:PUOut);
+    PUOut := CombineUsage(PUIn,Process:PUOut,Symbol(Sym).Depth);
+  }.
+  /*}}}*/
+  /*{{{  DefFunc =*/
+  DefFunc =
+  {
+    Valof:PUIn := DEP(CreateUsage(Pos),Formals:PUOut);
+    PUOut := CombineUsage(PUIn,Valof:PUOut,Symbol(Sym).Depth);
+  }.
+  /*}}}*/
+  /*{{{  DefIsFunc =*/
+  DefIsFunc =
+  {
+    ExprList:PUIn := DEP(CreateUsage(Pos),Formals:PUOut);
+    PUOut := CombineUsage(PUIn,ExprList:PUOut,Symbol(Sym).Depth);
+  }.
+  /*}}}*/
+
+  /*{{{  Valof = */
+  Valof = 
+  { 
+    SpecList:PUIn := DEP(CreateUsage(Pos),PUIn); 
+    PUOut := CombineUsage(PUIn,ExprList:PUOut,SELF->\Valof.\VS); 
+  }.
+  /*}}}*/
+  /*{{{  Is = */
+  Is = 
+  { 
+    Elemental:PUIn := DEP(CreateUsage(Pos),PUIn);
+    PUOut := (AddWriteUsage(Elemental:PUOut,Elemental),CombineUsage(PUIn,Elemental:PUOut,BIGDEPTH));
+  }.
+  /*}}}*/
+  /*{{{  Retypes = */
+  Retypes = 
+  { 
+    Elemental:PUIn := DEP(CreateUsage(Pos),PUIn); 
+    PUOut := (AddWriteUsage(Elemental:PUOut,Elemental),CombineUsage(PUIn,Elemental:PUOut,BIGDEPTH)); 
+  }.
+  /*}}}*/
+  /*{{{  Val = */
+  Val = 
+  { 
+    Expr:PUIn := DEP(CreateUsage(Pos),PUIn); 
+    PUOut := CombineUsage(PUIn,Expr:PUOut,BIGDEPTH); 
+  }.
+  /*}}}*/
+  /*{{{  ValRetypes = */
+  ValRetypes = 
+  { 
+    Expr:PUIn := DEP(CreateUsage(Pos),PUIn); 
+    PUOut := CombineUsage(PUIn,Expr:PUOut,BIGDEPTH); 
+  }.
+  /*}}}*/
+  /*{{{  Table = */
+  Table = 
+  { 
+    ExprList:PUIn:=CreateUsage(Pos); 
+    PUOut:= { PUOut = (PUIn==NoParUsage)?NoParUsage \: CombineUsage(PUIn,ExprList:PUOut,BIGDEPTH); } ; 
+  }.
+  /*}}}*/
+  /*{{{  Assign = */
+  Assign = 
+  { 
+    Lval:PAR := true; 
+    Rval:PAR:=false; 
+    Rval:PUIn := DEP(CreateUsage(Pos),SpecList:PUOut); 
+    Lval:PUIn := Rval:PUOut;
+    PUOut := CombineUsage(SpecList:PUOut,Lval:PUOut,BIGDEPTH);
+  }.
+  /*}}}*/
+  /*{{{  Instance = */
+  Instance = 
+  { 
+    ExprList:PAR := true;
+    ExprList:PUIn := DEP(CreateUsage(Pos),SpecList:PUOut);
+    PUOut := 
+    {
+      if (Tree_IsType(SymbolKind(Sym),kDefProc)) 
+      {
+	AllowNoAbbrevInProc(Sym,Scope, SymbolKind(Sym)->DefProc.Process->Process.\PUOut,Pos);
+	PUOut = CheckUsage(ExprList:PUOut,SymbolKind(Sym)->DefProc.Process->Process.\PUOut,Pos,Symbol(Sym).Depth);
+      } ; 
+      PUOut = CombineUsage(SpecList:PUOut,ExprList:PUOut,BIGDEPTH); 
+    }; 
+  }. 
+  /*}}}*/
+  /*{{{  ElementalExpr = */
+  ElementalExpr = 
+  {
+    PAR := {};
+    CHECK (LV) => AddReadUsage(PUOut, Elemental)
+    CHECK (AddWriteUsage(PUIn,Elemental)||(!PAR)) => Message("Violation of occam usage rules",(IS_Mode(xxUsageWarnings))?xxWarning\:xxError,Elemental:Pos);
+  }.
+  /*}}}*/
+  /*{{{  AnExpr = */
+  AnExpr = 
+  { 
+    CHECK !(LV && AddReadUsage(PUOut,Expr->ElementalExpr.Elemental)) => { TempRequired(SELF)=false;}; 
+  }.
+  /*}}}*/
+  /*{{{  Unary = */
+  Unary = 
+  { 
+    Expr:PUIn := 
+    { 
+      if (Tree_IsType(Op,kSize)) 
+	Expr:PUIn=NoParUsage;
+      else
+	Expr:PUIn=PUIn; 
+    }; 
+    PUOut := 
+    { 
+      if (Tree_IsType(Op,kSize))
+	PUOut=PUIn;
+      else
+	PUOut=Expr:PUIn;
+    };
+  }.
+  /*}}}*/
+
+  AnElement = { Element:PUIn := { Message("internal error- traversed AnElement node",xxFatal,Element:Pos); };}.
+  FuncCall = { PUOut := CombineFuncUsage(PUIn,SymbolKind(Sym)); }.
+  Input = { CHECK AddWriteUsage(ExprList:PUOut,Element)=>{}; }.
+  Output = { CHECK AddWriteUsage(ExprList:PUOut,Element)=>{}; }.
+  CaseIn = { CHECK AddWriteUsage(CaseList:PUOut,Element)=>{}; }.
+  After = { CHECK AddWriteUsage(Expr:PUOut,Element)=>{}; }.
+
+  DefIsFunc = { ExprList:PAR := false; }.
+  Valof = { ExprList:PAR := false; }.
+  Table = { ExprList:PAR := false; }.
+  FuncCall = { ExprList:PAR := false; }.
+  Input = { ExprList:PAR := false; }.
+  Output = { ExprList:PAR := false; }.
+  AChoice = { ExprList:PAR := false; }.
+  ACase = { ExprList:PAR := false; }.
+END ParallelUsage
+/*}}}*/
+/*{{{  MODULE LValues*/
+MODULE LValues
+/*{{{  about*/
+/*
+This module propagates the boolean attribute LV. The attribute is asserted if the
+node appears on the left hand side of an assignment (either explicitly or through
+a pass by reference or IS abbreviation).
+
+ExprList LV propagation is done through a trafo routine AddLValues(ExprList,bool,bool).
+The first boolean is the LV value to be propagated, the second is the PAR value
+to be propagated. The empty AnExpr rule prevents the values assigned
+by this function being overwritten. 
+
+AddInstanceLValues propagates the LV attribute through the parameters of any
+procedure calls according to whther they are passed by refernce or value.
+*/
+/*}}}*/
+RULE
+  Assign = { Lval:LV := {AddLValues(Lval,true,true);}; Rval:LV := {AddLValues(Rval,false,false);}; }.
+
+  AVal = { Expr:LV := false; }.
+  Is = { Elemental:LV := true; }.
+  Retypes = { Elemental:LV := true; }.
+  Processor = { Expr:LV := false; }.
+
+  DefIsFunc = { ExprList:LV := {AddLValues(ExprList,false,false);}; }.
+  Replicator = { From:LV := false; For:LV := false; }.
+  Array = { Expr:LV := false; }.
+  Subscript = { Expr:LV := false; }.
+  Range = { From:LV := false; For:LV := false; }.
+
+  Table = { ExprList:LV := {AddLValues(ExprList,LV,LV);}; } .
+  TableSubscript = { Expr:LV := false; }.
+  TableRange = { From:LV := false; For:LV := false; }.
+
+  StringSubscript = { Expr:LV := false; }.
+  StringRange = { From:LV := false; For:LV := false; }.
+
+  Input = { Element:LV := true; ExprList:LV := {AddLValues(ExprList,true,false);}; }.
+  Output = { Element:LV := true; ExprList:LV := {AddLValues(ExprList,false,false);}; }.
+  After = { Element:LV := true; Expr:LV := false; }.
+  CaseIn = { Element:LV := true; }.
+  Case = { Selector:LV := false; }.
+  While = { Expr:LV := false; }.
+  Instance = { ExprList:LV := {AddInstanceLValues(SymbolKind(Sym)->DefAProc.Formals,ExprList);}; }.
+  FuncCall = { ExprList:LV := {AddLValues(ExprList,false,false);}; }.
+
+  DefFunc = { Valof:LV := false; }.
+  Guard   = { Expr:LV := false; }.
+  AChoice = { ExprList:LV := {AddLValues(ExprList,false,false);}; }.
+  ACase = { ExprList:LV := {AddLValues(ExprList,false,false);}; }.
+
+  AnExpr = { Next:LV := {}; }.
+  AnElement = { Element:LV := {}; }.
+
+END LValues
+    
+  
+/*}}}*/
+/*{{{  MODULE SimpleExpr*/
+MODULE SimpleExpr
+/*{{{  about*/
+/*
+This module traverses expressions asserting SE for any expressions
+which it considers simple.  The current definition of "simple"
+is that an expression must be constant or a linear combination
+of replicator expressions.  
+However, this module is completely abstracted from SE's definition which
+is specified in the parusage.trafo module.
+*/
+/*}}}*/
+EVAL
+
+RULE
+  Array = { SE := CheckSimpleExpr(Expr); }.
+
+  Elemental = { SE := false ; }.
+
+  Element = { SE := false ; }.
+  Identifier = { SE := false; }.
+  Range = { SE := CheckSimpleExpr(From) && CheckSimpleExpr(For); }.
+  Subscript = {  SE := CheckSimpleExpr(Expr); }.
+
+  StringElement = { SE := false; }.
+  String = { SE := CheckSimpleExpr(ExprType(SELF)->Array.Expr); }.
+  StringRange = { SE := CheckSimpleExpr(ExprType(SELF)->Array.Expr); }. 
+  StringSubscript = {  SE := CheckSimpleExpr(Expr); }.
+
+  TableElement = { SE := false; }.
+  UserLiteral = { SE := false; }.
+  Table = { SE := (Tree_IsType(ElementalType(SELF),kArray)) ? CheckSimpleExpr(ElementalType(SELF)->Array.Expr) : false; }.
+  TableRange = { SE := CheckSimpleExpr(From) && CheckSimpleExpr(For); }.
+  TableSubscript = {  SE := CheckSimpleExpr(Expr); }.
+
+  Replicator = { SE := CheckSimpleExpr(From) && CheckSimpleExpr(For); }.
+END SimpleExpr
+/*}}}*/
+/*{{{  MODULE LinearExpressions*/
+MODULE LinearExpressions
+/*{{{  about*/
+/*
+Having determined that particular expressions are simple
+using the SimpleExpr module this module stores the Simple expressions
+in a standard form referred to as a LinExpr and defined in Omega.h.
+
+The module also makes use of the LinExpr information to perform
+additional range checks on subscipts and array slices.
+*/
+/*}}}*/
+EVAL
+
+BEGIN
+{
+  InitOmega();
+}
+
+RULE
+  Array = { LE := (SE) ? CreateLinExpr(Expr):NULL; } .
+  /*{{{  Replicator = */
+  Replicator = 
+  { 
+    FromLE := (SE)?CreateLinExpr(From):NULL; 
+    ForLE := (SE)?CreateLinExpr(For):NULL; 
+  }.
+  /*}}}*/
+  /*{{{  Range =*/
+  Range = 
+  { FromLE := (SE)?CreateLinExpr(From):NULL; ForLE := (SE)?CreateLinExpr(For):NULL; 
+    CHECK DEP(false,Next:SE) ==> TransferLinExpr(ElementType(SELF),ForLE,SE) ;
+    CHECK (!SE) ==> RangeCheckLinExpr(SELF,FromLE,ForLE,ElementType(Next));
+  }.
+  /*}}}*/
+  /*{{{  Subscript = */
+  Subscript = 
+  { 
+    LE := (SE) ? CreateLinExpr(Expr):NULL; 
+    CHECK DEP(!(SE && !IsConstInt(Expr)),Next:SE) ==> SubscriptCheckLinExpr(SELF,LE,ElementType(Next));
+  }.
+  /*}}}*/
+  /*{{{  String =*/
+  String =
+  {
+    LE := (SE) ? CreateLinExpr(ExprType(SELF)->Array.Expr):NULL;
+    CHECK false ==> TransferLinExpr(ExprType(SELF),LE,SE);
+  }.
+  /*}}}*/
+  /*{{{  StringRange = */
+  StringRange = 
+  { FromLE := (SE)?CreateLinExpr(From):NULL; ForLE := (SE)?CreateLinExpr(For):NULL; 
+    CHECK DEP(false,Next:SE) ==> TransferLinExpr(ExprType(SELF),ForLE,SE);
+    CHECK (!SE) ==> RangeCheckLinExpr(SELF,FromLE,ForLE,ExprType(Next));
+  }.
+  /*}}}*/
+  /*{{{  StringSubscript = */
+  StringSubscript = 
+  { 
+    LE := (SE) ? CreateLinExpr(Expr):NULL; 
+    CHECK DEP(!(SE && !IsConstInt(Expr)),Next:SE) ==> SubscriptCheckLinExpr(SELF,LE,ExprType(Next));
+  }.
+  /*}}}*/
+  /*{{{  Table = */
+  Table = 
+  { 
+    LE := (SE) ? CreateLinExpr(ElementalType(SELF)->Array.Expr):NULL;
+    CHECK DEP(false,ExprList:LV) ==> TransferLinExpr(ElementalType(SELF),LE,SE);
+  }.
+  /*}}}*/
+  /*{{{  TableRange = */
+  TableRange = 
+  { FromLE := (SE)?CreateLinExpr(From):NULL; ForLE := (SE)?CreateLinExpr(For):NULL; 
+    CHECK DEP(false,Next:SE) ==> TransferLinExpr(ElementalType(SELF),ForLE,SE);
+    CHECK (!SE) ==> RangeCheckLinExpr(SELF,FromLE,ForLE,ElementType(Next));
+  }.
+  /*}}}*/
+  /*{{{  TableSubscript = */
+  TableSubscript = 
+  { 
+    LE := (SE) ? CreateLinExpr(Expr):NULL; 
+    CHECK DEP(!(SE && !IsConstInt(Expr)),Next:SE) ==> SubscriptCheckLinExpr(SELF,LE,ElementType(Next));
+  }.
+  /*}}}*/
+ 
+END LinearExpressions
+/*}}}*/
+
+MODULE ReverseLink
+
+EVAL
+
+RULE
+  Is = { Elemental:RVL := NoTree; }.
+  Retypes = { Elemental:RVL := NoTree; }.
+  ElementalExpr = { Elemental:RVL := NoTree; }.
+  TableSubscript = { Next:RVL := SELF; }.
+  TableRange = { Next:RVL := SELF; }.
+  ElementAccess = { Next:RVL := SELF; }.
+  Input = { Element:RVL := NoTree; }.
+  Output = { Element:RVL := NoTree; }.
+  CaseIn = { Element:RVL := NoTree; }.
+  After = { Element:RVL := NoTree; }. 
+  OffsetOf = { UnmappedIdentifier:RVL := NoTree; }.
+  AnElement = { Element:RVL := NoTree; }.
+END ReverseLink

@@ -1,0 +1,30 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "TDS/TOOLSET conversion library V1.0, 31/03/89"
+#COMMENT "Copyright INMOS Limited 1989"
+#INCLUDE "streamio.inc"
+#INCLUDE "hostio.inc"
+#USE "streamio.lib"
+
+PROC write.char (CHAN OF ANY sink, VAL BYTE char)
+  ss.write.char(sink, char)
+:
+
+PROC write.len.string (CHAN OF ANY sink, VAL INT len, VAL []BYTE str)
+  ss.write.string(sink, [str FROM 0 FOR len])
+:
+
+PROC write.full.string (CHAN OF ANY sink, VAL []BYTE str)
+  ss.write.string(sink, str)
+:
+
+PROC write.text.line (CHAN OF ANY sink, VAL []BYTE str)
+  ss.write.text.line(sink, str)
+:
+
+PROC newline (CHAN OF ANY sink)
+  ss.write.nl(sink)
+:
+
+PROC write.endstream (CHAN OF ANY sink)
+  ss.write.endstream(sink)
+:

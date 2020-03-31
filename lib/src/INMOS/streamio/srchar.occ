@@ -1,0 +1,67 @@
+#OPTION "E"  -- no compliler libs
+#COMMENT "Stream i/o library, V0.02 12/04/89"
+#COMMENT "(c) Copyright INMOS Limited, 1988, 1989"
+#INCLUDE "streamio.inc"
+--{{{  history
+-- V0.01
+-- V0.02, 12-Apr-89
+--}}}
+--{{{  ks.read.char
+PROC ks.read.char (CHAN OF KS source, INT char)
+
+  --{{{  specification
+  -- Purpose:  To obtain the value of the next word length quantity
+  --           from the given keystream channel.
+  -- Channels: source - for input
+  -- Out:      char - the value of the word obtained
+  --}}}
+
+  source ? char
+:
+--}}}
+--{{{  ks.read.line
+PROC ks.read.line (CHAN OF KS source, INT len, []BYTE line, INT char)
+
+  --{{{  specification
+  -- Purpose:  To read a line of text from the given keystream channel.
+  -- Channels: source - for input
+  -- Out:      len - the number of characters that have been put
+  --           into line
+  -- Out:      line - the line that was read is [ line FROM 0 FOR len ]
+  -- Out:      char - the word that terminated the line
+  -- Notes:    Although characters ( ie BYTE's ) are inserted into line,
+  --           it is word length quantities that are read from source.
+  --           The line of text is deemed to be terminated by INT '*c'
+  --           or any negative value.
+  --           The word that terminated the line is not included
+  --           in line.
+  --           Any word read with a value greater than 255 ( the
+  --           maximum that a byte can hold ) is ignored.
+  --           Any '*n' read is ignored.
+  --           If the array line is filled before a valid termination
+  --           character is encountered, then all further words
+  --           are ignored.
+  --}}}
+
+  VAL cr IS INT '*c' :
+  INT pos, ch, max :
+  SEQ
+    max := (SIZE line) - 1
+    pos := 0
+    source ? ch
+    WHILE (ch >= 0) AND (ch <> cr)
+      SEQ
+        IF
+          ch = (INT '*n')
+            SKIP
+          (ch > 255) OR (pos >= max)
+            SKIP
+          TRUE
+            SEQ
+              line[pos] := BYTE ch
+              pos := pos + 1
+        source ? ch
+    len := pos
+    char := ch  -- terminating character ( as an INT )
+:
+--}}}

@@ -1,0 +1,139 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE COS "COS%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE COS "COS%f"
+#PRAGMA TRANSLATE COSP "COSP%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL32 FUNCTION COS (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions and variables
+    -- Threshold for sin(x) = x is 2 ** (-ManBits/2), see C&W pp137.
+    -- This is consequently also a threshold for cos(x) = 1.
+    VAL Eps IS #39800000(INT) :
+    -- Limit on X is Pi * 2**(BitsInFrac/2). See C&W p134.
+    VAL XMax IS #46490FDB(INT) :
+    VAL INT X.i RETYPES X :
+    VAL absX.i IS X.i /\ (~(MOSTNEG INT)) :
+    --}}}
+    IF
+      --{{{  special cases
+      absX.i >= RealInf   -- X is NaN or Inf
+        IF
+          absX.i = RealInf   -- X is Inf
+            RWork := undefined.NaN
+          TRUE
+            RWork := X    -- transmit NaN
+      absX.i > XMax      -- X is too large for an exact result to be computed
+        RWork := inexact.NaN
+      absX.i < Eps
+        RWork := One
+      --}}}
+      TRUE
+        BOOL Odd :
+        REAL32 XWork :
+        SEQ
+          --{{{  reduce argument
+          VAL REAL32 absX RETYPES absX.i :
+          VAL N  IS INT ROUND ((absX + PiBy2) * InvPi) : -- (X+Pi/2)/Pi
+          REAL32 XN :
+          SEQ
+            -- XN is (2N -1)/2 = N -1/2
+            XN := IncExp (REAL32 ROUND ((N << 1) - 1), -1)
+            XWork := (absX - (XN * Pi.part.1)) - (XN * Pi.part.2) -- extended precision
+            Odd := ((N /\ 1) = 1)
+          --}}}
+          --{{{  make XWork positive
+          INT XW.i RETYPES XWork :
+          IF
+            XW.i < 0
+              SEQ
+                XW.i := XW.i /\ (~(MOSTNEG INT))
+                Odd := NOT Odd
+            TRUE
+              SKIP
+          --}}}
+          --{{{  approximation in primary range
+          INT XW.i :
+          SEQ
+            INT XW RETYPES XWork :
+            XW.i := XW
+            IF
+              XW.i < Eps
+                REAL32 XWork RETYPES XW.i :
+                RWork := XWork
+              XW.i > Nearly.PiBy2 -- to ensure 1.0 is not exceeded
+                RWork := One
+              TRUE
+                -- XWork is in the range (0, Pi/2)
+                -- This implementation uses a polynomial approximation from
+                -- Cody & Waite "Software Manual for the Elementary Functions",
+                -- pp125-138. The fixed point version is used here.
+                VAL R IS [#0015D38B, #FE609BBB, #1110E7B4, #AAAAAE04] :
+                INT G :
+                SEQ
+                  XWork := IncExp (XWork, -1)  -- divides by 2
+                  G := FIX (XWork)            -- FIX X/2
+                  G := FRACMUL (G, G) -- polynomial in (X/2)^2
+                  RWork := IncExp ((ReFloat (FRACMUL (G, R[3] + FRACMUL (G, R[2] +
+                           FRACMUL (G, R[1] + FRACMUL (G, R[0]))))) * XWork) + XWork, 1)
+          --}}}
+          --{{{  set sign
+          IF
+            Odd
+              RWork := - RWork
+            TRUE
+              SKIP
+          --}}}
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  COSP
+REAL32 FUNCTION COSP( VAL INT dummy, VAL INT X )
+
+  -- COSP exists for when the FORTRAN intrinsic COS is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to COSP.  When COSP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts COSP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for COSP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT COS( Xtemp )
+:
+--}}}
+#endif

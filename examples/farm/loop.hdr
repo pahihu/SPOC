@@ -1,0 +1,6 @@
+#ifndef __loop_INCLUDES__
+#define __loop_INCLUDES__
+typedef struct SF_P_loopback_loop tSF_P_loopback_loop;
+#define WS_P_loopback_loop (80)
+void P_loopback_loop (tSF_P_loopback_loop *FP);
+#endif

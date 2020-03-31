@@ -1,0 +1,129 @@
+#############################################################################
+#
+#             Make file for occam2 toolset library snglmath.lib
+#
+#                              5-Feb-91 SRH
+#
+#                 This makefile is presently set up for UNIX
+#
+#############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d OCCAM
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+# see bug report TS/744 for reason for 'u' option in OCCOPT
+OCCOPT=$(SWITCH)d $(SWITCH)v $(SWITCH)u $(OCCEXTRAS)
+
+
+# T2 class modules
+SNGLT2=alogflt2.t2h alogflt2.t2x expflt2.t2h expflt2.t2x \
+	powflt2.t2h powflt2.t2x sinflt2.t2h sinflt2.t2x \
+	cosflt2.t2h cosflt2.t2x tanflt2.t2h tanflt2.t2x \
+	asinfl.t2h asinfl.t2x acosfl.t2h acosfl.t2x \
+	atanfl.t2h atanfl.t2x hyperfl.t2h hyperfl.t2x \
+	ranfl.t2h ranfl.t2x
+
+# TA and TB class modules
+SNGLTA=alogfl.tah alogfl.tax expfl.tah expfl.tax \
+	powfl.tah powfl.tax sinfl.tah sinfl.tax \
+	cosfl.tah cosfl.tax tanfl.tah tanfl.tax \
+	asinfl.tah asinfl.tax acosfl.tah acosfl.tax \
+	atanfl.tah atanfl.tax hyperfl.tah hyperfl.tax \
+	ranfl.tah ranfl.tax \
+	alogfl.tbh alogfl.tbx expfl.tbh expfl.tbx \
+	powfl.tbh powfl.tbx sinfl.tbh sinfl.tbx \
+	cosfl.tbh cosfl.tbx tanfl.tbh tanfl.tbx \
+	asinfl.tbh asinfl.tbx acosfl.tbh acosfl.tbx \
+	atanfl.tbh atanfl.tbx hyperfl.tbh hyperfl.tbx \
+	ranfl.tbh ranfl.tbx
+
+# T8 class modules
+SNGLT8=alogfl.t8h alogfl.t8x expfl.t8h expfl.t8x \
+	powfl.t8h powfl.t8x sinfl.t8h sinfl.t8x \
+	cosfl.t8h cosfl.t8x tanfl.t8h tanfl.t8x \
+	asinfl.t8h asinfl.t8x acosfl.t8h acosfl.t8x \
+	atanfl.t8h atanfl.t8x hyperfl.t8h hyperfl.t8x \
+	ranfl.t8h ranfl.t8x
+
+
+#
+############################## target and rules ##############################
+#
+all: snglmath.lib
+
+snglmath.lib:	mathhdr.inc snglmath.t2 snglmath.t8 snglmath.ta
+	$(LIBRARIAN) snglmath.t2 snglmath.t8 snglmath.ta $(SWITCH)o snglmath.lib $(LIBOPT)
+
+snglmath.t2:	$(SNGLT2)
+	$(CONCATENATE) $(SNGLT2) $(INTO) snglmath.t2
+
+snglmath.ta:	$(SNGLTA)
+	$(CONCATENATE) $(SNGLTA) $(INTO) snglmath.ta
+
+snglmath.t8:	$(SNGLT8)
+	$(CONCATENATE) $(SNGLT8) $(INTO) snglmath.t8
+
+
+# Pattern matching rules.
+#
+# All object files actually depend on mathhdr.inc also, and most, if not all,
+# depend on occam2.lib, occama.lib and occam8.lib.
+# an explicit rule is chosen before a pattern matching rule
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2h
+	$(OCCAM) $*.p2h $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2h
+	$(DELETE) $*.p2h
+
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+
+%.tah: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pah
+	$(OCCAM) $*.pah $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tah
+	$(DELETE) $*.pah
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+
+%.tbh: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbh
+	$(OCCAM) $*.pbh $(SWITCH)h $(SWITCH)tb $(OCCOPT) $(SWITCH)o $*.tbh
+	$(DELETE) $*.pbh
+
+%.tbx: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbx
+	$(OCCAM) $*.pbx $(SWITCH)x $(SWITCH)tb $(OCCOPT) $(SWITCH)o $*.tbx
+	$(DELETE) $*.pbx
+
+
+%.t8h: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8h
+	$(OCCAM) $*.p8h $(SWITCH)h $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8h
+	$(DELETE) $*.p8h
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

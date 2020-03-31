@@ -1,0 +1,163 @@
+#INCLUDE "farm.inc"
+#USE "dblmath.lib" -- maths libraries
+PROC worker(CHAN OF farming toThis,fromThis,toNext,fromNext)
+  --{{{  PROC forward(CHAN OF farming toThis,toNext,toWorker,GiveMeMore)
+  PROC forward(CHAN OF farming toThis,toNext,toWorker,GiveMeMore)
+    INT EqnType,Samples :
+    REAL64 Power,deltax,x, bufferx, buf2x :
+    BOOL More, Buffered, Busy, Armed, Buffered2 :
+    INT Node :
+  
+    SEQ
+      More := TRUE
+      Buffered := FALSE
+      Buffered2 := FALSE
+      Busy := FALSE
+      Armed := FALSE
+      WHILE More OR Buffered OR Busy
+        PRI ALT  -- Priority to communication
+          toThis?CASE
+            --{{{  Receive packet from previous node, use or forward to next
+            initial.packet; EqnType; Samples; deltax; Power; Node
+              PAR
+                -- Initialise worker process
+                toWorker!initial.packet; EqnType; Samples; deltax; Power; Node
+                -- and forward Initialisation to next process
+                toNext!initial.packet; EqnType; Samples; deltax; Power; (Node+1)
+            
+            work.packet; x
+              SEQ
+                IF
+                  NOT Busy     -- We always want this one
+                    SEQ
+                      toWorker!work.packet; x
+                      Busy := TRUE
+                      Armed := FALSE
+                  NOT Buffered  -- We want to buffer this one
+                    SEQ
+                      bufferx := x
+                      Buffered := TRUE
+                  Armed AND (NOT Buffered2) -- Store this in buf2
+                    SEQ
+                      Buffered2 := TRUE
+                      buf2x := x
+                  TRUE          -- Anything else, we pass it on
+                    toNext!work.packet; x
+                  
+            stop.packet
+              PAR
+                toNext!stop.packet
+                More := FALSE
+            --}}}
+          GiveMeMore?CASE
+            --{{{  Worker would like another work packet
+            more.packet
+              IF
+                NOT Armed
+                  Armed := TRUE
+                Buffered   -- We've got one, so here you are
+                  SEQ
+                    toWorker!work.packet;bufferx
+                    Busy := TRUE
+                    Armed := FALSE
+                    -- Shift down buffered item (it any)
+                    Buffered := Buffered2
+                    bufferx := buf2x
+                    Buffered2 := FALSE
+                TRUE
+                  Busy := FALSE
+            --}}}
+  
+      toWorker!stop.packet -- Stop worker
+  :
+  --}}}
+  --{{{  PROC calculator(CHAN OF farming toWorker,fromWorker,GiveMeMore)
+  PROC calculator(CHAN OF farming toWorker,fromWorker,GiveMeMore)
+    --{{{  Variable definitions
+    INT EqnType, Samples, Node :
+    REAL64 Power,deltax :
+    REAL64 x,sum,value :
+    BOOL More :
+    --}}}
+    SEQ
+      More := TRUE
+      WHILE More
+        toWorker?CASE
+          initial.packet; EqnType; Samples; deltax; Power; Node
+            SKIP
+  
+          work.packet; x
+            SEQ
+              sum := 0.0 (REAL64)
+              --{{{  Calculate integral
+              SEQ i = 0 FOR (Samples+1)
+                SEQ
+                  IF
+                    EqnType = 1
+                      value := DPOWER(x,Power)
+                    EqnType = 2
+                      value := DEXP(-DPOWER(x,Power))
+              
+                  IF
+                    i = 0
+                      sum := value / (2.0(REAL64))
+                    i = Samples
+                      sum := sum + (value / (2.0(REAL64)))
+                    TRUE
+                      sum := sum + value
+              
+                  x := x + deltax
+              --}}}
+              GiveMeMore!more.packet         -- Arm buffer for more
+              fromWorker!result.packet; sum; Node  -- Pass on result
+              GiveMeMore!more.packet         -- Ask for more
+              
+          stop.packet
+            SEQ
+              fromWorker!stop.packet
+              More := FALSE
+  :
+  --}}}
+  --{{{  PROC return(CHAN OF farming fromThis,fromNext,fromWorker)
+  PROC return(CHAN OF farming fromThis,fromNext,fromWorker)
+    REAL64 sum :
+    BOOL WorkerActive, NextActive :
+    INT Node :
+  
+    SEQ
+      NextActive := TRUE
+      WorkerActive := TRUE
+      -- We loop until we recv stop packet from both worker and next node
+      WHILE NextActive OR WorkerActive
+        SEQ
+          PRI ALT  -- Priority to results returned
+            fromNext?CASE
+              --{{{  Return result from next node
+              result.packet; sum; Node
+                fromThis!result.packet; sum; Node
+              
+              stop.packet
+                NextActive := FALSE
+              --}}}
+            fromWorker?CASE
+              --{{{  Return result from worker
+              result.packet; sum; Node
+                fromThis!result.packet; sum; Node
+              
+              stop.packet
+                WorkerActive := FALSE
+              --}}}
+  
+      -- Both this node and all following nodes are stopped, so tell previous
+      fromThis!stop.packet
+  :
+  --}}}
+
+  CHAN OF farming toWorker,fromWorker,GiveMeMore :
+
+  PRI PAR   -- Priority to communications
+    PAR     -- Both buffer processes at high priority
+      forward(toThis,toNext,toWorker,GiveMeMore)
+      return(fromThis,fromNext,fromWorker)
+    calculator(toWorker,fromWorker,GiveMeMore) -- worker at low priority
+:

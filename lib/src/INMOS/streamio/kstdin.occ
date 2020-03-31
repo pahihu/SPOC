@@ -1,0 +1,55 @@
+#OPTION "E"  -- no compliler libs
+#COMMENT "Stream i/o library, V1.1, 14/06/90"
+#COMMENT "(c) Copyright INMOS Limited, 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "streamio.inc"
+#USE "hostio.lib"
+PROC so.keystream.from.stdin (CHAN OF SP fs, ts, CHAN OF KS keys.out,
+                              BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To read lines from standard input and output them on the
+  --           given key stream channel.
+  -- Channels: fs - from server
+  --           ts - to server
+  --           keys.out - for output
+  -- Out:      result - spr.ok if the process was successful; otherwise
+  --           >= spr.operation.failed meaning that reading standard input
+  --           failed - see hostio.inc or iserver documentation for further
+  --           details
+  -- Notes:    The value ft.terminated is sent on keys.out on termination.
+  --           Termination of this procedure is either when an error occurs
+  --           or when all characters from standard input have been read,
+  --           ie when end of file from standard input is read.
+  --           A '*c' is output to terminate a text line.
+  --}}}
+  --{{{  history
+  -- Introduced the end of file test to determine whether so.gets
+  -- validly reached the end of standard input or failed.  Without
+  -- this test a valid functioning of this routine would have left
+  -- left spr.operation.failed in result!  New version is 1.1
+  -- ( old version was 0.01, 23-Dec-88 ); 14-June-90 SRH
+  --}}}
+
+  SEQ
+    result := spr.ok
+    WHILE result = spr.ok
+      [sp.max.readbuffer.size]BYTE buffer :
+      INT len :
+      SEQ
+        sp.gets (fs, ts, spid.stdin, len, buffer, result)
+        SEQ i = 0 FOR len
+          keys.out ! INT buffer [i]
+        keys.out ! INT ('*c')
+    BYTE old.result : -- used to save any error value
+    SEQ
+      old.result := result
+      so.eof( fs, ts, spid.stdin, result )
+      IF
+        result = spr.ok -- then end of file validly reached
+          old.result := spr.ok
+        TRUE -- there must have been a read error
+          SKIP
+      result := old.result
+    keys.out ! ft.terminated
+:

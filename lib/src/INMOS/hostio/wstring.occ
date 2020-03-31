@@ -1,0 +1,119 @@
+#COMMENT "Host i/o library, V1.3, 06/02/91"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+#USE "splib.lib"
+
+--{{{  history
+-- 09-JAN-90 SRH corrected so that so.write.string, so.fwrite.string,
+-- so.write.string.nl and so.fwrite.string.nl place no restriction of the
+-- length of string written. V1.1
+-- 29-JUN-90 SRH changed the implementation of so.write.string.nl and
+-- so.fwrite.string.nl so that the newline is not sent separately via
+-- an sp.puts with null string ( "" ), but is appended by the server
+-- via use of sp.puts with the last part of the string to send ( which
+-- unless it is large will be the whole string ).  This makes these
+-- routines appear to send a string and newline as an atomic unit, which
+-- is the idea that their names convey. V1.2
+-- 06-FEB-91 SRH took the 'f' routines out of this file (wstring.occ)
+-- and put them into the file ( fwstring.occ ), so as to reduce the
+-- code pulled into a program if only the spid.stdout stream is used
+-- or equally if only streamid is used. V1.3
+--}}}
+
+--{{{  so.write.string
+PROC so.write.string (CHAN OF SP fs, ts, VAL []BYTE string)
+
+  --{{{  specification
+  -- Purpose:  To write a string to standard out.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       string - the string to be written, which can be any length
+  --}}}
+  --{{{  more information
+  --           If more than a packet's worth of data is to be written
+  --           to standard out then one cannot guarantee that all of
+  --           the data will be written before any other process
+  --           accesses standard out.
+  --}}}
+
+  INT length : -- dummy in order to fill parameter slot
+  so.write (fs, ts, spid.stdout, string, length)
+:
+--}}}
+--{{{  so.write.char
+PROC so.write.char (CHAN OF SP fs, ts, VAL BYTE char)
+
+  --{{{  specification
+  -- Purpose:  To write a single character to standard out.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       char - the single character to write
+  --}}}
+
+  BYTE result : -- dummy in order to fill parameter slot
+  INT  length : -- dummy in order to fill parameter slot
+  sp.write (fs, ts, spid.stdout, [char], length, result)
+:
+--}}}
+--{{{  so.write.string.nl
+PROC so.write.string.nl (CHAN OF SP fs, ts, VAL []BYTE string)
+
+  --{{{  specification
+  -- Purpose:  To write a string appended by a newline to standard out.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       string - the string to be written, which can be any length
+  -- Notes:    The newline sequence is appended by this routine.
+  --}}}
+  --{{{  more information
+  --           If more than a packet's worth of data is to be written
+  --           to standard out then one cannot guarantee that all of
+  --           the data will be written before any other process
+  --           accesses standard out.
+  -- The present implementation relies on the fact that the maximum
+  -- size for the data that sp.write and sp.puts can handle is the
+  -- same. 29/06/90 SRH
+  --}}}
+
+  BOOL writing :
+  INT  length :
+  BYTE result :  -- a dummy for this routine
+  SEQ
+    writing := TRUE
+    length  := 0
+    WHILE writing AND (length < ( (SIZE string) - sp.max.writebuffer.size ))
+      INT length.written :
+      SEQ
+        sp.write (fs, ts, spid.stdout,
+                  [string FROM length FOR sp.max.writebuffer.size],
+                  length.written, result)
+        writing := (length.written = sp.max.writebuffer.size)
+        length  := length + length.written
+
+    -- if writing is now FALSE then an error occurred whilst
+    -- writing the string, so do not attempt further writing
+
+    IF
+      writing
+        -- use sp.puts so as to have the newline appended directly to
+        -- the end of the string by the server; the server also sees to
+        -- the host dependency of the newline
+        sp.puts (fs, ts, spid.stdout,
+          [string FROM length FOR ((SIZE string) - length)], result)
+      TRUE
+        SKIP
+:
+--}}}
+--{{{  so.write.nl
+PROC so.write.nl (CHAN OF SP fs, ts)
+
+  --{{{  specification
+  -- Purpose:  To write a newline to standard out.
+  -- Channels: fs - from server
+  --           ts - to server
+  --}}}
+
+  BYTE result : -- dummy in order to fill parameter slot
+  sp.puts (fs, ts, spid.stdout, "", result)
+:
+--}}}

@@ -1,0 +1,368 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.3 07/02/91"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE Dexp "Dexp%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE Dexp "Dexp%c"
+#PRAGMA TRANSLATE DSINH "DSINH%c"
+#PRAGMA TRANSLATE DCOSH "DCOSH%c"
+#PRAGMA TRANSLATE DTANH "DTANH%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE Dexp "Dexp%f"
+#PRAGMA TRANSLATE DSINH "DSINH%f"
+#PRAGMA TRANSLATE DSINHP "DSINHP%f"
+#PRAGMA TRANSLATE DSINHPP "DSINHPP%f"
+#PRAGMA TRANSLATE DCOSH "DCOSH%f"
+#PRAGMA TRANSLATE DCOSHP "DCOSHP%f"
+#PRAGMA TRANSLATE DCOSHPP "DCOSHPP%f"
+#PRAGMA TRANSLATE DTANH "DTANH%f"
+#PRAGMA TRANSLATE DTANHP "DTANHP%f"
+#PRAGMA TRANSLATE DTANHPP "DTANHPP%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- V1.1 11-Oct-88
+-- Added OPTION "V"; V1.2 27-Mar-90 SRH
+-- Moved Dexp out of each of the hyperbolics so as to reduce code size
+-- and improve maintainability; also added a few more comments; V1.3
+-- 7-Feb-91 SRH
+--}}}
+
+--{{{  hyperbolic function constants
+VAL INT64 XMax IS #408633CE9708893B(INT64) : -- a little below ln(Inf - 1) + LnV
+VAL INT64 XBig IS #40325E4F7B2737FA(INT64) : -- (BitsInFrac/2)log(2)
+
+-- LnV equals 0.6931610107421875 exactly
+VAL REAL64 LnV    RETYPES #3FE62E6000000000(INT64) :
+-- VBy2M1 equals approximately 0.0000138302778796019002063378069977694906
+VAL REAL64 VBy2M1 RETYPES #3EED0112EB0202D5(INT64) :
+--}}}
+--{{{  reduced exponential
+REAL64 FUNCTION Dexp (VAL REAL64 X)
+
+  -- exponential wihtout input guards, for hyperbolic functions
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL INT64 ManMask IS ( Done << DRealExpSh ) - Done :
+    -- InvLn2 equals 1.4426950408889633870046509400708600878715515136718750
+    VAL REAL64 InvLn2 RETYPES #3FF71547652B82FE(INT64) : -- 1/log(2)
+    -- C1 equals 0.6933593750
+    VAL REAL64     C1 RETYPES #3FE6300000000000(INT64) : -- C1 + C2 = ln(2)
+    -- C2 equals -0.000212194440054690571309525815024699113564565777778625488281250
+    VAL REAL64     C2 RETYPES #BF2BD0105C610CA8(INT64) :
+    VAL N  IS INT64  ROUND (X * InvLn2) : -- integer part of X/ln2
+    VAL XN IS REAL64 ROUND  N :
+    REAL64 XWork :
+    --}}}
+    SEQ
+      XWork := (X - (XN * C1)) - (XN * C2) -- higher precision remainder
+      --{{{  reduced exp
+      VAL Half IS #4000000000000000(INT64) :
+      INT64 G, Z :
+      SEQ
+        G := FIX64 (XWork)
+        Z := FracMult64 (G, G)
+        G := FracMult64 (G, FracMult64 (Z,
+                            FracMult64 (Z, #00008A95237AC6E2(INT64)) +
+                                           #00E387237D9FB701(INT64)) +
+                                           #1FFFFFFFFFFFFFBF(INT64))
+        RWork := ReFloat64 (FracDiv64 (G, (FracMult64 (Z,
+                            FracMult64 (Z, #00103F996FDE3807(INT64)) +
+                            #071C639C50946CAB(INT64)) + Half) - G) + Half)
+      --}}}
+      --{{{  construct result
+      INT64 RWork.i RETYPES RWork :
+      RWork.i := (RWork.i /\ ManMask) \/
+                   (((RWork.i >> DRealExpSh) + (N + Done)) << DRealExpSh)
+      --}}}
+    RESULT RWork
+:
+--}}}
+--{{{  DSINH  (fixed point)
+REAL64 FUNCTION DSINH (VAL REAL64 X)
+
+  REAL64 Result :
+  VALOF
+    --{{{  definitions and variables
+    VAL INT64 X.I      RETYPES X :
+    VAL INT64 XW.i     IS      X.I /\ (~(MOSTNEG INT64)) : -- XW.i = |X.I|
+    VAL BOOL  Negative IS      (X.I < Dzero) :
+    VAL INT64 Eps      IS      #3E50000000000000(INT64) :
+    -- Eps equals 1.4901161193847656250E-08
+    --}}}
+    IF
+      XW.i > DRealInf -- X is NaN
+        --{{{  transmit NaN
+        VAL REAL64 X RETYPES X.I :
+        Result := X  -- transmit NaN
+        --}}}
+      XW.i > XMax
+        --{{{  + or - Inf
+        IF
+          Negative
+            Result := DMINUSX(DRInf)
+          TRUE
+            Result :=  DRInf
+        --}}}
+      XW.i > XBig
+        --{{{  modify argument and use exponential
+        VAL REAL64 XWork RETYPES XW.i :
+        VAL EX IS Dexp (XWork - LnV) :
+        IF
+          Negative
+            Result := - (EX + (EX * VBy2M1))
+          TRUE
+            Result := EX + (EX * VBy2M1)
+        --}}}
+      XW.i >= Dunity
+        --{{{  use exponential and modify result
+        VAL REAL64 XWork RETYPES XW.i :
+        VAL EX IS Dexp (XWork) :
+        IF
+          Negative
+            Result := - IncExp64(EX - (DOne/EX), -1)
+          TRUE
+            Result := IncExp64(EX - (DOne/EX), -1)
+        --}}}
+      XW.i < Eps
+        Result := X
+      TRUE
+        --{{{  use fixed-point rational approximation
+        VAL P IS [#0000000059C2956A(INT64), #00000035CA85EAF0(INT64),
+                  #0000171DE5035EB0(INT64), #0006806806070378(INT64),
+                  #0111111111250F0C(INT64), #1555555555541A90(INT64)] :
+        INT64 G :
+        VAL REAL64 XWork RETYPES XW.i :
+        REAL64 RWork :
+        SEQ
+          G := FIX64 (XWork)
+          G := FracMult64 (G, G)   -- polynomial in XWork^2
+          RWork := ReFloat64 (FracMult64 (G,
+                              FracMult64 (G,
+                              FracMult64 (G,
+                              FracMult64 (G,
+                              FracMult64 (G,
+                              FracMult64 (G, P[0])+P[1])+P[2])+P[3])+P[4])+P[5]))
+          IF
+            Negative
+              Result := - (XWork + (RWork * XWork))
+            TRUE
+              Result := XWork + (RWork * XWork)
+        --}}}
+    RESULT Result
+:
+--}}}
+--{{{  DCOSH  (fixed point)
+REAL64 FUNCTION DCOSH (VAL REAL64 X)
+
+  REAL64 Result :
+  VALOF
+    --{{{  definitions and variables
+    VAL INT64 X.I  RETYPES X :
+    VAL INT64 XW.i IS      X.I /\ (~(MOSTNEG INT64)) : -- XW.i = |X.I|
+    --}}}
+    IF
+      XW.i > DRealInf -- X is NaN
+        --{{{  transmit NaN
+        VAL REAL64 X RETYPES X.I :
+        Result := X  -- transmit NaN
+        --}}}
+      XW.i > XMax
+        Result := DRInf
+      XW.i > XBig
+        VAL REAL64 XWork RETYPES XW.i :
+        VAL EX IS Dexp (XWork - LnV) :
+        Result := EX + (EX * VBy2M1)
+      TRUE
+        VAL REAL64 XWork RETYPES XW.i :
+        VAL EX IS Dexp (XWork) :
+        Result := IncExp64 (EX + (DOne/EX), -1)  -- divides by 2
+    RESULT Result
+:
+--}}}
+--{{{  DTANH  (fixed point)
+REAL64 FUNCTION DTANH (VAL REAL64 X)
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL INT64 X.I      RETYPES X :
+    VAL INT64 XW.i     IS      X.I /\ (~(MOSTNEG INT64)) : -- XW.i = |X.I|
+    VAL BOOL  Negative IS      (X.I < Dzero) :
+    -- ((DBitsInFrac + 2)ln2)/2, rounded up a bit. See C&W p242.
+    VAL INT64 XMax     IS      #40330FC193B3A68B(INT64) :
+    -- Eps equals 1.4901161193847656250E-08
+    VAL INT64 Eps      IS      #3E50000000000000(INT64) :
+    -- Ln3By2 as a REAL64 equals 0.549306144334054891054108793468913063406944274902343750
+    VAL INT64 Ln3By2   IS      #3FE193EA7AAD030B(INT64) :
+    --}}}
+    IF
+      XW.i > DRealInf -- X is NaN
+        --{{{  transmit NaN
+        VAL REAL64 X RETYPES X.I :
+        RWork := X  -- transmit NaN
+        --}}}
+      TRUE
+        SEQ
+          IF
+            XW.i > XMax
+              RWork := DOne
+            XW.i > Ln3By2
+              VAL REAL64 XWork RETYPES XW.i : -- XWork = |X|
+              RWork := DOne - (DTwo/(DOne + Dexp (IncExp64 (XWork, 1))))
+            XW.i < Eps
+              VAL REAL64 XWork RETYPES XW.i : -- XWork = |X|
+              RWork := XWork
+            TRUE
+              --{{{  fixed-point rational approximation
+              VAL REAL64 XWork RETYPES XW.i : -- XWork = |X|
+              INT64 G :
+              SEQ
+                G := FIX64 (XWork)
+                G := FracMult64 (G, G) -- rational function in XWork^2
+                RWork := XWork + (XWork *
+                         ReFloat64 (FracMult64 (G,
+                                    FracDiv64 (FracMult64 (G,
+                                               FracMult64 (G, #FFFFE83F87D4A416(INT64)) +
+                                                              #FF13AA060FF72755(INT64)) +
+                                                              #ECF0C32362BB8593(INT64),
+                                               FracMult64 (G,
+                                               FracMult64 (G, #0100000000000000(INT64)) +
+                                                              #19A417C3566F7557(INT64)) +
+                                                              #392DB695D7E24263(INT64)))))
+              --}}}
+          IF
+            Negative
+              RWork := - RWork
+            TRUE
+              SKIP
+    RESULT RWork
+:
+--}}}
+
+#ifdef FORTRAN
+--{{{  DSINHP/DSINHPP
+-- This 'P' version exists for when the FORTRAN intrinsic DCOSH is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DCOSHP.  When DCOSHP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DCOSHP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DSINHP( VAL INT dummy, VAL REAL64 X ) IS DSINH( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DSINHPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DSINH( X )
+:
+#endif
+--}}}
+--{{{  DCOSHP/DCOSHPP
+-- This 'P' version exists for when the FORTRAN intrinsic DCOSH is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DCOSHP.  When DCOSHP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DCOSHP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DCOSHP( VAL INT dummy, VAL REAL64 X ) IS DCOSH( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DCOSHPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DCOSH( X )
+:
+#endif
+--}}}
+--{{{  DTANHP/DTANHPP
+-- This 'P' version exists for when the FORTRAN intrinsic DTANH is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DTANHP.  When DTANHP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DTANHP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DTANHP( VAL INT dummy, VAL REAL64 X ) IS DTANH( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DTANHPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DTANH( X )
+:
+#endif
+--}}}
+#endif

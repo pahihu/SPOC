@@ -1,0 +1,8 @@
+-- Wait (almost) forever process, used as a debugging entry point for IDEBUG
+PROC wait()
+  INT now :
+  TIMER Time :
+  SEQ
+    Time?now
+    Time?AFTER now PLUS 1000000000
+:

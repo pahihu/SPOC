@@ -1,0 +1,135 @@
+#OPTION "E W V"  -- no compiler libs, full ASMs, no vector space
+#COMMENT "Extraordinary link handling library, V1.1 08/02/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+
+#ifdef C
+#PRAGMA TRANSLATE OutputOrFail.t "OutputOrFail.t%c"  -- for C libraries
+#endif
+
+PROC OutputOrFail.t (CHAN OF ANY c, VAL []BYTE mess, TIMER t,
+                     VAL INT time, BOOL aborted)
+
+  --{{{  specification
+  -- Purpose:  To provide, through a time-out, for communication
+  --           failure on a channel expecting to output.
+  -- Channels: c - the channel over which an output communication is
+  --           to be made
+  -- Out:      mess - the message to output over channel c
+  -- In/Out:   t - a timer providing a clock to use for the time-out
+  -- In:       time - the absolute time of when the time-out for the
+  --           communication over channel c should occur
+  -- Out:      aborted - TRUE if the communication timed-out; FALSE if
+  --           the communication successfully took place.  One cannot be
+  --           sure that the communication was not successful if aborted
+  --           is TRUE, because it is just possible that the communication
+  --           terminated successfully between when the time-out occurred
+  --           and the resetting of the channel.
+  -- Notes:    If the time-out occurs then the channel c is reset and this
+  --           procedure terminates.
+  --}}}
+  --{{{  history
+  -- modified to be wordlength independant 2-dec-87
+  -- 8.2.90 - modified to use ASM rather than GUY; new version is V1.1
+  --}}}
+  --{{{  order of execution is essential
+  --           The order of execution of the components of this PAR is
+  --           important. If the communication on c is not started before
+  --           the ALTernative it is possible for c to be reset before it
+  --           is used. In this case the process can fail to terminate if
+  --           the communication on c fails. HAVING THE FIRST COMPONENT
+  --           OF THE PAR BE EXECUTED FIRST IS COMPILER DEPENDENT.
+  --}}}
+  --{{{  README or ELSE !
+  --  Must be built with the "zv" option on the oc command line.
+  --  zv = do i/o NOT by call to virtual link routines (ie. normal
+  --  instruction i/o)
+  --}}}  
+
+  VAL NotProcess.p IS MOSTNEG INT :
+  CHAN OF BOOL completed :
+  PAR
+    --{{{  execute this component first
+    SEQ
+      c ! mess
+      completed ! TRUE
+    --}}}
+    --{{{  execute this component second
+    BOOL sink :
+    ALT
+      t ? AFTER time
+        INT pid :
+        SEQ
+          --{{{  reset the channel
+          ASM
+            LD c
+            RESETCH
+            ST pid
+          --}}}
+          --{{{  run the process if pid is valid
+          IF
+            pid = NotProcess.p
+              SKIP
+            TRUE
+              ASM
+                LD pid
+                RUNP
+          --}}}
+          completed ? sink
+          aborted := TRUE
+      completed ? sink
+        aborted := FALSE
+    --}}}
+:
+
+
+-- old code
+
+--#OPTION "E W"  -- no compiler libs, full GUYs
+--#COMMENT "Extraordinary link handling library, V1.0 31/10/88"
+--#COMMENT "(c) Copyright INMOS Limited 1988"
+--PROC OutputOrFail.t(CHAN OF ANY c, VAL []BYTE mess, TIMER t,
+--		    VAL INT time, BOOL aborted)
+--  -- modified to be wordlength independant 2-dec-87
+--  VAL NotProcess.p IS MOSTNEG INT :
+--  CHAN OF BOOL completed :
+--  --{{{  order of execution is essential
+--  -- The order of execution of the components of this PAR is
+--  -- important. If the communication on c is not started before the
+--  -- ALTernative it is possible for c to be reset before it is used.
+--  -- In this case the process can fail to terminate if the communication
+--  -- on c fails.
+--  --}}}
+--  PAR
+--    --{{{  execute this component first
+--    SEQ
+--      c ! mess
+--      completed ! TRUE
+--    --}}}
+--    --{{{  execute this component second
+--    BOOL sink :
+--    ALT
+--      t ? AFTER time
+--	INT pid :
+--	SEQ
+--	  --{{{  reset the channel
+--	  GUY
+--	    LDLP c
+--	    RESETCH
+--	    STL  pid
+--	  --}}}
+--	  --{{{  run the process if pid is valid
+--	  IF
+--	    pid = NotProcess.p
+--	      SKIP
+--	    TRUE
+--	      SEQ
+--		GUY
+--		  LDL pid
+--		  RUNP
+--	  --}}}
+--	  completed ? sink
+--	  aborted := TRUE
+--      completed ? sink
+--	aborted := FALSE
+--    --}}}
+--:

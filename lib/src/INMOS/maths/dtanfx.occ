@@ -1,0 +1,175 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DTAN "DTAN%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DTAN "DTAN%f"
+#PRAGMA TRANSLATE DTANP "DTANP%f"
+#PRAGMA TRANSLATE DTANPP "DTANPP%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL64 FUNCTION DTAN (VAL REAL64 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL DPi.i  IS #400921FB54442D18(INT64) :
+    VAL DPiBy4 IS #3FE921FB54442D18(INT64) :
+    -- Threshold for tan(x) = x is 2 ** (-ManBits/2), see C&W p156.
+    VAL Eps  IS #3E50000000000000(INT64) :
+    -- Limit on X is (Pi/2) * 2**(ManBits/2). See C&W p154.
+    VAL XMax IS #419921FB54442D18(INT64):
+    VAL REAL64 TwoInvPi RETYPES #3FE45F306DC93883(INT64) :
+    VAL REAL64       C1 RETYPES #3FF9220000000000(INT64) : -- C1+C2 = Pi/2 to
+    VAL REAL64       C2 RETYPES #BED2AEEF4B9EE59E(INT64) : -- extra precision
+    VAL INT64 X.I RETYPES X :
+    REAL64 XWork :
+    INT64 XW.i RETYPES XWork :
+    --}}}
+    SEQ
+      XW.i := X.I /\ (~(MOSTNEG INT64)) -- XWork = |X|
+      IF
+        --{{{  special cases
+        XW.i >= DRealInf  -- X is NaN or Inf
+          IF
+            XW.i = DRealInf  -- X is Inf
+              RWork := Dundefined.NaN
+            TRUE
+              VAL REAL64 X RETYPES X.I :
+              RWork := X    -- transmit received NaN
+        XW.i > XMax   -- X is too large for the result to be accurately computed
+          RWork := Dinexact.NaN
+        --}}}
+        TRUE
+          BOOL Negative, Odd :
+          SEQ
+            Negative := (X.I < Dzero)
+            --{{{  reduce argument
+            IF
+              XW.i > DPiBy4
+                SEQ
+                  INT32 N :
+                  REAL64 XWork RETYPES XW.i :
+                  SEQ
+                    N := INT32 ROUND (XWork * TwoInvPi)  -- |X|/(Pi/2)
+                    VAL one   IS 1(INT32) :
+                    Odd := ((N /\ one) = one)
+                    VAL XN    IS REAL64 ROUND N :
+                    XWork := (XWork - (XN * C1)) - (XN * C2)
+                  IF
+                    XW.i < Dzero
+                      SEQ
+                        Negative := (Odd = Negative)
+                        XW.i := XW.i /\ (~(MOSTNEG INT64))
+                    TRUE
+                      Negative := (Odd <> Negative)
+              TRUE
+                Odd := FALSE
+            --}}}
+            --{{{  approximation in primary range
+            IF
+              XW.i < Eps
+                REAL64 XWork RETYPES XW.i :
+                RWork := XWork
+              TRUE
+                --{{{  fixed-point approximation
+                -- X is in the range (0, Pi/4]
+                REAL64 XWork RETYPES XW.i :
+                INT64 G :
+                SEQ
+                  G := FIX64 (XWork)
+                  G := FracMult64 (G, G)  -- rational function of XWork^2
+                  RWork := (ReFloat64 (FracDiv64 (FracMult64 (G,
+                                                  FracMult64 (G,
+                                                  FracMult64 (G, #00034AE7E42F9822(INT64)) +
+                                                                 #FEAF7D76EB8AF5C5(INT64)) +
+                                                                 #1555555555552270(INT64)),
+                                                  FracMult64 (G,
+                                                  FracMult64 (G,
+                                                  FracMult64 (G, #FFFC95B49DE5EBD3(INT64)) +
+                                                                 #017E7B68D9A55F2E(INT64)) +
+                                                                 #E274DECB28F898BA(INT64)) +
+                                                                 #4000000000000000(INT64))) *
+                           XWork) + XWork
+                --}}}
+            --}}}
+            IF
+              Odd
+                --{{{  take reciprocal
+                IF
+                  INT64 RW.i RETYPES RWork :  -- for fast comparison
+                  RW.i = Dzero
+                    REAL64 RWork RETYPES RW.i :
+                    RWork := Dunstable.NaN
+                  TRUE
+                    RWork := REAL64OP (DOne, Div, RWork)
+                --}}}
+              TRUE
+                SKIP
+            IF
+              Negative
+                RWork := - RWork
+              TRUE
+                SKIP
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  DTANP/DTANPP
+-- This 'P' version exists for when the FORTRAN intrinsic DTAN is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DTANP.  When DTANP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DTANP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DTANP( VAL INT dummy, VAL REAL64 X ) IS DTAN( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DTANPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DTAN( X )
+:
+#endif
+--}}}
+#endif

@@ -1,0 +1,60 @@
+/* -*-c-*- */
+/*{{{  File Banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attribute grammar for controlling type checking
+||@(#)   System : occam 2 c
+||@(#) Filename : pretypechk.attr
+||@(#)  Version : 1.33
+||@(#)     Date : 9/20/93
+\*@(#)====================================================*/
+/*}}}*/
+
+
+/*{{{  MODULE PreTypeCheckTree*/
+MODULE PreTypeCheckTree
+
+TREE
+
+END PreTypeCheckTree   
+/*}}}*/
+/*{{{  MODULE PreTypeCheck*/
+MODULE PreTypeCheck
+
+EVAL PreTypeChkAg
+
+IMPORT 
+{
+  #include "TypeChk.h"
+}
+
+DECLARE
+  Expr Elemental ExprList ChoiceList = [ DefType:tType ].  
+    
+END PreTypeCheck
+/*}}}*/
+/*{{{  MODULE UserFieldLookup*/
+MODULE UserFieldLookup
+
+EVAL PreTypeChkAg
+
+DECLARE
+  Expr Elemental ExprList CaseList = [FL:tType THREAD] .
+
+END UserFieldLookup
+/*}}}*/
+/*{{{  MODULE TreeOrder*/
+MODULE TreeOrder
+  
+EVAL PreTypeChkAg
+
+DECLARE
+  SpecList Spec Type Process ExprList Elemental AltList Guard Formals
+  CaseList Expr Replicator ProcList ChoiceList  = [ V1 THREAD ].
+
+END TreeOrder
+/*}}}*/
+

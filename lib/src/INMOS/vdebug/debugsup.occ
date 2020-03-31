@@ -1,0 +1,315 @@
+--{{{  debug support procedures     oc
+#OPTION "E V W"    --  see README or ELSE for the rest !
+#COMMENT "Debug support library, V1.1 14/02/90"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+
+--{{{  #PRAGMA TRANSLATE's
+#ifdef OCCAM
+#PRAGMA TRANSLATE IMS.DEBUG.IS.RUNNING "IMS.DEBUG.IS.RUNNING%"
+#PRAGMA TRANSLATE IMS.DEBUG.PROCESS.COMMAND "IMS.DEBUG.PROCESS.COMMAND%"
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#else
+#ifdef C
+#PRAGMA TRANSLATE IMS.DEBUG.IS.RUNNING "IMS.DEBUG.IS.RUNNING%"
+#PRAGMA TRANSLATE IMS.DEBUG.PROCESS.COMMAND "IMS.DEBUG.PROCESS.COMMAND%"
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE IMS.DEBUG.IS.RUNNING "IMS.DEBUG.IS.RUNNING%"
+#PRAGMA TRANSLATE IMS.DEBUG.PROCESS.COMMAND "IMS.DEBUG.PROCESS.COMMAND%"
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#endif
+#endif
+#endif
+--}}}
+
+--{{{  library references
+#INCLUDE "txhdr.inc"
+#INCLUDE "kernapp.inc"
+#INCLUDE "semhdr.inc"
+#USE     "semprocs.lib"
+--}}}  
+
+--{{{  README or ELSE !
+--  NONE OF THESE MUST USE VECTOR SPACE !!!! (enforced in the code)
+
+--  Nigel:  1 Dec 1989
+--         14 Feb 1990    Converted to proper ASM and changed to channel
+--                        pointers
+
+--  Must be built with:  oc -zv -x -e -v -w  {-t8, -ta, -t2}
+
+--                       -zv = do i/o NOT by call (ie. normal)
+--                       -x  = universal mode
+--                       -e  = disable compiler libraries
+--                       -v  = disable separate vector space
+--                       -w  = full ASM code insertion
+--}}}  
+
+--{{{  IMS.DEBUG.PROCESS.COMMAND               --  used for those below
+PROC IMS.DEBUG.PROCESS.COMMAND (VAL [3]INT i.data, VAL []BYTE data)
+  INT current.priority :
+  SEQ
+    --{{{  get current.priority
+    ASM
+      LDPRI
+      ST current.priority
+    --}}}  
+
+    --{{{  pointer table :
+    INT   pointer.table.word.index :
+    PLACE pointer.table.word.index AT kern.pt.ptr.offset :
+    
+    [(MOSTPOS INT) / 2] INT all.mem :
+    PLACE                   all.mem AT 0 :
+    
+    VAL [kern.pt.size]INT pointer.table IS
+        [all.mem FROM pointer.table.word.index FOR kern.pt.size] :
+    
+    --{{{  VAL max.message.size :
+    -- This is the 'wordy' way of describing max.message.size
+    --VAL [kern.pt.size]INT pointer.table IS
+    --    [all.mem FROM pointer.table.word.index FOR kern.pt.size] :
+    --
+    VAL max.message.size IS pointer.table [kern.pt.max.message.size] :
+    
+    -- This is the 'quick' way of describing max.message.size
+    --VAL max.message.size IS
+    --    all.mem [pointer.table.word.index + kern.pt.max.message.size] :
+    --}}}  
+    --}}}  
+    --{{{  semaphore :
+    -- This is re-declared so that the compiler doesn't put in overlap checks
+    -- or object to the previous VAL abbreviation
+    [(MOSTPOS INT) / 2] INT all.mem :
+    PLACE                   all.mem AT 0 :
+    
+    [semaphore.size]INT this.priority.semaphore RETYPES [all.mem FROM
+      pointer.table [kern.pt.app.sem.word.index] +
+      (current.priority TIMES semaphore.size) FOR semaphore.size] :
+    --}}}  
+
+    INT len :
+    SEQ
+      --{{{  check for data being too long
+      IF
+        (SIZE data) > max.message.size
+          len := max.message.size
+        TRUE
+          len := SIZE data
+      --}}}  
+
+      SEMAPHORE.WAIT   (this.priority.semaphore)
+
+      --{{{  send it to the KERNEL
+      INT this.priority.app.to.kernel.pointer :    --  a channel pointer no less !
+      SEQ
+        --{{{  get this.priority.app.to.kernel.pointer
+        --{{{  CHAN app.to.vle: how it used to be
+        --  can't do this now coz channels are now pointers !
+        
+        --[(MOSTPOS INT) / 2] CHAN OF APPLICATION.PACKET all.chans :
+        --PLACE all.chans AT 0 :
+        
+        --CHAN OF APPLICATION.PACKET this.priority.app.to.kernel IS
+        --all.chans [pointer.table [kern.pt.app.chan.word.index] + current.priority]:
+        --}}}  
+        
+        
+        [(MOSTPOS INT) / 2]INT all.chan.mem :
+        PLACE                  all.chan.mem AT 0 :
+        
+        SEQ
+          ASM
+            LD ADDRESSOF all.chan.mem[pointer.table[kern.pt.app.chan.word.index] +
+                                      current.priority]
+        
+            ST this.priority.app.to.kernel.pointer
+        --}}}  
+      
+        CHAN OF APPLICATION.PACKET this.priority.app.to.kernel RETYPES
+                                   this.priority.app.to.kernel.pointer :
+        SEQ
+          this.priority.app.to.kernel ! i.data; len::data
+          this.priority.app.to.kernel ! i.data;   0::""         --  acknowledge
+      --}}}  
+
+      SEMAPHORE.SIGNAL (this.priority.semaphore)
+:
+--}}}  
+--{{{  INT FUNCTION IMS.DEBUG.IS.RUNNING ()    --  ditto
+INT FUNCTION IMS.DEBUG.IS.RUNNING ()
+  --  returns an INT to let other languages use it
+  --  0 = not present
+  --  1 = present
+
+  INT   pointer.table.word.index :
+  INT   check.word :
+  PLACE pointer.table.word.index AT kern.pt.ptr.offset   :
+  PLACE check.word               AT kern.pt.check.offset :
+
+  VALOF
+    SKIP
+    RESULT INT (check.word = (BITNOT pointer.table.word.index))
+:
+--}}}  
+
+#ifdef OCCAM
+--{{{  DEBUG.MESSAGE
+PROC DEBUG.MESSAGE (VAL []BYTE message)
+
+  --{{{  specification
+  -- Purpose:  To send a message to the debugger which is to be displayed
+  --           with normal program output.  The precise action depends on
+  --           whether the debugger is running or not:-
+  --           Debugger present:  sends a message to the debugger along with
+  --                              the Iptr and Wdesc for the caller
+  --                not present:  no action
+  -- In:       message - the message to send to the debugger
+  --}}}  
+
+  IF
+    --{{{  debugger is running, send message to it
+    BOOL IMS.DEBUG.IS.RUNNING ()
+      --{{{  i.data
+      [3]INT i.data :    --  command, Iptr, Wdesc
+      PLACE  i.data IN WORKSPACE :
+      --}}}  
+      SEQ
+        i.data[0] := ak.message
+        --{{{  set up Iptr and Wdesc
+        ASM
+          LDL   .WSSIZE        --  Load callee's Iptr
+          LDC   1
+          DIFF                 --  Loads the [return address - 1] as the Iptr
+          ST    i.data[1]
+        
+          LDLP  .WSSIZE + 4    --  Load callee's Wptr
+          LDPRI
+          OR                   --  turn it into a Wdesc
+          ST    i.data[2]
+        --}}}  
+    
+        IMS.DEBUG.PROCESS.COMMAND (i.data, message)
+    --}}}  
+    --{{{  otherwise, skip
+    TRUE
+      SKIP  -- Simply don't send the message to the debugger
+    --}}}  
+:
+--}}}  
+--{{{  DEBUG.ASSERT
+PROC DEBUG.ASSERT (VAL BOOL assertion)
+
+  --{{{  specification
+  -- Purpose:  To possibly stop the calling process, acting according to the
+  --           value of an assertion:-
+  --           assertion TRUE:    No effect.
+  --           assertion FALSE :  Action depends on whether debugger is running:
+  --           Debugger present:  sends an error message to the debugger along
+  --                              with Iptr and Wdesc for caller and stops process
+  --                not present:  stops process or processor depending on error
+  --                              mode
+  -- In:       assertion - the value of the assertion made in the call of this
+  --           routine
+  --}}}  
+
+  IF
+    --{{{  assertion failed, stop
+    NOT assertion
+      --  this way we get the correct callees Iptr and Wdesc
+      --DEBUG.STOP ()  -- check for DEBUG.IS.RUNNING within here
+    
+      IF
+        --{{{  debugger is running, inform it and stop
+        BOOL IMS.DEBUG.IS.RUNNING ()
+          --{{{  i.data
+          [3]INT i.data :    --  command, Iptr, Wdesc
+          PLACE  i.data IN WORKSPACE :
+          --}}}  
+          SEQ
+            i.data[0] := ak.error
+            --{{{  set up Iptr and Wdesc
+            ASM
+              LDL   .WSSIZE        --  Load callee's Iptr
+              LDC   1
+              DIFF                 --  Loads the [return address - 1] as the Iptr
+              ST    i.data[1]
+            
+              LDLP  .WSSIZE + 4    --  Load callee's Wptr
+              LDPRI
+              OR                   --  turn it into a Wdesc
+              ST    i.data[2]
+            --}}}  
+        
+            IMS.DEBUG.PROCESS.COMMAND (i.data, "")
+        
+            ASM
+              STOPP
+        --}}}  
+        --{{{  otherwise, stop
+        TRUE
+          ASM
+            SETERR    -- just in case in HALT mode
+            STOPP     -- just in case in STOP mode
+        --}}}  
+    --}}}  
+    --{{{  otherwise, skip
+    TRUE
+      SKIP
+    --}}}  
+:
+--}}}  
+--{{{  DEBUG.STOP
+PROC DEBUG.STOP ()
+
+  --{{{  specification
+  -- Purpose:  To stop the calling process, first sending information to
+  --           the debugger if it is running:-
+  --           Debugger present:  sends an error message to the debugger
+  --                              along with Iptr and Wdesc for caller and
+  --                              stops process
+  --                not present:  stops process or processor depending on
+  --                              error mode
+  --}}}  
+
+  IF
+    --{{{  debugger is running, inform it and stop
+    BOOL IMS.DEBUG.IS.RUNNING ()
+      --{{{  i.data
+      [3]INT i.data :    --  command, Iptr, Wdesc
+      PLACE  i.data IN WORKSPACE :
+      --}}}  
+      SEQ
+        i.data[0] := ak.error
+        --{{{  set up Iptr and Wdesc
+        ASM
+          LDL   .WSSIZE        --  Load callee's Iptr
+          LDC   1
+          DIFF                 --  Loads the [return address - 1] as the Iptr
+          ST    i.data[1]
+        
+          LDLP  .WSSIZE + 4    --  Load callee's Wptr
+          LDPRI
+          OR                   --  turn it into a Wdesc
+          ST    i.data[2]
+        --}}}  
+    
+        IMS.DEBUG.PROCESS.COMMAND (i.data, "")
+    
+        ASM
+          STOPP
+    --}}}  
+    --{{{  otherwise, stop
+    TRUE
+      ASM
+        SETERR    -- just in case in HALT mode
+        STOPP     -- just in case in STOP mode
+    --}}}  
+:
+--}}}  
+#endif
+--}}}  

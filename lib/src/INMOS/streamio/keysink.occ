@@ -1,0 +1,19 @@
+#OPTION "E"  -- no compliler libs
+#COMMENT "Stream i/o library, V0.01 23/12/88"
+#COMMENT "(c) Copyright INMOS Limited, 1988"
+#INCLUDE "streamio.inc"
+PROC ks.keystream.sink (CHAN OF KS keys)
+
+  --{{{  specification
+  -- Purpose:  To read word length quantities from the given key
+  --           stream until ft.terminated is received, at which
+  --           point this procedure terminates.
+  -- Channels: keys - for input
+  --}}}
+
+  INT key:
+  SEQ
+    keys ? key
+    WHILE key <> ft.terminated
+      keys ? key
+:

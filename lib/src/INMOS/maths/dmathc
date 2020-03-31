@@ -1,0 +1,77 @@
+#  Make file for the T2, TA and T8 of the double precision maths part of the
+#  C from occam library
+#
+# The macros OUTNAME2, OUTNAMEA and OUTNAME8 must be supplied from the
+# command line.
+#
+# This file is cribbed from the make file for dblmath, without DRAN.
+#
+# C routines must not have vector space.
+#
+#                           20-Dec-90 SRH
+#
+# This makefile is presently set up for UNIX.
+
+
+OUTNAME2=
+OUTNAMEA=
+OUTNAME8=
+
+SWITCH=-
+
+# for the flexibility of passing something in from the command line
+OCCEXTRAS=
+
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d C
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)x $(SWITCH)v $(SWITCH)u $(SWITCH)zlcp %c $(SWITCH)zlcs % $(OCCEXTRAS)
+
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+MATHT2= dalogfl.t2x dexpfl.t2x dpowfl.t2x \
+	dsinfl.t2x dcosfl.t2x dtanfl.t2x dasinfl.t2x \
+	dacosfl.t2x datanfl.t2x dhyperfl.t2x
+
+MATHTA= dalogfl.tax dexpfl.tax dpowfl.tax \
+	dsinfl.tax dcosfl.tax dtanfl.tax dasinfl.tax \
+	dacosfl.tax datanfl.tax dhyperfl.tax
+
+MATHT8= dalogfl.t8x dexpfl.t8x dpowfl.t8x \
+	dsinfl.t8x dcosfl.t8x dtanfl.t8x dasinfl.t8x \
+	dacosfl.t8x datanfl.t8x dhyperfl.t8x
+
+
+# force a build
+all: $(OUTNAME2) $(OUTNAMEA) $(OUTNAME8) mathhdr.inc
+
+$(OUTNAME2): $(MATHT2)
+	$(CONCATENATE) $(MATHT2) $(INTO) $(OUTNAME2)
+
+$(OUTNAMEA): $(MATHTA)
+	$(CONCATENATE) $(MATHTA) $(INTO) $(OUTNAMEA)
+
+$(OUTNAME8): $(MATHT8)
+	$(CONCATENATE) $(MATHT8) $(INTO) $(OUTNAME8)
+
+
+# Pattern matching rules; define C for PREPROCESSOR so that the
+# #PRAGMA TRANSLATE lines in the source are included for C.
+# All object files actually depend on mathhdr.inc also.
+
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

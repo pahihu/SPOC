@@ -1,0 +1,10 @@
+.MAKE_VERSION:	VERSION-1.0
+.BUILT_LAST_MAKE_RUN:
+daxpy:
+	chlink  daxpy.o -o daxpy /cellar/spoc/v1.1.mbh/lib/cham/libhostio.a /cellar/spoc/v1.1.mbh/lib/cham/libconvert.a            /cellar/spoc/v1.1.mbh/lib/cham/libIntrinsics.a   
+.BUILT_LAST_MAKE_RUN:
+daxpy.o:
+	ecc -W -J/cellar/spoc/v1.1.mbh/lib/cham -DHOST=SUN4 -DOS=CHAMRTS -Dcham   daxpy.c -o daxpy.o
+.BUILT_LAST_MAKE_RUN:
+daxpy.c:
+	occ2c  -mi -me  daxpy.occ -o daxpy.c

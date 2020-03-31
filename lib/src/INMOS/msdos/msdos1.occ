@@ -1,0 +1,71 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "MSDOS library V1.0"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "msdos.inc"
+
+PROC dos.receive.block (CHAN OF SP fs, ts, VAL INT32 location,
+                        INT bytes.read, []BYTE block, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To read a block of data from host memory.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       location - the start address of where to read the data
+  --           from; this address is arranged as the segment in the
+  --           top two bytes and the offset in the lower two bytes
+  --           of this parameter, both unsigned
+  -- Out:      bytes.read - if result is spr.ok, the number of bytes read;
+  --           otherwise zero
+  -- Out:      block - if result is spr.ok, the data read is held in the
+  --           first bytes.read bytes of block; otherwise undefined.  The
+  --           number of bytes requested to be read is (SIZE block).
+  -- Out:      result - spr.ok if the read was successful; otherwise
+  --           takes on a value indicating what went wrong:
+  --             spr.bad.packet.size   too many bytes were requested to be
+  --                                   read:
+  --                         (SIZE block) > dos.max.receive.block.buffer.size
+  --           >=spr.operation.failed  the read failed, ( so bytes.read = 0 )
+  --                                   - see hostio.inc or the server
+  --                                   documentation for further details
+  --}}}
+
+  IF
+    (SIZE block) > dos.max.receive.block.buffer.size
+      SEQ
+        result     := spr.bad.packet.size
+        bytes.read := 0
+    TRUE
+      [sp.max.packet.data.size]BYTE buffer :
+      INT16 temp.INT16 :
+      SEQ
+        --{{{  pack the data into the buffer (8 bytes)
+        buffer [0] := sp.DOS.tag
+        buffer [1] := dos.receive.block.tag
+        
+        VAL [4]BYTE b.location RETYPES location :
+        [buffer FROM 2 FOR 4] := b.location
+        
+        temp.INT16 := INT16 (SIZE block)
+        VAL [2]BYTE b.temp RETYPES temp.INT16 :
+        [buffer FROM 6 FOR 2] := b.temp
+        --}}}
+        --{{{  send and receive the buffer
+        ts ! 8 (INT16)  :: buffer
+        fs ? temp.INT16 :: buffer
+        --}}}
+        --{{{  unpack the data               (1, or 3 bytes plus data)
+        result := buffer [0]
+        
+        IF
+          result = spr.ok
+            SEQ
+              [2]BYTE b.temp RETYPES temp.INT16 :
+              b.temp := [buffer FROM 1 FOR 2]
+              bytes.read := INT temp.INT16
+        
+              [block FROM 0 FOR bytes.read] := [buffer FROM 3 FOR bytes.read]
+          TRUE
+            bytes.read := 0
+        --}}}
+:

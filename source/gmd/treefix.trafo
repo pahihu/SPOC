@@ -1,0 +1,34 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Tree transformations called from parser
+||@(#)   System : OCCAM 2 C
+||@(#) Filename : treefix.trafo
+||@(#)  Version : 1.3
+||@(#)     Date : 2/16/94
+\*@(#)====================================================*/
+/*}}}*/
+
+TRAFO TreeFix TREE occam
+
+PUBLIC mArrayFromExprList, mTableElementFromExprList, CatFieldList
+
+FUNCTION mArrayFromExprList (ExprList,Type) Type
+  NoExpr(),t     RETURN t ? .
+  AnExpr(n,e),t  RETURN Array (e,mArrayFromExprList(n,t)) ? .
+
+FUNCTION mTableElementFromExprList (ExprList,tPosition,int) TableElement
+  NoExpr(),P,D			RETURN mTable(P,NoExpr(),D,0) ? Message ("Badly formed table",xxError,P) ; .
+  AnExpr(_,e:UnBound(_)),P,D	RETURN mTable(P,NoExpr(),D,0) ? Message ("Empty braces in table literal",xxError,P) ; .
+  e:AnExpr(n:NoExpr(),_),P,D	RETURN mTable(P,e,D,AddSymbol(NoIdent)) ; .
+  AnExpr(n,e),P,D		RETURN TableSubscript(P,mTableElementFromExprList(n,P,D),e) ; .
+
+FUNCTION  CatFieldList(FieldList,FieldList) FieldList
+  NoField(),SL2       RETURN SL2 ? ; .
+  SL1:AField(N,..),SL2 RETURN SL1 ? ; N := CatFieldList (N,SL2) ; .
+
+
+

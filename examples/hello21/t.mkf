@@ -1,0 +1,73 @@
+# Makefile for t produced by omakef version 1.50
+
+ARCH=sun4
+OCCOPTIONS=-s 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+XOCCOPT=-s
+XCCOPT=-DUSE_NONBLOCKING_SOCKETS
+XCL-DEP=$(SPOC)/lib/$(ARCH)/libspserver.a
+
+
+# Any command-line definitions:
+
+t=t
+t-LDD=$(SPOC)/lib/sun4/libhostio.a $(SPOC)/lib/sun4/libspserver.a              \
+      $(SPOC)/lib/sun4/libconvert.a $(SPOC)/lib/sun4/libIntrinsics.a 
+$(t): $(t).$(O) $(CLINK-DEP) $(t-LDD)
+	$(CLINK) $(t).$(O) -o $(t) $(t-LDD) $(CLINK-DEP) $(CLLIB)
+
+t-HDR=$(SPOC)/lib/sun4/hostio.hdr $(SPOC)/lib/sun4/spserver.hdr                \
+      $(SPOC)/lib/sun4/Intrinsics.hdr 
+$(t).$(O): $(t).$(C) $(C2OBJ-DEP) $(t-HDR)
+	$(C2OBJ) $(t).$(C) -o $(t).$(O)
+
+t-DEP=$(SPOC)/lib/sun4/hostio.lib $(SPOC)/lib/sun4/spserver.lib                \
+      $(SPOC)/lib/sun4/Intrinsics.lib 
+$(t).$(C): $(t).$(OCC) $(t-DEP) $(OCC2C-DEP)
+	$(OCC2PGM) $(t).$(OCC) -o $(t).$(C)
+
+
+
+
+clean:
+	rm -f t t.o t.c 

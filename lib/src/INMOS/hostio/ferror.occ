@@ -1,0 +1,75 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.ferror
+PROC sp.ferror (CHAN OF SP fs, ts, VAL INT32 streamid,
+                INT32 error.no, INT length, []BYTE message, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To test for the occurrence of an error on the specified stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the stream to be tested
+  --           for error
+  -- Out:      error.no - a host defined error number
+  -- Out:      length - the number of bytes in message.  Equal to zero
+  --           if result >= spr.operation.failed.
+  -- Out:      message - if result is not spr.operation.failed then this
+  --           contains a ( possibly null ) message corresponding to the last
+  --           file error on the specified stream; this message is
+  --           [message FROM 0 FOR length]
+  -- Out:      result - equals spr.ok if there was an error on the specified
+  --           stream and the message corresponding to it fits into message;
+  --           equals spr.buffer.overflow if there was an error on the
+  --           specified stream but the message corresponding to it is too
+  --           large to fit into message, in which case it is truncated to fit;
+  --           >= spr.operation.failed if there was no error on the
+  --           specified stream
+  --}}}
+
+  [sp.max.packet.data.size]BYTE buffer :
+  INT16 temp.INT16 :
+  SEQ
+    --{{{  pack the data into the buffer (5 bytes)
+    buffer [0] := sp.ferror.tag
+    
+    VAL [4]BYTE b.streamid RETYPES streamid :
+    [buffer FROM 1 FOR 4] := b.streamid
+    --}}}pack the data into the buffer (5 bytes)
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    fs ? temp.INT16 :: buffer
+    --}}}
+    --{{{  unpack the data               (1, or 7 bytes plus data)
+    result := buffer [0]
+    
+    IF
+      result = spr.ok
+        SEQ
+          [4]BYTE b.error.no RETYPES error.no :
+          b.error.no := [buffer FROM 1 FOR 4]
+    
+          [2]BYTE b.temp RETYPES temp.INT16 :
+          b.temp := [buffer FROM 5 FOR 2]
+          length := INT temp.INT16
+    
+          IF
+            length > (SIZE message)
+              SEQ
+                length := SIZE message
+                result := spr.buffer.overflow
+            TRUE
+              SKIP
+          [message FROM 0 FOR length] := [buffer FROM 7 FOR length]
+      TRUE
+        length := 0
+    --}}}unpack the data               (1, or 7 bytes plus data)
+:
+--}}}sp.ferror
+--{{{  so.ferror
+PROC so.ferror (CHAN OF SP fs, ts, VAL INT32 streamid,
+                INT32 error.no, INT length, []BYTE message, BYTE result)
+
+  sp.ferror (fs, ts, streamid, error.no, length, message, result)
+:
+--}}}so.ferror

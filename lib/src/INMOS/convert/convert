@@ -1,0 +1,254 @@
+##############################################################################
+#
+#              Make file for occam2 toolset library convert.lib
+#
+#                             25-Oct-90 SRH
+#
+#                This makefile is presently set up for UNIX
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line
+OCCEXTRAS=
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(OCCEXTRAS)
+
+
+# the routines in the files in USEIOCONV all #USE ioconv.lib
+USEIOCONV=	hex16t2.t2h hex32t2.t2h hex64t2.t2h \
+		int16t2.t2h int32t2.t2h \
+		hex16ta.tah hex32ta.tah hex64ta.tah \
+		int16ta.tah int32ta.tah \
+		hex16ta.t8h hex32ta.t8h hex64ta.t8h \
+		int16ta.t8h int32ta.t8h \
+		\
+		hex16t2.t2x hex32t2.t2x hex64t2.t2x \
+		int16t2.t2x int32t2.t2x \
+		hex16ta.tax hex32ta.tax hex64ta.tax \
+		int16ta.tax int32ta.tax \
+		hex16ta.t8x hex32ta.t8x hex64ta.t8x \
+		int16ta.t8x int32ta.t8x
+
+# the routines in the files in USEUTL all #USE occamutl.lib
+USEUTL=	strr32t2.t2h strr64t2.t2h r32strt2.t2h r64strt2.t2h \
+	strr64ta.tah strr64ta.t8h r64strta.tah r64strta.t8h \
+	strr32t2.t2x strr64t2.t2x r32strt2.t2x r64strt2.t2x \
+	strr64ta.tax strr64ta.t8x r64strta.tax r64strta.t8x
+
+
+# T2 class modules
+CONVERTT2=strtoint.t2h inttostr.t2h strtohex.t2h \
+	  hextostr.t2h strtobol.t2h boltostr.t2h \
+	  \
+	  int16t2.t2h int32t2.t2h stri64t2.t2h i64strt2.t2h \
+	  hex16t2.t2h hex32t2.t2h hex64t2.t2h \
+	  strr32t2.t2h r32strt2.t2h \
+	  strr64t2.t2h r64strt2.t2h \
+	  \
+	  \
+	  strtoint.t2x inttostr.t2x strtohex.t2x \
+	  hextostr.t2x strtobol.t2x boltostr.t2x \
+	  \
+	  int16t2.t2x int32t2.t2x stri64t2.t2x i64strt2.t2x \
+	  hex16t2.t2x hex32t2.t2x hex64t2.t2x \
+	  strr32t2.t2x r32strt2.t2x \
+	  strr64t2.t2x r64strt2.t2x
+
+# TA class modules
+CONVERTTA=strtoint.tah inttostr.tah strtohex.tah \
+	  hextostr.tah strtobol.tah boltostr.tah \
+	  \
+	  int16ta.tah int32ta.tah stri64ta.tah i64strta.tah \
+	  hex16ta.tah hex32ta.tah hex64ta.tah \
+	  strr32ta.tah r32strta.tah \
+	  strr64ta.tah r64strta.tah \
+	  \
+	  \
+	  strtoint.tax inttostr.tax strtohex.tax \
+	  hextostr.tax strtobol.tax boltostr.tax \
+	  \
+	  int16ta.tax int32ta.tax stri64ta.tax i64strta.tax \
+	  hex16ta.tax hex32ta.tax hex64ta.tax \
+	  strr32ta.tax r32strta.tax \
+	  strr64ta.tax r64strta.tax
+
+# T8 class modules
+CONVERTT8=strtoint.t8h inttostr.t8h strtohex.t8h \
+	  hextostr.t8h strtobol.t8h boltostr.t8h \
+	  \
+	  int16ta.t8h int32ta.t8h stri64ta.t8h i64strta.t8h \
+	  hex16ta.t8h hex32ta.t8h hex64ta.t8h \
+	  strr32ta.t8h r32strta.t8h \
+	  strr64ta.t8h r64strta.t8h \
+	  \
+	  \
+	  strtoint.t8x inttostr.t8x strtohex.t8x \
+	  hextostr.t8x strtobol.t8x boltostr.t8x \
+	  \
+	  int16ta.t8x int32ta.t8x stri64ta.t8x i64strta.t8x \
+	  hex16ta.t8x hex32ta.t8x hex64ta.t8x \
+	  strr32ta.t8x r32strta.t8x \
+	  strr64ta.t8x r64strta.t8x
+
+
+#
+############################## target and rules ##############################
+#
+all: convert.lib
+
+convert.lib:	convert.t2 convert.t8 convert.ta
+	$(LIBRARIAN) convert.t2 convert.t8 convert.ta $(LIBOPT) $(SWITCH)o convert.lib
+
+
+convert.t2:	$(CONVERTT2)
+	$(CONCATENATE) $(CONVERTT2) $(INTO) convert.t2
+
+convert.ta:	$(CONVERTTA)
+	$(CONCATENATE) $(CONVERTTA) $(INTO) convert.ta
+
+convert.t8:	$(CONVERTT8)
+	$(CONCATENATE) $(CONVERTT8) $(INTO) convert.t8
+
+
+
+# pattern matching rules
+# an explicit rule is chosen before a pattern matching rule
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2h
+
+%.t2x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+
+%.tah: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tah
+
+%.tax: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+
+%.t8h: %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8h
+
+%.t8x: %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+
+
+ioconv.lib:	ioconv.lbb \
+	  strtoint.t2h strtoint.tah strtoint.t8h \
+	  inttostr.t2h inttostr.tah inttostr.t8h \
+	  strtohex.t2h strtohex.tah strtohex.t8h \
+	  hextostr.t2h hextostr.tah hextostr.t8h \
+	  strtobol.t2h strtobol.tah strtobol.t8h \
+	  boltostr.t2h boltostr.tah boltostr.t8h \
+	  \
+	  strtoint.t2x strtoint.tax strtoint.t8x \
+	  inttostr.t2x inttostr.tax inttostr.t8x \
+	  strtohex.t2x strtohex.tax strtohex.t8x \
+	  hextostr.t2x hextostr.tax hextostr.t8x \
+	  strtobol.t2x strtobol.tax strtobol.t8x \
+	  boltostr.t2x boltostr.tax boltostr.t8x
+	$(LIBRARIAN) $(SWITCH)f ioconv.lbb $(SWITCH)o ioconv.lib $(LIBOPT)
+
+int16t2.t2h:	int16t2.occ ioconv.lib 
+	$(OCCAM) int16t2 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o int16t2.t2h $(OCCOPT)
+
+int32t2.t2h:	int32t2.occ ioconv.lib 
+	$(OCCAM) int32t2 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o int32t2.t2h  $(OCCOPT)
+
+hex16t2.t2h:	hex16t2.occ ioconv.lib 
+	$(OCCAM) hex16t2 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o hex16t2.t2h  $(OCCOPT)
+
+hex32t2.t2h:	hex32t2.occ ioconv.lib 
+	$(OCCAM) hex32t2 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o hex32t2.t2h  $(OCCOPT)
+
+hex64t2.t2h:	hex64t2.occ ioconv.lib 
+	$(OCCAM) hex64t2 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o hex64t2.t2h  $(OCCOPT)
+
+int16ta.tah:	int16ta.occ ioconv.lib 
+	$(OCCAM) int16ta $(SWITCH)ta $(SWITCH)h $(SWITCH)o int16ta.tah  $(OCCOPT)
+
+int32ta.tah:	int32ta.occ ioconv.lib 
+	$(OCCAM) int32ta $(SWITCH)ta $(SWITCH)h $(SWITCH)o int32ta.tah  $(OCCOPT)
+
+hex16ta.tah:	hex16ta.occ ioconv.lib 
+	$(OCCAM) hex16ta $(SWITCH)ta $(SWITCH)h $(SWITCH)o hex16ta.tah  $(OCCOPT)
+
+hex32ta.tah:	hex32ta.occ ioconv.lib 
+	$(OCCAM) hex32ta $(SWITCH)ta $(SWITCH)h $(SWITCH)o hex32ta.tah  $(OCCOPT)
+
+hex64ta.tah:	hex64ta.occ ioconv.lib 
+	$(OCCAM) hex64ta $(SWITCH)ta $(SWITCH)h $(SWITCH)o hex64ta.tah  $(OCCOPT)
+
+int16ta.t8h:	int16ta.occ ioconv.lib 
+	$(OCCAM) int16ta $(SWITCH)t8 $(SWITCH)h $(SWITCH)o int16ta.t8h  $(OCCOPT)
+
+int32ta.t8h:	int32ta.occ ioconv.lib 
+	$(OCCAM) int32ta $(SWITCH)t8 $(SWITCH)h $(SWITCH)o int32ta.t8h  $(OCCOPT)
+
+hex16ta.t8h:	hex16ta.occ ioconv.lib 
+	$(OCCAM) hex16ta $(SWITCH)t8 $(SWITCH)h $(SWITCH)o hex16ta.t8h  $(OCCOPT)
+
+hex32ta.t8h:	hex32ta.occ ioconv.lib 
+	$(OCCAM) hex32ta $(SWITCH)t8 $(SWITCH)h $(SWITCH)o hex32ta.t8h  $(OCCOPT)
+
+hex64ta.t8h:	hex64ta.occ ioconv.lib 
+	$(OCCAM) hex64ta $(SWITCH)t8 $(SWITCH)h $(SWITCH)o hex64ta.t8h  $(OCCOPT)
+
+
+int16t2.t2x:	int16t2.occ ioconv.lib 
+	$(OCCAM) int16t2 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o int16t2.t2x $(OCCOPT)
+
+int32t2.t2x:	int32t2.occ ioconv.lib 
+	$(OCCAM) int32t2 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o int32t2.t2x  $(OCCOPT)
+
+hex16t2.t2x:	hex16t2.occ ioconv.lib 
+	$(OCCAM) hex16t2 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o hex16t2.t2x  $(OCCOPT)
+
+hex32t2.t2x:	hex32t2.occ ioconv.lib 
+	$(OCCAM) hex32t2 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o hex32t2.t2x  $(OCCOPT)
+
+hex64t2.t2x:	hex64t2.occ ioconv.lib 
+	$(OCCAM) hex64t2 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o hex64t2.t2x  $(OCCOPT)
+
+int16ta.tax:	int16ta.occ ioconv.lib 
+	$(OCCAM) int16ta $(SWITCH)ta $(SWITCH)x $(SWITCH)o int16ta.tax  $(OCCOPT)
+
+int32ta.tax:	int32ta.occ ioconv.lib 
+	$(OCCAM) int32ta $(SWITCH)ta $(SWITCH)x $(SWITCH)o int32ta.tax  $(OCCOPT)
+
+hex16ta.tax:	hex16ta.occ ioconv.lib 
+	$(OCCAM) hex16ta $(SWITCH)ta $(SWITCH)x $(SWITCH)o hex16ta.tax  $(OCCOPT)
+
+hex32ta.tax:	hex32ta.occ ioconv.lib 
+	$(OCCAM) hex32ta $(SWITCH)ta $(SWITCH)x $(SWITCH)o hex32ta.tax  $(OCCOPT)
+
+hex64ta.tax:	hex64ta.occ ioconv.lib 
+	$(OCCAM) hex64ta $(SWITCH)ta $(SWITCH)x $(SWITCH)o hex64ta.tax  $(OCCOPT)
+
+int16ta.t8x:	int16ta.occ ioconv.lib 
+	$(OCCAM) int16ta $(SWITCH)t8 $(SWITCH)x $(SWITCH)o int16ta.t8x  $(OCCOPT)
+
+int32ta.t8x:	int32ta.occ ioconv.lib 
+	$(OCCAM) int32ta $(SWITCH)t8 $(SWITCH)x $(SWITCH)o int32ta.t8x  $(OCCOPT)
+
+hex16ta.t8x:	hex16ta.occ ioconv.lib 
+	$(OCCAM) hex16ta $(SWITCH)t8 $(SWITCH)x $(SWITCH)o hex16ta.t8x  $(OCCOPT)
+
+hex32ta.t8x:	hex32ta.occ ioconv.lib 
+	$(OCCAM) hex32ta $(SWITCH)t8 $(SWITCH)x $(SWITCH)o hex32ta.t8x  $(OCCOPT)
+
+hex64ta.t8x:	hex64ta.occ ioconv.lib 
+	$(OCCAM) hex64ta $(SWITCH)t8 $(SWITCH)x $(SWITCH)o hex64ta.t8x  $(OCCOPT)

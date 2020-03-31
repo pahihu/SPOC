@@ -1,0 +1,69 @@
+#        Make file for the hostio part of the C library from occam
+#
+# The macros OUTNAME2, OUTNAMEA and OUTNAME8 must be supplied from the
+# command line.
+#
+# The C stuff wants to work with the debugger at all times, and so no y option
+# with OCCAM.
+#
+# C routines must not have vector space.
+#
+#                         4-Dec-90 SRH
+#
+# This makefile is presently set up for UNIX.
+
+
+OUTNAME2=
+OUTNAMEA=
+OUTNAME8=
+
+SWITCH=-
+
+# for flexibility of passing something in from the command line
+OCCEXTRAS=
+
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d C
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(SWITCH)x $(SWITCH)v $(SWITCH)u $(SWITCH)zlcp %c $(SWITCH)zlcs % $(OCCEXTRAS)
+
+CONCATENATE=cat
+INTO=>
+DELETE=rm
+
+HOSTIO2= exit.t2x
+
+HOSTIOA= exit.tax
+
+HOSTIO8= exit.t8x
+
+
+# force a build
+all: $(OUTNAME2) $(OUTNAMEA) $(OUTNAME8)
+
+$(OUTNAME2): $(HOSTIO2) hostio.inc
+	$(CONCATENATE) $(HOSTIO2) $(INTO) $(OUTNAME2)
+
+$(OUTNAMEA): $(HOSTIOA) hostio.inc
+	$(CONCATENATE) $(HOSTIOA) $(INTO) $(OUTNAMEA)
+
+$(OUTNAME8): $(HOSTIO8) hostio.inc
+	$(CONCATENATE) $(HOSTIO8) $(INTO) $(OUTNAME8)
+
+
+# Pattern matching rules; define C for PREPROCESSOR so that the
+# #PRAGMA TRANSLATE lines in the source are included.
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

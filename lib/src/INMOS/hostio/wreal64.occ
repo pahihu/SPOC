@@ -1,0 +1,64 @@
+#COMMENT "Host i/o library, V1.1, 28/05/90"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+#USE "splib.lib"
+#USE "convert.lib"
+--{{{  so.fwrite.real64
+PROC so.fwrite.real64 (CHAN OF SP fs, ts, VAL INT32 streamid,
+                       VAL REAL64 r, VAL INT Ip, Dp, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To write a double precision real as decimal ASCII characters
+  --           to a stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the stream to write
+  --           the real to
+  -- In:       r - a double precision real
+  -- In, In:   Ip, Dp - formatting values; see REAL64TOSTRING for their
+  --           effect
+  -- Out:      result - spr.ok if the string representing the real was written;
+  --           otherwise not all of the characters were written in which case
+  --           spr.notok
+  -- Notes:    Behaves as an invalid process if the string to write is longer
+  --           than 30 characters.
+  --}}}
+
+  [ 30 ]BYTE string : -- free format ( Ip = 0, Dp = 0 ) gives a maximum
+                      -- of 24 characters; allow for a few more, but note
+                      -- that there will always be a combination of Ip and
+                      -- Dp that will cause the string to overflow and
+                      -- thus set the error flag
+  INT len, len.done :
+
+  SEQ
+    REAL64TOSTRING (len, string, r, Ip, Dp)
+    sp.write (fs, ts, streamid, [string FROM 0 FOR len], len.done, result)
+    --{{{  check operation was ok
+    IF
+      (len.done <> len) AND (result = spr.ok)
+        result := spr.notok
+      TRUE
+        SKIP
+    --}}}check operation was ok
+:
+--}}}so.fwrite.real64
+--{{{  so.write.real64
+PROC so.write.real64 (CHAN OF SP fs, ts, VAL REAL64 r, VAL INT Ip, Dp)
+
+  --{{{  specification
+  -- Purpose:  To write a double precision real as decimal ASCII characters
+  --           to standard out.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       r - a double precision real
+  -- In, In:   Ip, Dp - formatting values; see REAL64TOSTRING for their
+  --           effect
+  -- Notes:    Behaves as an invalid process if the string to write is longer
+  --           than 30 characters.
+  --}}}
+
+  BYTE result :
+  so.fwrite.real64 (fs, ts, spid.stdout, r, Ip, Dp, result)
+:
+--}}}so.write.real64

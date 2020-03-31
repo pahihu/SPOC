@@ -1,0 +1,154 @@
+--{{{  File banner
+-- @(#)=====================================================
+-- @(#)  Project : GPMIMD ESPRIT P5404
+-- @(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+-- @(#)            University of Southampton
+--  
+-- @(#)    Title : Single maths library
+-- @(#)   System : Occam 2 C
+-- @(#) Filename : snglmath.occ
+-- @(#)  Version : 1.1
+-- @(#)     Date : 12/10/93
+-- @(#)====================================================
+--}}}
+#H #include <math.h>
+--{{{  REAL32 FUNCTION ALOG(VAL REAL32 x)
+REAL32 FUNCTION ALOG(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    IF
+      x>=(0.0(REAL32))
+        #C $r = (REAL32)log($x);
+    RESULT r
+:
+--}}}
+--{{{  REAL32 FUNCTION ALOG10(VAL REAL32 x)
+REAL32 FUNCTION ALOG10(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    IF
+      x>=(0.0(REAL32))
+        #C $r = (REAL32)log10($x);
+    RESULT r
+:
+--}}}
+--{{{  REAL32 FUNCTION EXP(VAL REAL32 x)
+REAL32 FUNCTION EXP(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)exp($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION TAN(VAL REAL32 x)
+REAL32 FUNCTION TAN(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)tan($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION SIN(VAL REAL32 x)
+REAL32 FUNCTION SIN(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)sin($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION ASIN(VAL REAL32 x)
+REAL32 FUNCTION ASIN(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    IF
+      (x>=(-1.0(REAL32))) AND (x<=(1.0(REAL32)))
+        #C $r = (REAL32)asin($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION COS(VAL REAL32 x)
+REAL32 FUNCTION COS(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)cos($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION ACOS(VAL REAL32 x)
+REAL32 FUNCTION ACOS(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    IF
+      (x>=(-1.0(REAL32))) AND (x<=(1.0(REAL32)))
+        #C $r = (REAL32)acos($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION SINH(VAL REAL32 x)
+REAL32 FUNCTION SINH(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)sinh($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION COSH(VAL REAL32 x)
+REAL32 FUNCTION COSH(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)cosh($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION TANH(VAL REAL32 x)
+REAL32 FUNCTION TANH(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)tanh($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION ATAN(VAL REAL32 x)
+REAL32 FUNCTION ATAN(VAL REAL32 x)
+  REAL32 r :
+  VALOF
+    IF
+      (x>=(-1.0(REAL32))) AND (x<=(1.0(REAL32)))
+        #C $r = (REAL32)atan($x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32 FUNCTION ATAN2(VAL REAL32 x,VAL REAL32 y)
+REAL32 FUNCTION ATAN2(VAL REAL32 x,VAL REAL32 y)
+  REAL32 r :
+  VALOF
+    IF
+      y<=x
+        #C $r = (REAL32)atan2($y,$x);
+    RESULT r    
+:
+--}}}
+--{{{  REAL32,INT32 FUNCTION RAN(VAL INT32 x)
+REAL32,INT32 FUNCTION RAN(VAL INT32 x)
+  REAL32 r :
+  INT32 i :
+  VALOF
+    SEQ
+      #C $i = (INT32) rand();
+      #C #if (OS == SUNOS)
+      #C $r = (REAL32)drand48();
+      #C #else
+      #C $r = ((REAL32)$i) / ((REAL32)RAND_MAX);
+      #C #endif
+    RESULT r,i
+:
+--}}}
+--{{{  REAL32 FUNCTION POWER(VAL REAL32 x,VAL REAL32 y)
+REAL32 FUNCTION POWER(VAL REAL32 x,VAL REAL32 y)
+  REAL32 r :
+  VALOF
+    #C $r = (REAL32)pow($x,$y);
+    RESULT r    
+:  
+--}}}
+

@@ -1,0 +1,170 @@
+#OPTION "W" -- Full ASM code inserts
+#COMMENT "Block CRC library, V1.2, 07/06/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+INT FUNCTION CRCFROMMSB (VAL []BYTE InputString,
+                         VAL INT PolynomialGenerator,
+                         VAL INT OldCRC)
+
+  --{{{  specification
+  -- Purpose:  To calculate a CRC value for a given string, starting from
+  --           the most significant bit.
+  -- Returned: The CRC value calculated for InputString with generator
+  --           PolynomialGenerator and initial CRC value OldCRC.
+  -- In:       InputString - the string for which a CRC value is desired
+  -- In:       PolynomialGenerator - an integer which acts somewhat like
+  --           an encryption key in that it is something which remains
+  --           constant during the calculation but on which the CRC value
+  --           intimately depends
+  -- In:       OldCRC - this is used only as the initial CRC value during
+  --           the iteration over the string, which does mean that the
+  --           final CRC value ( the value that is returned ) depends on it
+  -- Notes:    The string of bytes is polynomially divided starting from
+  --           the most significant bit of the most significant byte in
+  --           decreasing bit order.
+  --}}}
+  --{{{  more information
+  --           CRC stands for cyclic redundancy check.
+  --           The CRC value for a string is useful for checking that
+  --           a message was communicated without corruption.  One
+  --           must be careful that the polynomial generator and the
+  --           CRC value themselves are not corrupted when communicating
+  --           them themselves.
+  --}}}
+  --{{{  history
+  -- V1.0, 2-Nov-88
+  --
+  -- Ported to use ASM. New version number is 1.1; 7-Mar-90 SRH
+  --
+  -- Bug fix: on 32/16 bit processors this routine was taking the last
+  -- 64/32 bytes of InputString considering the first 16 bytes of these
+  -- ones for the CRC value, ignoring the other 48/16, and then
+  -- repeating for 64/32 bytes down the string, with any bytes left
+  -- over at the beginning of the string being considered.  Now fixed
+  -- so that all bits considered.  New version number is 1.2; 7-June-90 SRH
+  --}}}
+
+  INT CRCResult :
+  VALOF
+    --{{{  VARS
+    VAL []BYTE ZeroWord RETYPES [0] :
+    VAL BPW            IS SIZE ZeroWord : -- BytesPerWord
+    VAL BufferWordSize IS 16 :
+    VAL BufferSize     IS BufferWordSize * BPW :
+    [BufferSize]BYTE AlignedBuffer : -- Assumes Byte vectors are word aligned
+    PLACE AlignedBuffer IN WORKSPACE :
+    INT Aligned :
+    INT WordCount :
+    INT ByteCount :
+    INT Base :
+    --}}}
+    SEQ
+      CRCResult := OldCRC
+      Base := SIZE InputString
+      --{{{  WordCount := WordSel(ByteCount)
+      ByteCount := SIZE InputString
+      ASM
+        LDL ByteCount
+        WCNT        -- Areg := WordSel(Areg); Breg := ByteSel(Areg)
+        STL WordCount
+        STL ByteCount
+        -- Aligned := &InputString[Base] /\ (BPW - 1))
+        LDAB ADDRESSOF InputString, Base
+        BSUB
+        WCNT        -- Areg := WordSel(Areg); Breg := ByteSel(Areg)
+        REV
+        STL Aligned
+      --}}}
+      --{{{  CRC 16 Words at a time
+      IF
+        Aligned = 0
+          WHILE (WordCount >= BufferWordSize)
+            SEQ
+              Base := Base - BufferSize
+              --{{{  CRC 16 words
+              VAL AlignedBuffer.bytes IS [InputString FROM Base FOR BufferSize] :
+              VAL [ 16 ]INT AlignedBuffer.ints RETYPES AlignedBuffer.bytes :
+              SEQ
+                CRCResult := CRCWORD (AlignedBuffer.ints [15], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [14], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [13], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [12], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [11], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [10], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [9],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [8],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [7],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [6],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [5],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [4],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [3],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [2],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [1],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [0],  CRCResult, PolynomialGenerator)
+              --}}}
+              WordCount := WordCount - BufferWordSize
+        TRUE
+          WHILE (WordCount >= BufferWordSize)
+            SEQ
+              Base := Base - BufferSize
+              AlignedBuffer := [InputString FROM Base FOR BufferSize]
+              VAL [ 16 ]INT AlignedBuffer.ints RETYPES AlignedBuffer :
+              --{{{  CRC 16 words
+              SEQ
+                CRCResult := CRCWORD (AlignedBuffer.ints [15], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [14], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [13], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [12], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [11], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [10], CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [9],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [8],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [7],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [6],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [5],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [4],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [3],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [2],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [1],  CRCResult, PolynomialGenerator)
+                CRCResult := CRCWORD (AlignedBuffer.ints [0],  CRCResult, PolynomialGenerator)
+              --}}}
+              WordCount := WordCount - BufferWordSize
+      --}}}
+      --{{{  Deal with remaining words
+      IF
+        WordCount > 0
+          VAL Length IS WordCount * BPW :
+          SEQ
+            -- Copy remaining whole words into buffer and do CRC on buffer
+            Base := Base - Length
+            [AlignedBuffer FROM 0 FOR Length] := [InputString FROM Base FOR Length]
+            []INT AlignedWordBuffer RETYPES AlignedBuffer :
+            SEQ i = 1 FOR WordCount
+              CRCResult := CRCWORD (AlignedWordBuffer [WordCount-i],
+                                    CRCResult, PolynomialGenerator)
+        TRUE
+          SKIP
+      --}}}
+      --{{{  Deal with remaining bytes
+      -- deal with remaining bytes (must be less than one word)
+      IF
+        ByteCount > 0
+          SEQ
+            -- Align remaining bytes of string into top part of word
+            [AlignedBuffer FROM 0 FOR BPW] := ZeroWord
+            Base := Base - ByteCount
+            [AlignedBuffer FROM  BPW -
+                    ByteCount FOR ByteCount] := [InputString FROM Base FOR ByteCount]
+            INT Data RETYPES [AlignedBuffer FROM 0 FOR BPW] :
+            SEQ i = 0 FOR ByteCount
+              SEQ
+                CRCResult := CRCBYTE (Data, CRCResult, PolynomialGenerator)
+                Data := Data << 8
+        TRUE
+          SKIP
+      --}}}
+
+      -- The LSB of the byte string must be shifted through
+      -- CRCResult, with zero data shifted in from DataRegister.
+
+    RESULT CRCWORD (0, CRCResult, PolynomialGenerator)
+:

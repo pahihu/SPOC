@@ -1,0 +1,270 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DATAN "DATAN%c"
+#PRAGMA TRANSLATE DATAN2 "DATAN2%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DATAN "DATAN%f"
+#PRAGMA TRANSLATE DATANP "DATANP%f"
+#PRAGMA TRANSLATE DATANPP "DATANPP%f"
+#PRAGMA TRANSLATE DATAN2 "DATAN2%f"
+#PRAGMA TRANSLATE DATAN2P "DATAN2P%f"
+#PRAGMA TRANSLATE DATAN2PP "DATAN2PP%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  DATAN
+REAL64 FUNCTION DATAN (VAL REAL64 X)
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    -- Threshold for atan(x) = x is 2 ** (-ManBits/2), see C&W p200.
+    VAL Eps  IS #3E50000000000000(INT64) :
+    -- For X > XMax, PiBy2 - (1/X) = PiBy2 to machine precision.
+    VAL XMax IS #4340000000000000(INT64) :
+    VAL REAL64 DPiBy2.err RETYPES #3C91A62633145C07(INT64) :
+    VAL INT64 X.I   RETYPES X :
+    VAL BOOL Negative IS (X.I < Dzero) :
+    VAL XW.i IS X.I /\ (~(MOSTNEG INT64)) : -- XWork = |X|
+    --}}}
+    --{{{  Reduced ArcTan
+    REAL64 FUNCTION DReducedATan (VAL REAL64 X)
+      -- this computes ATAN(X) where 0 < X <= 1
+      REAL64 RWork :
+      VALOF
+        --{{{  definitions and variables
+        VAL TwoSubR3 IS #3FD126145E9ECD56(INT64) : -- 2 - sqrt(3)
+        VAL        A IS #6ED9EBA16132A9CF(INT64) :
+        VAL        B IS #376CF5D0B09954E7(INT64) :
+        VAL INT64 X.i RETYPES X :
+        INT64  Y :
+        REAL64 XWork :
+        BOOL Reduced :
+        --}}}
+        SEQ
+          --{{{  reduce argument
+          IF
+            X.i > TwoSubR3
+              SEQ
+                Y := FIX64 (IncExp64(X, -1))
+                Y := FracDiv64 (FracMult64 (A, Y) - #2000000000000000(INT64),
+                                (Y >> 1) + B)
+                XWork := ReFloat64 (Y)
+                Reduced := TRUE
+            TRUE
+              VAL REAL64 X RETYPES X.i :
+              SEQ
+                Y := FIX64 (X) -- ok since X <= TwoSubR3
+                XWork := X
+                Reduced := FALSE
+          --}}}
+          IF
+            --{{{  < epsilon
+            INT64 XW.i RETYPES XWork :
+            (XW.i /\ (~(MOSTNEG INT64))) < Eps
+              REAL64 XWork RETYPES XW.i :
+              RWork := XWork
+            --}}}
+            TRUE
+              --{{{  fixed-point approximation
+              INT64 G, RW :
+              SEQ
+                G := FracMult64 (Y, Y)   -- rational function in Y^2
+                RW := FracDiv64 (FracMult64 (G,
+                                 FracMult64 (G,
+                                 FracMult64 (G, #F9A5162D2FF3F578(INT64)) +
+                                                #DDCDED3C3071791E(INT64)) +
+                                                #DDCE2DCAE06E99AC(INT64)),
+                                 FracMult64 (G,
+                                 FracMult64 (G,
+                                 FracMult64 (G, #0400000000000000(INT64)) +
+                                                #24CAA4A1EF011C31(INT64)) +
+                                                #52118C88A77298AE(INT64)) +
+                                                #334ABB4FAF6EFE82(INT64))
+                RWork := (ReFloat64 ((RW >> 1) \/
+                               (RW /\ (MOSTNEG INT64))) * XWork) + XWork
+              --}}}
+          IF
+            Reduced
+              RWork := RWork + DPiBy6
+            TRUE
+              SKIP
+        RESULT RWork
+    :
+    --}}}
+    IF
+      XW.i > DRealInf -- X is NaN
+        VAL REAL64 X RETYPES X.I :
+        RWork := X  -- transmit NaN
+      XW.i > XMax
+        --{{{  + or - Pi/2
+        IF
+          Negative
+            RWork := - DPiBy2
+          TRUE
+            RWork := DPiBy2
+        --}}}
+      XW.i > Dunity
+        --{{{  reduce argument and compute
+        VAL REAL64 XWork RETYPES XW.i :
+        IF
+          Negative
+            RWork := (DReducedATan (DOne/XWork) - DPiBy2.err) - DPiBy2
+          TRUE
+            RWork := DPiBy2 + (DPiBy2.err - DReducedATan (DOne/XWork))
+        --}}}
+      XW.i < Eps
+        VAL REAL64 X RETYPES X.I :
+        RWork := X
+      Negative
+        VAL REAL64 XWork RETYPES XW.i :
+        RWork := - DReducedATan (XWork)
+      TRUE
+        VAL REAL64 XWork RETYPES XW.i :
+        RWork := DReducedATan (XWork)
+    RESULT RWork
+:
+--}}}
+--{{{  DATAN2
+REAL64 FUNCTION DATAN2 (VAL REAL64 U, V)
+
+  -- NB : This function requires DATAN to be in scope.
+  REAL64 Result :
+  VALOF
+    --{{{  definitions and variables
+    VAL INT64 V.i RETYPES V :
+    VAL INT64 U.i RETYPES U :  -- so that comparisons are fast
+    VAL UW.i IS U.i /\ (~(MOSTNEG INT64)) :
+    VAL VW.i IS V.i /\ (~(MOSTNEG INT64)) : -- |U|, |V|
+    VAL REAL64 UWork RETYPES UW.i :
+    VAL REAL64 VWork RETYPES VW.i :
+    --}}}
+    IF
+      UW.i > DRealInf -- U is NaN
+        --{{{  transmit largest NaN
+        IF
+          UW.i > VW.i
+            Result := U -- precedence rule for NaNs
+          TRUE
+            Result := V
+        --}}}
+      VW.i > DRealInf -- V is NaN
+        Result := V
+      (UW.i = DRealInf) AND (VW.i = DRealInf)
+        Result := Dundefined.NaN
+      UW.i = Dzero
+        --{{{  depends on sign of V
+        IF
+          VW.i = Dzero
+            Result := Dundefined.NaN
+          V.i > Dzero
+            Result := DPiBy2
+          TRUE
+            Result := - DPiBy2
+        --}}}
+      U.i > Dzero
+        Result := DATAN (REAL64OP(V, Div, U)) --this must NOT be checked.
+      V.i < Dzero
+        Result := DATAN (REAL64OP(VWork, Div, UWork)) - DPi
+      TRUE
+        Result := DPi - DATAN (REAL64OP(VWork, Div, UWork))
+    RESULT Result
+:
+--}}}
+#ifdef FORTRAN
+--{{{  DATANP/DATANPP
+-- This 'P' version exists for when the FORTRAN intrinsic DATAN is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DATANP.  When DATANP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DATANP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DATANP( VAL INT dummy, VAL REAL64 X ) IS DATAN( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DATANPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DATAN( X )
+:
+#endif
+--}}}
+--{{{  DATAN2P/DATAN2PP
+-- This 'P' version exists for when the FORTRAN intrinsic DATAN2 is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DATAN2P.  When DATAN2P is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DATAN2P has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the two REAL64 values. The occam calling convention is to pass REAL64s
+-- by reference, so these parameters should match already.
+
+REAL64 FUNCTION DATAN2P( VAL INT dummy, VAL REAL64 X, Y ) IS DATAN2( Y, X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- come the two REAL64 values.  The occam calling convention is to pass
+-- REAL64s by reference, so these parameters should match already.
+
+PROC DATAN2PP( VAL INT dummy, REAL64 result, VAL REAL64 X, Y )
+  result := DATAN2( Y, X )
+:
+#endif
+-- note the swap of parameters, due to occam and FORTRAN having opposite
+-- parameter order for this routine
+--}}}
+#endif

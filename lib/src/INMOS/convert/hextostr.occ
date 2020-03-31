@@ -1,0 +1,36 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+PROC HEXTOSTRING (INT len, []BYTE string, VAL INT n)
+
+  --{{{  history
+  -- Beta-2 (27feb87)
+  -- V1.0, 1-Jul-88
+  -- Added V to the OPTIONs; V1.1, 22-Mar-90 SRH
+  --}}}
+
+  INT nibbles.per.word:
+  INT W, C:
+  --{{{  hex.digit
+  PROC hex.digit (BYTE byte, VAL INT digit)
+    SEQ
+      IF
+        digit < 10
+          byte := (BYTE (digit + (INT '0')))
+        digit < 16
+          byte := (BYTE (digit + ((INT 'A') - 10)))
+  :
+  --}}}
+  SEQ
+    IF
+      (MOSTNEG INT) = #8000
+        nibbles.per.word := 4
+      TRUE
+        nibbles.per.word := 8
+    W := n
+    SEQ i = 0 FOR nibbles.per.word
+      SEQ
+        C, W := SHIFTLEFT (0, W, 4)
+        hex.digit (string[i], C)
+    len := nibbles.per.word
+:

@@ -1,0 +1,409 @@
+#INCLUDE "hostio.inc"
+#INCLUDE "grid.inc"
+#INCLUDE "mathvals.inc"
+
+#USE "hostio.lib"  -- iserver libraries
+#USE "string.lib"
+#USE "convert.lib"
+#USE "snglmath.lib"
+
+PROC master(CHAN OF SP fs,ts, CHAN OF sor fromGrid,toGrid)
+  --{{{  COMMENT PROC get.real32 (CHAN OF SP fs, ts, REAL32 n, BOOL error)
+  --PROC get.real32 (CHAN OF SP fs, ts, REAL32 n, BOOL error)
+  --  -- This allows you to enter a real32 value without having
+  --  -- to type in a .0 on the end of integer values.
+  --  [24]BYTE string :
+  --  INT len :
+  --  BYTE result :
+  --  SEQ
+  --    so.read.echo.line (fs, ts, len, string, result)
+  --    IF
+  --      result = spr.ok
+  --        SEQ
+  --          IF
+  --            char.pos('.',string) < 0
+  --              append.text(len,string,".0")
+  --            TRUE
+  --              SKIP
+  --          STRINGTOREAL32 (error, n, [string FROM 0 FOR len])
+  --
+  --      TRUE
+  --        error := TRUE
+  --:
+  --}}}
+  --{{{  COMMENT PROC get.yn (CHAN OF SP fs,ts, BOOL Yes, Error)
+  --PROC get.yn (CHAN OF SP fs,ts, BOOL Yes, Error)
+  --  BYTE reply, result :
+  --
+  --  SEQ
+  --    Error := FALSE
+  --    sp.getkey(fs,ts,reply,result)
+  --    IF
+  --      result <> spr.ok
+  --        Error := TRUE
+  --      (reply = 'Y') OR (reply = 'y')
+  --        SEQ
+  --          so.write.string.nl(fs,ts,"Y")
+  --          Yes := TRUE
+  --      (reply = 'N') OR (reply = 'n')
+  --        SEQ
+  --          so.write.string.nl(fs,ts,"N")
+  --          Yes := FALSE
+  --      TRUE
+  --        Error := TRUE
+  --:
+  --}}}
+  --{{{  COMMENT PROC OutputMatrix(VAL INT Size, [][]REAL32 Array)
+  --PROC OutputMatrix(VAL INT Size, [][]REAL32 Array)
+  --  SEQ
+  --    SEQ y = 0 FOR Size
+  --      VAL SBuf IS Array[(Size-y)-1]:
+  --      SEQ
+  --        SEQ x = 0 FOR Size
+  --          SEQ
+  --            so.write.real32(fs,ts,SBuf[x],1,1)
+  --            so.write.string(fs,ts," ")
+  --        so.write.nl(fs,ts)
+  --:
+  --
+  --}}}
+  INT time1, time2, Ticks:
+  TIMER time:
+  REAL32 Kappa, RJac, FactorD, DeltaX, DeltaT:
+  REAL32 TopEdge, RightEdge, BottomEdge, LeftEdge:
+  REAL32 MaxResid, MinNorm, Elapsed:
+  [MaxArray]REAL32 ABuf:
+  INT16 Node, SNode:
+  INT Dum1, Dum2, Count :
+  INT NumWorkers, ArraySize, Iter, BigSize, Offset:
+  BOOL Output, More, Error, Running, Timeout, Ask:
+  [BigArray][BigArray]REAL32 BigU:
+
+  SEQ
+    --{{{  Print Banner
+    so.write.nl(fs,ts)
+    so.write.string.nl(fs,ts,"Diffusion Equation Solver using Simultaneous OverRelaxation")
+    so.write.nl(fs,ts)
+    --}}}
+    --{{{  Wait for receipt of all mapping packets
+    so.write.string(fs,ts,"Mapping Network .. ")
+    Count := 0
+    WHILE Count < NumProcs
+      SEQ
+        fromGrid?CASE
+          mapping.packet; Node; Dum1
+            SEQ
+              IF
+                Count > 0
+                  so.write.string(fs,ts,",")
+                TRUE
+                  SKIP
+              so.write.int(fs,ts,(INT Node),0)
+              Count := Count + 1
+    so.write.nl(fs,ts)
+    so.write.string(fs,ts,"Network Mapped .. ")
+    so.write.int(fs,ts,Count,0)
+    so.write.string.nl(fs,ts," Processors in use")
+    --}}}
+    Ask := TRUE
+    More := TRUE
+    WHILE More
+      SEQ
+        --{{{  Input all required user data
+        --{{{  Preset values
+        DeltaT := 0.6 (REAL32)
+        DeltaX := 1.0 (REAL32)
+        FactorD := 1.0 (REAL32)
+        TopEdge := 1.0 (REAL32)
+        BottomEdge := -1.0 (REAL32)
+        LeftEdge := -1.0 (REAL32)
+        RightEdge := 1.0 (REAL32)
+        MinNorm := 0.0001 (REAL32)
+        Output := FALSE
+        --}}}
+        --{{{  COMMENT Input DeltaT value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for Delta T (ie 0.6):")
+        --    get.real32(fs,ts,DeltaT,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input DeltaX value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for DeltaX (ie 1.0) :")
+        --    get.real32(fs,ts,DeltaX,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input D multiplier value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for D (ie 1.0) :")
+        --    get.real32(fs,ts,FactorD,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input top edge value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for top edge (ie 1):")
+        --    get.real32(fs,ts,TopEdge,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input bottom edge value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for bottom edge (ie -1):")
+        --    get.real32(fs,ts,BottomEdge,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input left edge value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for left edge (ie -1):")
+        --    get.real32(fs,ts,LeftEdge,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input right edge value
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter value for right edge (ie 1):")
+        --    get.real32(fs,ts,RightEdge,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Input convergence minimum
+        --Error := Ask
+        --WHILE (Error)
+        --  SEQ
+        --    so.write.string(fs,ts,"Enter convergence factor (try 0.0001):")
+        --    get.real32(fs,ts,MinNorm,Error)
+        --    so.write.nl(fs,ts)
+        --}}}
+        --{{{  Input number of workers
+        Error := TRUE
+        WHILE (Error)
+          SEQ
+            so.write.string(fs,ts,"Enter number of Workers (1,4,9,16): ")
+            so.read.echo.int(fs,ts,NumWorkers,Error)
+            so.write.nl(fs,ts)
+            -- Check and convert to edge value
+            IF
+              NumWorkers=1
+                SKIP
+              NumWorkers=4
+                NumWorkers := 2
+              NumWorkers=9
+                NumWorkers := 3
+              NumWorkers=16
+                NumWorkers := 4
+              TRUE
+                Error := TRUE
+        --}}}
+        --{{{  Input grid size per worker
+        Error := TRUE
+        WHILE (Error)
+          SEQ
+            so.write.string(fs,ts,"Enter Grid Size per worker: ")
+            so.read.echo.int(fs,ts,ArraySize,Error)
+            so.write.nl(fs,ts)
+            ArraySize := ArraySize PLUS 2
+            IF
+              (ArraySize < 3) OR (ArraySize > MaxArray)
+                Error := TRUE
+              TRUE
+                SKIP
+        --}}}
+        --{{{  COMMENT Ask print Matrix Y/N
+        --Error := TRUE
+        --WHILE Error
+        --  SEQ
+        --    so.write.string(fs,ts,"Output matrix to screen Y/N? ")
+        --    get.yn(fs,ts,Output,Error)
+        --
+        --}}}
+        --}}}
+        --{{{  Initialise arrays and variables
+        Offset := ArraySize - 2
+        BigSize := (NumWorkers * Offset) + 2
+        RJac := COS((PI/(REAL32 ROUND(BigSize))))
+        Kappa := FactorD * (DeltaT/ (DeltaX * DeltaX))
+        
+        toGrid!initial.packet; ArraySize; NumWorkers; Kappa; RJac; MinNorm
+        so.write.string.nl(fs,ts,"Initialisation packet sent")
+        SEQ y = 0 FOR BigSize
+          SEQ x = 0 FOR BigSize
+            IF
+              x = 0
+                BigU[y][x] := LeftEdge
+              y = 0
+                BigU[y][x] := TopEdge
+              x = (BigSize-1)
+                BigU[y][x] := RightEdge
+              y = (BigSize-1)
+                BigU[y][x] := BottomEdge
+              TRUE
+                BigU[y][x] := ZERO
+        
+        so.write.string(fs,ts,"Sending Grid: ")
+        SEQ Count = 1 FOR (NumWorkers * NumWorkers)
+          VAL ProcX IS (Count-1) REM NumWorkers:
+          VAL ProcY IS (Count-1) / NumWorkers:
+          VAL OffX  IS ProcX * Offset:
+          VAL OffY  IS ProcY * Offset:
+          VAL Dest IS (ProcY * GridDim) + (ProcX + 1):
+          SEQ
+            SEQ y = 0 FOR ArraySize
+              SEQ
+                SEQ x = 0 FOR ArraySize
+                  ABuf[x] := BigU[OffY+y][OffX+x]
+                toGrid!array.packet; (INT16 Dest); 0(INT16); y; ArraySize::ABuf
+            IF
+              Count>1
+                so.write.string(fs,ts,",")
+              TRUE
+                SKIP
+            so.write.int(fs,ts,Count,0)
+        so.write.nl(fs,ts)
+        --{{{  Output info for user
+        --{{{  COMMENT 
+        --IF
+        --  Output
+        --    SEQ
+        --      so.write.string.nl(fs,ts,"Initial matrix:")
+        --      OutputMatrix(BigSize,BigU)
+        --  TRUE
+        --    SKIP
+        --}}}
+        so.write.string(fs,ts,"Calculated: RJac = ")
+        so.write.real32(fs,ts,RJac,2,5)
+        so.write.string(fs,ts,"  Kappa = ")
+        so.write.real32(fs,ts,Kappa,2,5)
+        so.write.string(fs,ts,"  Total Grid = ")
+        so.write.int(fs,ts,BigSize - 2,0)
+        so.write.string(fs,ts," x ")
+        so.write.int(fs,ts,BigSize - 2,0)
+        so.write.nl(fs,ts)
+        --}}}
+        More := TRUE
+        --}}}
+        --{{{  Start running
+        Running := TRUE
+        Timeout := FALSE
+        time?time1
+        toGrid!go.packet
+        Iter := 0
+        --}}}
+        --{{{  Loop until converged, or exceed max iterations
+        WHILE Running
+          PAR
+            fromGrid?CASE
+              residue.packet; Node; MaxResid
+                SEQ
+                  IF
+                    MaxResid < MinNorm
+                      SEQ
+                        Running := FALSE
+                        time?time2
+                        toGrid!stop.packet
+                    Iter >= MaxIterations
+                      SEQ
+                        Running := FALSE
+                        Timeout := TRUE
+                        time?time2
+                        toGrid!stop.packet
+                    TRUE
+                      SEQ
+                        toGrid!go.packet
+                        -- so.write.string(fs,ts,"[")
+                        -- so.write.real32(fs,ts,MaxResid,0,0)
+                        -- so.write.string.nl(fs,ts,"]")
+                  Iter := Iter + 1
+            -- so.write.char(fs,ts,'.')
+        
+        so.write.nl(fs,ts)
+        --}}}
+        --{{{  Download array
+        SEQ
+          so.write.string(fs,ts,"Retrieving Matrix: ")
+          SEQ Count = 1 FOR (NumWorkers * NumWorkers)
+            VAL ProcX IS (Count-1) REM NumWorkers:
+            VAL ProcY IS (Count-1) / NumWorkers:
+            VAL OffX  IS ProcX * Offset:
+            VAL OffY  IS ProcY * Offset:
+            VAL Dest IS (ProcY * GridDim) + (ProcX + 1):
+            SEQ
+              IF
+                Count > 1
+                  so.write.string(fs,ts,",")
+                TRUE
+                  SKIP
+              so.write.int(fs,ts,Count,0)
+              toGrid!req.packet; (INT16 Dest)
+              SEQ y=1 FOR (ArraySize-2)            -- Don't copy borders
+                fromGrid?CASE
+                  array.packet; Node; SNode; Dum1; Dum2::ABuf
+                    SEQ
+                      SEQ x = 1 FOR (ArraySize-2)    -- Don't copy border values
+                        SEQ
+                          BigU[OffY+y][OffX+x] := ABuf[x]
+          so.write.nl(fs,ts)
+        --}}}
+        --{{{  Output results
+        Ticks := time2 MINUS time1
+        Elapsed := (REAL32 ROUND(Ticks)) / 15625.0(REAL32)
+        --{{{  COMMENT 
+        --IF
+        --  Output
+        --    SEQ
+        --      so.write.string.nl(fs,ts,"Final Matrix Values")
+        --      OutputMatrix(BigSize,BigU)
+        --  TRUE
+        --    SKIP
+        --}}}
+        IF
+          Timeout
+            so.write.string(fs,ts,"Exceeded Maximum of ")
+          TRUE
+            so.write.string(fs,ts,"Matrix Converged after ")
+        
+        so.write.int(fs,ts,Iter,0)
+        so.write.string.nl(fs,ts," iterations")
+        
+        so.write.string(fs,ts,"Time Taken = ")
+        so.write.real32(fs,ts,Elapsed,3,2)
+        so.write.string(fs,ts," seconds, giving ")
+        so.write.real32(fs,ts,TWO * ((REAL32 ROUND(Iter * 15625))/(REAL32 ROUND(Ticks))),3,1)
+        so.write.string.nl(fs,ts," passes per second")
+        so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Ask to repeat Y/N
+        --SEQ
+        --  Error := TRUE
+        --  WHILE (Error)
+        --    SEQ
+        --      so.write.string(fs,ts,"Repeat Program Y/N ?")
+        --      get.yn(fs,ts,More,Error)
+        --
+        --  IF
+        --    More 
+              --{{{  Ask for new functional parameters Y/N
+              --SEQ
+              --  Error := TRUE
+              --  WHILE (Error)
+              --    SEQ
+              --      so.write.string(fs,ts,"Enter new function Parameters Y/N ?")
+              --      get.yn(fs,ts,Ask,Error)
+              --}}}
+        --    TRUE
+        --      SKIP
+        --                                          
+        --}}}
+    so.exit(fs,ts,sps.success)
+:
+

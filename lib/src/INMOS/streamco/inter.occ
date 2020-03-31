@@ -1,0 +1,65 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "TDS/TOOLSET conversion library V1.1 08/01/90"
+#COMMENT "Copyright INMOS Limited 1989"
+#INCLUDE "streamio.inc"
+#INCLUDE "hostio.inc"
+#USE "streamio.lib"
+
+-- 08-JAN-90 SRH channel retyping introduced
+
+PROC scrstream.to.array (CHAN OF ANY scrn, []BYTE buffer)
+  ss.scrstream.to.array(scrn, buffer)
+:
+
+PROC scrstream.from.array (VAL[] BYTE buffer, CHAN OF ANY scrn)
+  ss.scrstream.from.array(scrn, buffer)
+:
+
+PROC scrstream.to.file (CHAN OF ANY scrn, CHAN OF SP fs, ts,
+                        VAL[]BYTE filename, INT result)
+  BYTE b.result:
+  SEQ
+    so.scrstream.to.file(fs, ts, scrn, filename, b.result)
+    result := INT b.result
+:
+
+PROC scrstream.fan.out (CHAN OF ANY scrn, screen.out1, screen.out2)
+  ss.scrstream.fan.out(scrn, screen.out1, screen.out2)
+:
+
+PROC scrstream.sink (CHAN OF ANY echo)
+  ss.scrstream.sink(echo)
+:
+
+PROC scrstream.copy (CHAN OF ANY scrn, scrn.out)
+  ss.scrstream.copy(scrn, scrn.out)
+:
+
+PROC keystream.from.file (CHAN OF SP fs, ts, CHAN OF INT kbd,
+                         VAL []BYTE filename, INT result)
+  CHAN OF KS kbd RETYPES kbd :
+  BYTE b.result:
+  SEQ
+    so.keystream.from.file(fs, ts, kbd, filename, b.result)
+    result := INT b.result
+:
+
+PROC keystream.sink (CHAN OF INT keys)
+  CHAN OF KS keys RETYPES keys :
+  ks.keystream.sink(keys)
+:
+
+PROC keystream.to.screen (CHAN OF INT keyboard, CHAN OF ANY screen)
+  CHAN OF KS keyboard RETYPES keyboard :
+  ks.keystream.to.scrstream(keyboard, screen)
+:
+
+PROC scrstream.to.ANSI (CHAN OF ANY scrn,
+                        CHAN OF SP fs, ts)
+  so.scrstream.to.ANSI(fs, ts, scrn)
+:
+
+PROC scrstream.to.TVI920 (CHAN OF ANY scrn,
+                          CHAN OF SP fs, ts)
+  so.scrstream.to.TVI920(fs, ts, scrn)
+:

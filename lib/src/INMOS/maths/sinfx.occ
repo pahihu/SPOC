@@ -1,0 +1,138 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE SIN "SIN%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE SIN "SIN%f"
+#PRAGMA TRANSLATE SINP "SINP%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL32 FUNCTION SIN (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions and variables
+    -- Threshold for sin(x) = x is 2 ** (-BitsInFrac/2), see C&W pp137.
+    VAL Eps IS #39800000(INT) :
+    -- Limit on X is Pi * 2**(ManBits/2). See C&W p134.
+    VAL XMax IS #46490FDB(INT) :
+    VAL PIbyTwo IS #3FC90FDB :
+    VAL INT X.I RETYPES X :
+    INT XW1.i  :
+    BOOL Negative :
+    --}}}
+    SEQ
+      Negative := (X.I < 0)
+      XW1.i := X.I /\ (~(MOSTNEG INT))  -- XWork := |X|
+      IF
+        --{{{  special cases
+        XW1.i >= RealInf   -- X is Inf or NaN
+          IF
+            XW1.i = RealInf   -- X is Inf
+              RWork := undefined.NaN
+            TRUE
+              RWork := X     -- transmit NaN
+        XW1.i > XMax      -- X is too large for an exact result to be computed
+          RWork := inexact.NaN
+        --}}}
+        TRUE
+          REAL32 XWork2 :
+          SEQ
+            --{{{  reduce argument
+            IF
+              XW1.i > PIbyTwo
+                VAL REAL32 XWork1 RETYPES XW1.i :
+                VAL N IS INT ROUND (XWork1 * InvPi) :   -- multiply by 1/Pi
+                VAL BOOL Odd IS ((N /\ 1) = 1) :
+                SEQ
+                  -- extended precision
+                  VAL XN IS REAL32 ROUND N :
+                  XWork2 := (XWork1 - (XN * Pi.part.1)) - (XN * Pi.part.2)
+                  INT XW2.i RETYPES XWork2 :
+                  IF
+                    XW2.i < 0
+                      SEQ
+                        Negative := (Odd = Negative)
+                        XW2.i := XW2.i /\ (~(MOSTNEG INT))
+                    TRUE
+                      Negative := (Odd <> Negative)
+              TRUE    -- X is in the primary range
+                VAL REAL32 XWork1 RETYPES XW1.i :
+                XWork2 := XWork1
+            --}}}
+            --{{{  approximation in primary range
+            INT XW.i RETYPES XWork2 :
+            XW1.i := XW.i
+            IF
+              XW1.i < Eps
+                RWork := XWork2
+              XW1.i > Nearly.PiBy2  -- to ensure 1.0 is not exceeded
+                RWork := One
+              TRUE
+                -- XWork is in the range (0, Pi/2)
+                -- This implementation uses a polynomial approximation from
+                -- Cody & Waite "Software Manual for the Elementary Functions",
+                -- pp125-138. The fixed point version is used here.
+                VAL R IS [#0015D38B, #FE609BBB, #1110E7B4, #AAAAAE04] :
+                INT G :
+                SEQ
+                  XWork2 := IncExp(XWork2, -1)  -- divides by 2
+                  G := FIX (XWork2)             -- FIX X/2
+                  G := FRACMUL (G, G)
+                  -- polynomial in (X/2)^2
+                  RWork := IncExp ((ReFloat (FRACMUL (G, R[3] + FRACMUL (G, R[2] +
+                           FRACMUL (G, R[1] + FRACMUL (G, R[0]))))) * XWork2) + XWork2, 1)
+            --}}}
+            IF
+              Negative
+                RWork := - RWork
+              TRUE
+                SKIP
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  SINP
+REAL32 FUNCTION SINP( VAL INT dummy, VAL INT X )
+
+  -- SINP exists for when the FORTRAN intrinsic SIN is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to SINP.  When SINP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts SINP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for SINP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT SIN( Xtemp )
+:
+--}}}
+#endif

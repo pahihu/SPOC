@@ -1,0 +1,56 @@
+#INCLUDE "hostio.inc"
+
+VAL LEN IS 1000:
+VAL REP IS 1000:
+VAL DPI IS 3.14159 (REAL64):
+
+PROC test(CHAN OF SP fs,ts, []INT mem)
+  #USE "hostio.lib"`
+  --{{{  PROC daxpy(VAL REAL64 da,VAL  []REAL64 dx, []REAL64 dy,VAL INT m,n)
+  PROC daxpy(VAL REAL64 da,VAL  []REAL64 dx, []REAL64 dy,VAL INT m,n)
+    SEQ j = 0 FOR REP
+      SEQ i = m FOR (n-m)
+        dy[i] := dy[i] + (da*dx[i])
+  :
+  --}}}
+  [LEN]REAL64 dx,dy:
+  INT start,stop,sum:
+  TIMER timer:
+  SEQ
+    so.write.string.nl(fs,ts,"REAL64 Daxpy Test")
+    so.write.string(fs,ts,"Vector length = ")
+    so.write.int(fs,ts,LEN,4)
+    so.write.string(fs,ts,", Outer loop around daxpy calls = ")
+    so.write.int(fs,ts,REP,4)
+    so.write.nl(fs,ts)
+    
+    sum := 0
+    SEQ i = 0 FOR LEN
+      dx[i] := (REAL64 TRUNC i)
+
+    SEQ i = 0 FOR 10
+      SEQ
+        timer ? start
+        daxpy(DPI,dx,dy,0,LEN)
+        timer ? stop
+        so.write.int(fs,ts,i+1,2)
+        so.write.string(fs,ts," - Time = ")
+        REAL32 t:
+        SEQ
+          t := ((REAL32 TRUNC (stop MINUS start)) * 64.0(REAL32))      -- Total time in useconds
+          so.write.real32(fs,ts,t,5,1)
+          so.write.string(fs,ts,"us for ")
+          so.write.int(fs,ts,REP*LEN,7)
+          so.write.string.nl(fs,ts," iterations")
+        sum := sum PLUS (stop MINUS start)
+
+    so.write.nl(fs,ts)
+    so.write.string(fs,ts,"Average Time = ")
+    REAL32 t,rep:
+    SEQ
+      t := ((REAL32 TRUNC sum) * 64.0(REAL32)) /10.0(REAL32)      -- Total time in useconds
+      so.write.real32(fs,ts,t / (REAL32 TRUNC (LEN * REP)),5,2)
+      so.write.string.nl(fs,ts,"us / iteration")
+    so.exit(fs,ts,sps.success)
+   
+:      

@@ -1,0 +1,58 @@
+#OPTION "E"  -- no compliler libs
+#COMMENT "Stream i/o library, V1.1, 14/06/90"
+#COMMENT "(c) Copyright INMOS Limited, 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "streamio.inc"
+#USE "hostio.lib"
+PROC so.keystream.from.kbd (CHAN OF SP fs, ts,
+                            CHAN OF KS keys.out,
+                            CHAN OF BOOL stopper,
+                            VAL INT ticks.per.poll)
+
+  --{{{  specification
+  -- Purpose:  To read keys from the keyboard at full speed if they
+  --           are available, otherwise waiting a given interval
+  --           between polls of the keyboard, and output them as
+  --           integers on the given key stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  --           keys.out - for output
+  --           stopper - for input; FALSE or TRUE received on this
+  --           channel terminates this procedure
+  -- In:       ticks.per.poll - this procedure polls the keyboard at
+  --           intervals of ticks.per.poll low priority transputer
+  --           clock cycles if keys are not available; a value of
+  --           less than or equal to zero is an error
+  -- Notes:    On termination, ft.terminated is sent on keys.out.
+  --}}}
+  --{{{  history
+  -- Made non-positive values of ticks.per.poll an error. New
+  -- version is 1.1 ( old version was 0.01, 23-Dec-88 ); 14-June-90 SRH
+  --}}}
+
+  TIMER time :
+  INT   wake.time :
+  BOOL  running :
+  BYTE  result, key :
+  SEQ
+    IF
+      ticks.per.poll <= 0 -- otherwise stopper may never get a chance
+        STOP
+      TRUE
+        SKIP
+    running := TRUE
+    time ? wake.time -- go straight into the first without waiting
+    WHILE running
+      PRI ALT
+        stopper ? running
+          running := FALSE
+        time ? AFTER wake.time
+          SEQ
+            sp.pollkey (fs, ts, key, result)
+            IF
+              result = spr.ok
+                keys.out ! INT key -- and keep the same wake.time for next time round
+              TRUE
+                wake.time := wake.time PLUS ticks.per.poll
+    keys.out ! ft.terminated
+:

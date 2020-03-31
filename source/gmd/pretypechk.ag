@@ -1,0 +1,119 @@
+/* -*-c-*- */
+/*{{{  File Banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attribute grammar for controlling type checking
+||@(#)   System : occam 2 c
+||@(#) Filename : pretypechk.ag
+||@(#)  Version : 1.33
+||@(#)     Date : 9/20/93
+\*@(#)====================================================*/
+/*}}}*/
+
+/*{{{  MODULE TreeOrder*/
+MODULE TreeOrder
+
+EVAL PreTypeChkAg
+   
+RULE
+  AField = {Type:V1In := 0; }.
+  Start = { Process:V1In := 0; }.
+  Simple = {Type:V1In := 0; }.
+  Counted = {Length:V1In := 0; }.
+      
+END TreeOrder
+/*}}}*/
+
+/*{{{  MODULE PreTypeCheck*/
+MODULE PreTypeCheck
+
+EVAL PreTypeChkAg
+
+RULE
+  Expr = { DefType := NoTree; }.
+  ExprList = { DefType := NoTree; }.    
+  ChoiceList = { DefType := NoTree; }.  
+  AnExpr = { DefType := SynthDefType(Next:DefType,Expr:DefType,NoTree); }.
+  Binary = { DefType := SynthDefType(Lop:DefType,Rop:DefType,Op); }.
+  Const = { DefType :- Type; }.
+  FuncCall = { DefType := StripTypeList(SymbolType(Sym)); }.
+  ElementalExpr = { DefType :- Elemental:DefType; }.
+  Default = { DefType := NoTree; }.
+  Convert = { DefType :- Type; }.
+  Round = { DefType :- Type; }.
+  Trunc = { DefType :- Type; }.
+  Valof = { DefType :- ExprList:DefType; }.
+  MostPos = { DefType :- Type; }.
+  MostNeg = { DefType :- Type; }.
+  UnBound = { DefType := NoTree; }.
+  BytesIn = { DefType := mInt(); }.
+  StringElement = { DefType := NoTree; }.
+  String = { DefType := NoTree; }.
+  Elemental = { DefType := NoTree; }.
+  TableElement = { DefType := NoTree; }.
+  Element = { DefType := NoTree; }.
+  Identifier = { DefType := SymbolType(Sym); }.
+  Subscript = { DefType := SynthDefSubscriptType(Next:DefType,Expr:FLOut); }.
+  Range = { DefType :- Next:DefType; }.
+  Table = { DefType := SynthDefTableType(ExprList:DefType); }.
+  TableExpr = { DefType :- Expr:DefType; }.
+  TableSubscript = { DefType := SynthDefSubscriptType(Next:DefType,Expr:FLOut); }.
+  UserLiteral = { DefType :- Type; }.
+END PreTypeCheck
+
+/*}}}*/
+/*{{{  MODULE UserFieldLookup*/
+MODULE UserFieldLookup
+
+EVAL PreTypeChkAg
+
+RULE
+  Convert = { Expr:FLIn := NoTree; }.
+  AVal = { Expr:FLIn := NoTree; 
+     CHECK (SymbolType(Sym)!=NoTree) ==> { SymbolType(Sym) = Expr:DefType }; }.
+  DefIsFunc = { ExprList:FLIn := NoTree; }.
+  Is = { Elemental:FLIn := NoTree;
+     CHECK (SymbolType(Sym)!=NoTree) ==> { SymbolType(Sym) = Elemental:DefType }; }.
+  Retypes = { Elemental:FLIn := NoTree; }.
+  DefFunc = { Valof:FLIn := NoTree; }.
+  CaseIn = { Element:FLIn := NoTree; CaseList:FLIn := GetTagProtocol(Element:DefType); }.
+  Replicator = { From:FLIn := NoTree; For:FLIn := NoTree; }.
+  Array = { Expr:FLIn := NoTree; }.
+  Assign = { Lval:FLIn := NoTree; Rval:FLIn := NoTree; }.
+  Processor = { Expr:FLIn := NoTree; }.
+  Input = { Element:FLIn := NoTree; ExprList:FLIn := GetTagProtocol(Element:DefType); }.
+  Output = { Element:FLIn := NoTree; ExprList:FLIn := GetTagProtocol(Element:DefType); }.
+  After = { Element:FLIn := NoTree ; Expr:FLIn := NoTree; }.
+  Case = { Selector:FLIn := NoTree; }.
+  While = { Expr:FLIn := NoTree; }.
+  Instance = { ExprList:FLIn := NoTree; }.
+  Guard = { Expr:FLIn := NoTree; }.
+  AChoice = { ExprList:FLIn := NoTree; }.
+  ACase = { ExprList:FLIn := FLIn; Next:FLIn := FLIn; }.
+  Subscript = { Expr:FLIn := GetFieldList(Next:DefType); FLOut := NoTree; }.
+  TableSubscript = { Expr:FLIn := GetFieldList(Next:DefType); FLOut := NoTree; }.
+  AnExpr = { Next:FLIn := NoTree; Expr:FLIn:= FLIn; }.
+  OffsetOf= { UnmappedIdentifier:FLIn := GetFieldList(Type); FLOut := NoTree; }.
+  UnmappedIdentifier = 
+  { 
+    FLOut := 
+    { 
+      if (Tree_IsType(FLIn,kFieldList))
+	FLOut = LookupField(Ident,Pos,FLIn,&Sym);
+      else if (Tree_IsType(FLIn,kTagProList))
+      {
+	LookupProtocolTag(Ident,Pos,FLIn,&Sym);
+	FLOut = NoTree;
+      }
+      else  
+      { 
+	FLOut = NoTree; 
+	Sym = LookupSymbolInScope(Ident,Pos,Scope);
+      }
+    };
+  }.
+END UserFieldLookup
+/*}}}*/

@@ -1,0 +1,33 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+PROC STRINGTOBOOL (BOOL Error, b, VAL []BYTE string)
+
+  --{{{  history
+  -- Beta-2 (27feb87)
+  -- V1.0, 1-Jul-88
+  -- Added V to the OPTIONs; V1.1, 22-Mar-90 SRH
+  --}}}
+
+  IF
+    --{{{  TRUE
+    (SIZE string) < 4
+      Error := TRUE
+    ((string [0] = 'T') AND (string [1] = 'R')) AND
+        ((string [2] = 'U') AND (string [3] = 'E'))
+      SEQ
+        b := TRUE
+        Error := ((SIZE string) <> 4)
+    --}}}
+    --{{{  FALSE
+    (SIZE string) < 5
+      Error := TRUE
+    ((string [0] = 'F') AND (string [1] = 'A')) AND
+        (((string [2] = 'L') AND (string [3] = 'S')) AND (string [4] = 'E'))
+      SEQ
+        b := FALSE
+        Error := ((SIZE string) <> 5)
+    --}}}
+    TRUE
+      Error := TRUE
+:

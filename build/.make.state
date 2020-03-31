@@ -1,0 +1,271 @@
+.MAKE_VERSION:	VERSION-1.0
+/cellar/spoc/v1.1.mbh/bin/cham/occ2c:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/cham ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/cham; fi;
+	echo "char *VersionDate=\"`date`\";char *VersionName=\"1.1\";" > Version.c
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"cham\" Version.c -c -o Version.o
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"cham\" Lexer.o ParserDrv.o Symbol.o Positions.o Errors.o Parser.o Cout.o Tree.o TreeFix.o  OccamOut.o TypeChk.o TypeChkAg.o Transform.o ParUsage.o ParUsageAg.o CoutAg.o Omega.o ip.o Fopenenv.o Version.o /cellar/spoc/v1.1.mbh/gmdtools/reuse/cham/libreuse.a -o /cellar/spoc/v1.1.mbh/bin/cham/occ2c -lm
+/cellar/spoc/v1.1.mbh/bin/tp/odebug:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/tp; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/odebug /cellar/spoc/v1.1.mbh/bin/tp;
+occam.TS:
+	echo VIEW occam SELECT Abstract Extend | cat - /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/pretypechk.attr /home/mbh/spoc/source/gmd/typechk.attr /home/mbh/spoc/source/gmd/cstuff.attr /home/mbh/spoc/source/gmd/parusage.attr | cg -4
+	echo TRAFO T TREE occam | puma -r > occam.P
+extoccam.TS:
+	echo VIEW extoccam SELECT Abstract Extend ParUsageTree | cat - /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/pretypechk.attr /home/mbh/spoc/source/gmd/typechk.attr /home/mbh/spoc/source/gmd/cstuff.attr /home/mbh/spoc/source/gmd/parusage.attr | cg -4
+	echo TRAFO T TREE extoccam | puma -r > extoccam.P
+CoutAg.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h Cout.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c CoutAg.c -o CoutAg.o
+CoutAg.c:
+	cat /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/cstuff.attr /home/mbh/spoc/source/gmd/cstuff.ag | cg -cAW
+.BUILT_LAST_MAKE_RUN:
+/home/mbh/spoc/bin/solaris/occ2c:
+	if [ ! -d /home/mbh/spoc/bin/solaris ]; then mkdir -p /home/mbh/spoc/bin/solaris; fi;
+	echo "char *VersionDate=\"`date`\";char *VersionName=\"1.2\";" > Version.c
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Version.c -c -o Version.o
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Lexer.o ParserDrv.o Symbol.o Positions.o Errors.o Parser.o Cout.o Tree.o TreeFix.o  OccamOut.o TypeChk.o TypeChkAg.o PreTypeChkAg.o Transform.o ParUsage.o ParUsageAg.o CoutAg.o Omega.o ip.o Fopenenv.o Version.o /home/mbh/spoc/gmdtools/reuse/solaris/libreuse.a -o /home/mbh/spoc/bin/solaris/occ2c -lm
+/cellar/spoc/v1.1/bin/solaris/occ2c:
+	if [ ! -d /cellar/spoc/v1.1/bin/solaris ]; then mkdir -p /cellar/spoc/v1.1/bin/solaris; fi;
+	echo "char *VersionDate=\"`date`\";char *VersionName=\"1.1\";" > Version.c
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1/source/c -I/cellar/spoc/v1.1/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Version.c -c -o Version.o
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1/source/c -I/cellar/spoc/v1.1/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Lexer.o ParserDrv.o Symbol.o Positions.o Errors.o Parser.o Cout.o Tree.o TreeFix.o  OccamOut.o TypeChk.o TypeChkAg.o Transform.o ParUsage.o ParUsageAg.o CoutAg.o Omega.o ip.o Fopenenv.o Version.o /cellar/spoc/v1.1/gmdtools/reuse/solaris/libreuse.a -o /cellar/spoc/v1.1/bin/solaris/occ2c -lm
+/cellar/spoc/v1.1.mbh/bin/solaris/occ2c:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/solaris ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/solaris; fi;
+	echo "char *VersionDate=\"`date`\";char *VersionName=\"1.1\";" > Version.c
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Version.c -c -o Version.o
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Lexer.o ParserDrv.o Symbol.o Positions.o Errors.o Parser.o Cout.o Tree.o TreeFix.o  OccamOut.o TypeChk.o TypeChkAg.o Transform.o ParUsage.o ParUsageAg.o CoutAg.o Omega.o ip.o Fopenenv.o Version.o /cellar/spoc/v1.1.mbh/gmdtools/reuse/solaris/libreuse.a -o /cellar/spoc/v1.1.mbh/bin/solaris/occ2c -lm
+.BUILT_LAST_MAKE_RUN:
+ParserDrv.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/signal.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h
+.BUILT_LAST_MAKE_RUN:
+ParserDrv.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h /usr/include/sys/procset.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/ctype.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h PreTypeChkAg.h TypeChk.h Transform.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c -DCORE_DUMP /home/mbh/spoc/source/c/ParserDrv.c -o ParserDrv.o
+/cellar/spoc/v1.1.mbh/bin/tp/occ2c:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/tp; fi;
+	echo "char *VersionDate=\"`date`\";char *VersionName=\"1.1\";" > Version.c
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"tp\" Version.c -c -o Version.o
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"tp\" Lexer.o ParserDrv.o Symbol.o Positions.o Errors.o Parser.o Cout.o Tree.o TreeFix.o  OccamOut.o TypeChk.o TypeChkAg.o Transform.o ParUsage.o ParUsageAg.o CoutAg.o Omega.o ip.o Fopenenv.o Version.o /cellar/spoc/v1.1.mbh/gmdtools/reuse/tp/libreuse.a -o /cellar/spoc/v1.1.mbh/bin/tp/occ2c -lm
+Tree.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyTree.w /home/mbh/spoc/gmdtools/reuse/c/System.h /home/mbh/spoc/gmdtools/reuse/c/General.h /home/mbh/spoc/gmdtools/reuse/c/Memory.h /home/mbh/spoc/gmdtools/reuse/c/DynArray.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c Tree.c -o Tree.o
+Tree.c:
+	cat /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/pretypechk.attr /home/mbh/spoc/source/gmd/typechk.attr /home/mbh/spoc/source/gmd/cstuff.attr /home/mbh/spoc/source/gmd/parusage.attr | cg -cmRdis -kwqtby 
+	rm -f Tree.c.new
+	cat Tree.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >Tree.c.new
+	mv -f Tree.c.new Tree.c
+/cellar/spoc/v1.1.mbh/bin/tp/occam.gdb:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/tp; fi;
+	cp  /cellar/spoc/v1.1.mbh/lib/src/occam.gdb /cellar/spoc/v1.1.mbh/bin/tp
+Fopenenv.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/ctype.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Fopenenv.c -o Fopenenv.o
+ParUsageAg.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c ParUsageAg.c -o ParUsageAg.o
+ParUsageAg.c:
+	cat /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/parusage.attr /home/mbh/spoc/source/gmd/parusage.ag | cg -cAW
+/home/mbh/spoc/lib/solaris/Debug.h:
+	if [ ! -d /home/mbh/spoc/lib/solaris ]; then mkdir -p /home/mbh/spoc/lib/solaris; fi;
+	cp /home/mbh/spoc/lib/src/Debug.h /home/mbh/spoc/lib/solaris
+/cellar/spoc/v1.1/lib/solaris/Debug.h:
+	if [ ! -d /cellar/spoc/v1.1/lib/solaris ]; then mkdir -p /cellar/spoc/v1.1/lib/solaris; fi;
+	cp /cellar/spoc/v1.1/lib/src/Debug.h /cellar/spoc/v1.1/lib/solaris
+/cellar/spoc/v1.1.mbh/lib/solaris/Debug.h:
+	if [ ! -d /cellar/spoc/v1.1.mbh/lib/solaris ]; then mkdir -p /cellar/spoc/v1.1.mbh/lib/solaris; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/Debug.h /cellar/spoc/v1.1.mbh/lib/solaris
+ip.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/sys/types.h /usr/include/sys/machtypes.h /usr/include/sys/select.h /usr/include/sys/time.h /usr/include/sys/feature_tests.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/time.h /cellar/gnu/sparc-sun-solaris2.2/include/assert.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c -fno-builtin  -DExit=exit -DeliminateRedundantConstraints=1 -DreduceWithSubstitutions=0 -DverifySimplifications=0 -o ip.o /home/mbh/spoc/source/c/ip.c
+.BUILT_LAST_MAKE_RUN:
+Cout.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyCout.w /home/mbh/spoc/gmdtools/reuse/c/System.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/ctype.h
+.BUILT_LAST_MAKE_RUN:
+Cout.o:	/home/mbh/spoc/gmdtools/reuse/c/DynArray.h /home/mbh/spoc/source/c/Fopenenv.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c Cout.c -o Cout.o
+/cellar/spoc/v1.1.mbh/lib/tp/Occam2C.h:
+	if [ ! -d /cellar/spoc/v1.1.mbh/lib/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/lib/tp; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/Occam2C.h /cellar/spoc/v1.1.mbh/lib/tp
+/cellar/spoc/v1.1.mbh/lib/tp/Occam2C.c:
+	if [ ! -d /cellar/spoc/v1.1.mbh/lib/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/lib/tp; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/Occam2C.c /cellar/spoc/v1.1.mbh/lib/tp
+Cout.c:
+	puma -caf /home/mbh/spoc/source/gmd/c.trafo
+	rm -f Cout.c.new
+	cat Cout.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >Cout.c.new
+	mv -f Cout.c.new Cout.c
+.BUILT_LAST_MAKE_RUN:
+TypeChkAg.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c TypeChkAg.c -o TypeChkAg.o
+.BUILT_LAST_MAKE_RUN:
+PreTypeChkAg.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c PreTypeChkAg.c -o PreTypeChkAg.o
+TypeChkAg.c:
+	cat /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/typechk.attr /home/mbh/spoc/source/gmd/typechk.ag| cg -cAW
+PreTypeChkAg.c:
+	cat /home/mbh/spoc/source/gmd/occam.ast /home/mbh/spoc/source/gmd/extend.ast /home/mbh/spoc/source/gmd/pretypechk.attr /home/mbh/spoc/source/gmd/pretypechk.ag| cg -cAW
+/cellar/spoc/v1.1.mbh/lib/tp/Debug.h:
+	if [ ! -d /cellar/spoc/v1.1.mbh/lib/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/lib/tp; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/Debug.h /cellar/spoc/v1.1.mbh/lib/tp
+Omega.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Omega.c -o Omega.o
+TreeFix.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyTreeFix.w /home/mbh/spoc/gmdtools/reuse/c/System.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c TreeFix.c -o TreeFix.o
+TreeFix.c:
+	puma -ca /home/mbh/spoc/source/gmd/treefix.trafo
+	rm -f TreeFix.c.new
+	cat TreeFix.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >TreeFix.c.new
+	mv -f TreeFix.c.new TreeFix.c
+Lexer.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/ctype.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/DynArray.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h
+Lexer.o:	
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Lexer.c -o Lexer.o
+Positions.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Positions.c -o Positions.o
+KeyTable.h:
+	echo "#define NoTokens" `cat /home/mbh/spoc/source/tables/Tokens | wc -l` >KeyTable.h
+	echo "#define NoKeywords" `cat /home/mbh/spoc/source/tables/Keywords /home/mbh/spoc/source/tables/Keywords.ext | wc -l` >>KeyTable.h
+	echo "#define NoKeywords_udt" `cat /home/mbh/spoc/source/tables/Keywords.udt | wc -l` >>KeyTable.h
+	echo "#define NoKeywords_ims" `cat /home/mbh/spoc/source/tables/Keywords.ims | wc -l` >>KeyTable.h
+	echo "struct KeyList KeyTable[] = " >>KeyTable.h 
+	(echo "{"; cat /home/mbh/spoc/source/tables/Keywords /home/mbh/spoc/source/tables/Keywords.ext /home/mbh/spoc/source/tables/Keywords.udt /home/mbh/spoc/source/tables/Keywords.ims | sort | sed "s/\(.*\)/  {\"\1\",\1},/") >>KeyTable.h 
+	(echo "  {0,0}"; echo "};") >>KeyTable.h
+/home/mbh/spoc/gmdtools/reuse/solaris/libreuse.a:
+	if [ ! -d /home/mbh/spoc/gmdtools/reuse/solaris ]; then mkdir -p /home/mbh/spoc/gmdtools/reuse/solaris; fi;
+	( cd /home/mbh/spoc/gmdtools/reuse/c; make clean; make CC=gcc; cp libreuse.a ../solaris )
+/cellar/spoc/v1.1.mbh/gmdtools/reuse/tp/libreuse.a:
+	if [ ! -d /cellar/spoc/v1.1.mbh/gmdtools/reuse/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/gmdtools/reuse/tp; fi;
+	( cd /cellar/spoc/v1.1.mbh/gmdtools/reuse/c; make clean; make CC=gcc; cp libreuse.a ../tp )
+/cellar/spoc/v1.1/gmdtools/reuse/solaris/libreuse.a:
+	if [ ! -d /cellar/spoc/v1.1/gmdtools/reuse/solaris ]; then mkdir -p /cellar/spoc/v1.1/gmdtools/reuse/solaris; fi;
+	( cd /cellar/spoc/v1.1/gmdtools/reuse/c; make clean; make CC=gcc; cp libreuse.a ../solaris )
+/cellar/spoc/v1.1.mbh/gmdtools/reuse/cham/libreuse.a:
+	if [ ! -d /cellar/spoc/v1.1.mbh/gmdtools/reuse/cham ]; then mkdir -p /cellar/spoc/v1.1.mbh/gmdtools/reuse/cham; fi;
+	( cd /cellar/spoc/v1.1.mbh/gmdtools/reuse/c; make clean; make CC=gcc; cp libreuse.a ../cham )
+/cellar/spoc/v1.1.mbh/gmdtools/reuse/solaris/libreuse.a:
+	if [ ! -d /cellar/spoc/v1.1.mbh/gmdtools/reuse/solaris ]; then mkdir -p /cellar/spoc/v1.1.mbh/gmdtools/reuse/solaris; fi;
+	( cd /cellar/spoc/v1.1.mbh/gmdtools/reuse/c; make clean; make CC=gcc; cp libreuse.a ../solaris )
+/home/mbh/spoc/bin/solaris/libinstall:
+	if [ ! -d /home/mbh/spoc/bin/solaris ]; then mkdir -p /home/mbh/spoc/bin/solaris; fi;
+	cp  /home/mbh/spoc/lib/src/libinstall /home/mbh/spoc/bin/solaris
+/cellar/spoc/v1.1.mbh/bin/tp/libinstall:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/tp ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/tp; fi;
+	cp  /cellar/spoc/v1.1.mbh/lib/src/libinstall /cellar/spoc/v1.1.mbh/bin/tp
+/cellar/spoc/v1.1/bin/solaris/libinstall:
+	if [ ! -d /cellar/spoc/v1.1/bin/solaris ]; then mkdir -p /cellar/spoc/v1.1/bin/solaris; fi;
+	cp  /cellar/spoc/v1.1/lib/src/libinstall /cellar/spoc/v1.1/bin/solaris
+/cellar/spoc/v1.1.mbh/bin/cham/libinstall:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/cham ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/cham; fi;
+	cp  /cellar/spoc/v1.1.mbh/lib/src/libinstall /cellar/spoc/v1.1.mbh/bin/cham
+/cellar/spoc/v1.1.mbh/bin/solaris/libinstall:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/solaris ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/solaris; fi;
+	cp  /cellar/spoc/v1.1.mbh/lib/src/libinstall /cellar/spoc/v1.1.mbh/bin/solaris
+.BUILT_LAST_MAKE_RUN:
+OccamOut.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyOccamOut.w /home/mbh/spoc/gmdtools/reuse/c/System.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h TypeChk.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c OccamOut.c -o OccamOut.o
+TokenDefs.h:
+	cat /home/mbh/spoc/source/tables/Tokens /home/mbh/spoc/source/tables/Keywords /home/mbh/spoc/source/tables/Keywords.ext /home/mbh/spoc/source/tables/Keywords.udt /home/mbh/spoc/source/tables/Keywords.ims | grep -n . | sed "s/\([^:]*\):\(.*\)/#define \2 \1/" >TokenDefs.h
+OccamOut.c:
+	puma -ca /home/mbh/spoc/source/gmd/occam.trafo
+	rm -f OccamOut.c.new
+	cat OccamOut.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >OccamOut.c.new
+	mv -f OccamOut.c.new OccamOut.c
+.BUILT_LAST_MAKE_RUN:
+Parser.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Memory.h /home/mbh/spoc/gmdtools/reuse/c/DynArray.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h /usr/include/memory.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h TypeChk.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c Parser.c -o Parser.o
+Parser.c:
+	lalr -c -d -b -v occam.lalr
+Omakef.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/ctype.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdarg.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/va-sparc.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Omakef.c -o Omakef.o
+tmp:
+	echo "tmp
+	occam.TS
+	extoccam.TS
+	CoutAg.c
+	CoutAg.h
+	Cout.c
+	Cout.h
+	Trasform.c
+	Trasform.h
+	TypeChkAg.c
+	TypeChkAg.h
+	PreTypeChkAg.c
+	TypeChkAg.h
+	TypeChk.c
+	TypeChk.h
+	OccamOut.c
+	OccamOut.h
+	ParUsageAg.c
+	ParUsageAg.h
+	ParUsage.c
+	ParUsage.h
+	occam.lalr
+	Parser.c
+	Parser.h
+	TokeDefs.h
+	KeyTable.h
+	Tree.c
+	Tree.h
+	TreeFix.c
+	TreeFix.h"
+.BUILT_LAST_MAKE_RUN:
+TypeChk.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyTypeChk.w /home/mbh/spoc/gmdtools/reuse/c/System.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/math.h /usr/include/floatingpoint.h /usr/include/sys/ieeefp.h
+.BUILT_LAST_MAKE_RUN:
+TypeChk.o:	
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c TypeChk.c -o TypeChk.o
+TypeChk.c:
+	puma -ca /home/mbh/spoc/source/gmd/typechk.trafo
+	rm -f TypeChk.c.new
+	cat TypeChk.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >TypeChk.c.new
+	mv -f TypeChk.c.new TypeChk.c
+.BUILT_LAST_MAKE_RUN:
+Transform.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyTransform.w /home/mbh/spoc/gmdtools/reuse/c/System.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h TypeChk.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c Transform.c -o Transform.o
+Transform.c:
+	puma -ca /home/mbh/spoc/source/gmd/trans.trafo
+	rm -f Transform.c.new
+	cat Transform.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >Transform.c.new
+	mv -f Transform.c.new Transform.c
+/home/mbh/spoc/bin/solaris/occam.gdb:
+	if [ ! -d /home/mbh/spoc/bin/solaris ]; then mkdir -p /home/mbh/spoc/bin/solaris; fi;
+	cp  /home/mbh/spoc/lib/src/occam.gdb /home/mbh/spoc/bin/solaris
+/cellar/spoc/v1.1/bin/solaris/occam.gdb:
+	if [ ! -d /cellar/spoc/v1.1/bin/solaris ]; then mkdir -p /cellar/spoc/v1.1/bin/solaris; fi;
+	cp  /cellar/spoc/v1.1/lib/src/occam.gdb /cellar/spoc/v1.1/bin/solaris
+/cellar/spoc/v1.1.mbh/bin/cham/occam.gdb:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/cham ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/cham; fi;
+	cp  /cellar/spoc/v1.1.mbh/lib/src/occam.gdb /cellar/spoc/v1.1.mbh/bin/cham
+/cellar/spoc/v1.1.mbh/bin/solaris/occam.gdb:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/solaris ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/solaris; fi;
+	cp  /cellar/spoc/v1.1.mbh/lib/src/occam.gdb /cellar/spoc/v1.1.mbh/bin/solaris
+Errors.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /home/mbh/spoc/gmdtools/reuse/c/System.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Errors.c -o Errors.o
+/cellar/spoc/v1.1.mbh/bin/cham/omakef:
+	if [ ! -d /cellar/spoc/v1.1.mbh/bin/cham ]; then mkdir -p /cellar/spoc/v1.1.mbh/bin/cham; fi;
+	gcc -DFULL -g  -I. -I/cellar/spoc/v1.1.mbh/source/c -I/cellar/spoc/v1.1.mbh/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"cham\" Omakef.o Fopenenv.o -o /cellar/spoc/v1.1.mbh/bin/cham/omakef
+/home/mbh/spoc/lib/solaris/Occam2C.h:
+	if [ ! -d /home/mbh/spoc/lib/solaris ]; then mkdir -p /home/mbh/spoc/lib/solaris; fi;
+	rm -rf /home/mbh/spoc/lib/solaris/Occam2C.h
+	cp /home/mbh/spoc/lib/src/Occam2C.h /home/mbh/spoc/lib/solaris
+/cellar/spoc/v1.1/lib/solaris/Occam2C.h:
+	if [ ! -d /cellar/spoc/v1.1/lib/solaris ]; then mkdir -p /cellar/spoc/v1.1/lib/solaris; fi;
+	cp /cellar/spoc/v1.1/lib/src/Occam2C.h /cellar/spoc/v1.1/lib/solaris
+/cellar/spoc/v1.1.mbh/lib/cham/Occam2C.h:
+	if [ ! -d /cellar/spoc/v1.1.mbh/lib/cham ]; then mkdir -p /cellar/spoc/v1.1.mbh/lib/cham; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/Occam2C.h /cellar/spoc/v1.1.mbh/lib/cham
+/cellar/spoc/v1.1.mbh/lib/solaris/Occam2C.h:
+	if [ ! -d /cellar/spoc/v1.1.mbh/lib/solaris ]; then mkdir -p /cellar/spoc/v1.1.mbh/lib/solaris; fi;
+	cp /cellar/spoc/v1.1.mbh/lib/src/Occam2C.h /cellar/spoc/v1.1.mbh/lib/solaris
+/home/mbh/spoc/lib/solaris/Occam2C.c:
+	if [ ! -d /home/mbh/spoc/lib/solaris ]; then mkdir -p /home/mbh/spoc/lib/solaris; fi;
+	rm -rf /home/mbh/spoc/lib/solaris/Occam2C.c
+	cp /home/mbh/spoc/lib/src/Occam2C.c /home/mbh/spoc/lib/solaris
+Symbol.o:	/cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/ctype.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdlib.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/string.h /home/mbh/spoc/gmdtools/reuse/c/DynArray.h /home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h
+Symbol.o:	
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c /home/mbh/spoc/source/c/Symbol.c -o Symbol.o
+occam.lalr:
+	(sed "/^TOKEN/,999999d" /home/mbh/spoc/source/gmd/occam.bnf;echo "TOKEN"; sed <TokenDefs.h "s/#define *\([A-Z_0-9]*\) *\([0-9]*\)/  \1 = \2/"; sed "1,/^TOKEN/d" /home/mbh/spoc/source/gmd/occam.bnf)| sed s/NONE/kNONE/ >occam.lalr
+ParUsage.o:	/home/mbh/spoc/gmdtools/reuse/c/StringMem.h /cellar/gnu/lib/gcc-lib/sparc-sun-solaris2.2/2.5.7/include/stdio.h /home/mbh/spoc/gmdtools/reuse/c/ratc.h /home/mbh/spoc/gmdtools/reuse/c/Idents.h /home/mbh/spoc/gmdtools/reuse/c/Sets.h yyParUsage.w /home/mbh/spoc/gmdtools/reuse/c/System.h 
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\"  -c ParUsage.c -o ParUsage.o
+ParUsage.c:
+	puma -ca /home/mbh/spoc/source/gmd/parusage.trafo
+	rm -f ParUsage.c.new
+	cat ParUsage.c | sed "s/^static FILE[ -z]*yyf[ -z]*;/extern FILE \*yyf;/"  >ParUsage.c.new
+	mv -f ParUsage.c.new ParUsage.c
+/home/mbh/spoc/bin/solaris/omakef:
+	if [ ! -d /home/mbh/spoc/bin/solaris ]; then mkdir -p /home/mbh/spoc/bin/solaris; fi;
+	gcc -g -DFULL -I. -I/home/mbh/spoc/source/c -I/home/mbh/spoc/gmdtools/reuse/c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"solaris\" Omakef.o Fopenenv.o -o /home/mbh/spoc/bin/solaris/omakef
+/home/mbh/spoc/bin/solaris/odebug:
+	if [ ! -d /home/mbh/spoc/bin/solaris ]; then mkdir -p /home/mbh/spoc/bin/solaris; fi;
+	cp /home/mbh/spoc/lib/src/odebug /home/mbh/spoc/bin/solaris;

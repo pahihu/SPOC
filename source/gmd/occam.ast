@@ -1,0 +1,488 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Abstract Syntax Tree for occam
+||@(#)   System : occam 2 c
+||@(#) Filename : occam.ast
+||@(#)  Version : 1.34
+||@(#)     Date : 9/28/93
+\*@(#)====================================================*/
+/*}}}*/
+
+MODULE Abstract
+
+TREE Tree 
+
+/*{{{  IMPORT*/
+IMPORT
+{
+  #include "Scanner.h"
+  #include "Errors.h"
+}
+/*}}}*/
+/*{{{  EXPORT*/
+EXPORT
+{
+  #include "Symbol.h"
+
+  typedef enum { xxPrototype, xxCDirectives, xxLibrary, xxUsageWarnings,		/* Compile time modes */
+		 xxCheckConversions, xxCheckInternals, xxCheckArrays, xxCheckRanges,	/* Error checking modes */
+		 xxOccamLines, xxOccamDebug, xxLinesAsComments, 			/* Debugging */
+		 xxSupportINT64, xxLittleEndian, xx16bitINT, xxEmulate,	 		/* Target Architecture */
+		 xxSimulatedServer, xxCallF90,
+		 xxInmosExtensions, xxUserDataTypes, xxSupportPlaced, xxNoFreeVars, xxPrettyC,
+		 xxNoUsageChecking
+	       } eExtnModes;
+
+  extern int ExtnModes;
+  #define CHK_Mode(x,p) if (!((1<<x)&ExtnModes)) Message("Grammar not allowed under current mode",xxError,p)
+  #define ADD_Mode(x)   (ExtnModes|=(1<<x))
+  #define REM_Mode(x)   (ExtnModes&=(~(1<<x)))
+  #define TOG_Mode(x)   (ExtnModes^=(1<<x))
+  #define IS_Mode(x)    ((1<<x)&ExtnModes)
+  #define BIT_Mode(x)   (1<<x)
+  #define GET_Mode()    (ExtnModes)
+
+  #define SET_Mode(x,b) ((b) ? (ADD_Mode(x)) : (REM_Mode(x)))
+
+  #define ADD_Flag(x,f)   ((f)|=(1<<x))
+  #define REM_Flag(x,f)   ((f)&=(~(1<<x)))
+  #define TOG_Flag(x,f)   ((f)^=(1<<x))
+  #define IS_Flag(x,f)    ((1<<x)&(f))
+
+  #undef putchar
+  #undef getchar
+}
+/*}}}*/
+/*{{{  GLOBAL */
+GLOBAL 
+{ 
+  int ExtnModes = 0;
+
+  #undef  writetIdent
+  #define writetIdent(a)  { if (a != NoIdent && a != 0) WriteIdent(yyf,a); else fputs("NoIdent",yyf); }
+
+  #undef  writetSymbol
+  #define writetSymbol(a) { if (Symbol(a).Id != NoIdent && Symbol(a).Id != 0) WriteIdent(yyf,Symbol(a).Id); else fputs("NoSymbol",yyf); }
+
+  #undef  writetStringRef
+  #define writetStringRef(a) { WriteStrRef(a); }
+
+  #undef  writechar
+  #define writechar(a)       { fprintf(yyf,"\'*#%02x\'",a);}
+
+  #undef writetType  
+  #define writetType(a)   { if (a) { /* fputs(Tree_NodeName[a->Kind],yyf); */ CodeType(a);}}
+  #undef begintType
+  #define begintType(a)   { a = NoTree; }
+
+  #undef beginbool
+  #define beginbool(a) { a = 0; }
+  
+  #undef writetChain
+  #define writetChain(a)       { if (a) fputs(Tree_NodeName[a->Kind],yyf); }
+
+  #undef writetFrame
+  #define writetFrame(a)       { if (a) fputs(Tree_NodeName[a->Kind],yyf); }
+
+  #undef writetChoiceList
+  #define writetChoiceList(a)  { if (a) fputs(Tree_NodeName[a->Kind],yyf); }
+
+  #undef writetIfType
+  #define writetIfType(a)      { if (a) fputs(Tree_NodeName[a->Kind],yyf); }
+}
+/*}}}*/
+
+PROPERTY INPUT
+
+RULE
+
+Start = Process.
+
+/*{{{  Declarations*/
+SpecList = 
+<
+  NoSpec = .
+  ASpec  = Spec Next:SpecList REVERSE.
+>.
+
+Spec = [Pos: tPosition] 
+<
+  DeclType = Type.
+  Decl       = Type IdList.
+  Is         = Type [Sym: tSymbol] Elemental.
+  AVal = Type [Sym: tSymbol] Expr
+  <
+    Val        = .
+    ValRetypes = 
+    <
+      ValReshapes = .
+    >.
+  >.
+  Retypes = Type [Sym: tSymbol] Elemental
+    <
+      Reshapes = .
+    >.
+  DefAPro =
+  <
+    DefSeqPro  = [Sym: tSymbol] SeqProList.
+    DefTagPro  = [Sym: tSymbol] TagProList.
+  >.
+  DefAProc = [Sym: tSymbol] Formals
+  <
+    DefProc    =  Process 
+    <
+      InlineDefProc = .
+    >.
+  >.
+  DefAFunc = [Sym: tSymbol] TypeList Formals
+  <
+    DefFunc    = Valof 
+    <
+      InlineDefFunc =.
+    >.
+    DefIsFunc  = ExprList 
+    <
+      InlineDefIsFunc =.
+    >.
+  >.
+  NullSpec =.
+>.
+
+Formals =
+<
+  NoFormal =
+  < 
+    NoFormals = [Sym: tSymbol] .
+  > .
+  AFormal = Next: Formals [Pos: tPosition] By Type [Sym: tSymbol].
+>.
+
+Replicator = [Sym: tSymbol] From: Expr For: Expr.
+
+TagProList =
+<
+  NoTagPro =.
+  ATagPro  = Next: TagProList REVERSE [Sym: tSymbol] SeqProList.
+>.
+
+By =
+<
+  ByVal =.
+  ByRef =.
+  ByUndef =.
+>.
+
+IdList = 
+<
+  NoId =.
+  AnId = Next:IdList REVERSE [Sym: tSymbol].
+>.
+
+
+/*}}}*/
+/*{{{  Types*/
+Type = 
+<
+  Array = Expr Type
+  < 
+    UserArray = [Pos: tPosition] [Sym: tSymbol].
+  >.
+  Chan = Protocol.
+  Timer = .
+  Untyped = 
+  <
+    UntypedByte = .
+    UntypedReal = .
+    UntypedInteger =
+    <
+      UntypedInt = .
+      UntypedHex = .
+    >.
+  >.
+  Primitive =
+  <
+    Numeric =
+    <
+      Integer = 
+      <
+	Int = 
+	< 
+	  UserInt = [Pos: tPosition] [Sym: tSymbol].
+	>.
+	Int16 = 
+	< 
+	  UserInt16 = [Pos: tPosition] [Sym: tSymbol].
+	>.
+	Int32 = 
+	< 
+	  UserInt32 = [Pos: tPosition] [Sym: tSymbol].
+	>.
+	Int64 = 
+	< 
+	  UserInt64 = [Pos: tPosition] [Sym: tSymbol].
+	>.
+      >.
+      Real =
+      <
+	Real32 =
+	< 
+	  UserReal32 = [Pos: tPosition] [Sym: tSymbol].
+	>.
+	Real64 =
+	< 
+	  UserReal64 = [Pos: tPosition] [Sym: tSymbol].
+	>.
+      >.
+    >.
+    Byte = 
+    <
+      UserByte = [Pos: tPosition] [Sym: tSymbol].
+    >.
+    Bool =
+    <
+      UserBool = [Pos: tPosition] [Sym: tSymbol].
+    >.
+  >.
+  UserStructTypes = [Pos: tPosition] [Sym: tSymbol] FieldList
+  <
+    UserDataTypes =
+    <
+      UserRecord   = . 
+      UserPackedRecord   = . 
+      UserUnion    = .
+    > .
+    UserChanRecord = .
+  >.
+  TypeList =
+  <
+    NoType =.
+    AType = Next: TypeList REVERSE Type.
+  >.
+>.
+
+FieldList = 
+<
+  NoField =.
+  AField = Next: FieldList REVERSE [Sym: tSymbol] Type.
+>.
+
+Protocol = [Pos: tPosition]
+<
+  Any =.
+  Named = [Sym: tSymbol].
+  Simple = Type.
+  Counted = Length:Type Type.
+>.
+
+SeqProList =
+<
+  NoSeqPro =.
+  ASeqPro  = Next: SeqProList REVERSE Protocol.
+>.
+
+/*}}}*/
+/*{{{  Expressions*/
+Expr	 = [Pos: tPosition] 
+<
+  Binary = Lop: Expr Rop: Expr Op.
+  Unary  = Expr Op.
+  Const = [Value: tValue] Type.
+  Valof = SpecList Process ExprList.
+  FuncCall = [Sym: tSymbol] ExprList.
+  ElementalExpr = Elemental.
+  Default =.           /* In CASE construct*/
+  Convert = Type Expr.
+  Round   = Type Expr.
+  Trunc   = Type Expr.
+  MostPos = Type.
+  MostNeg = Type.
+  CountArray = Length:Expr Expr.
+  UnBound  =.           /* UnSized array dimension */
+  BytesIn = <
+    BytesInType = Type.
+    BytesInExpr = Expr.
+  >.
+  SizeOf = Type.
+  OffsetOf = Type UnmappedIdentifier.
+  StringElement =
+  <
+    String = [Value: tStringRef] Type.
+    StringSubscript = Next: StringElement Expr.
+    StringRange     = Next: StringElement From: Expr For: Expr.
+  >.
+>.
+
+/*{{{  Elemental =*/
+Elemental = [Pos: tPosition]
+<
+  TableElement =
+  <
+    Table          = ExprList
+    <
+      UserLiteral = Type.
+    >.
+    TableExpr = Expr [Sym: tSymbol]. 
+    TableSubscript = Next: TableElement Expr.
+    TableRange     = Next: TableElement From: Expr For: Expr.
+  >.
+
+  Element =
+  <
+    Identifier  = [Sym: tSymbol] 
+    <
+      UnmappedIdentifier = [Ident:tIdent] .
+    >.
+    ElementAccess = Next: Element
+    <
+      Subscript   = Expr.
+      Range       = From: Expr For: Expr.
+    >.
+  >.
+>.
+/*}}}*/
+
+/*{{{  ExprList  = */
+ExprList  = 
+<
+  NoExpr = .
+  AnExpr = Next: ExprList REVERSE Expr.
+>.
+/*}}}*/
+/*{{{  Op =*/
+Op =
+<
+  RelOp =
+  <
+    Less =.
+    Greater =.
+    LessEqual =.
+    GreaterEqual =.
+    Equal =.
+    NotEqual =.
+  >.
+  MathsOp =
+  <
+    Add =.
+    Subtract =.
+    Multiply =.
+    Divide =.
+    Rem =.
+  >.
+  BitOp =
+  <
+    BitAnd =.
+    BitOr =.
+    BitEor =.
+  >.
+  ShiftOp =
+  <
+    LeftShift =.
+    RightShift =.
+  >.
+  UniOp =
+  <
+    Size =.
+    BitNot =.
+    Not =.
+  >.
+  ClockOp =
+  <
+    Plus =.
+    Minus =.
+    Times =.
+  >.
+  LogOp =
+  <
+    And =.
+    Or =.
+  >.
+  AfterOp =.
+>.
+/*}}}*/
+
+/*}}}*/
+/*{{{  Processes*/
+Process = [Pos: tPosition] SpecList
+<
+  Assign = Lval: ExprList Rval: ExprList.
+  AltType= [Pri: bool]
+  <
+    Alt    = AltList.
+    AltRep = Replicator AltList.
+  >.
+  ParType= [PType: tParType] 
+  <
+    Par    = ProcList.
+    ParRep = Replicator Process.
+  >.
+
+  Processor = Expr [Name: tIdent] Process.
+
+  IfType=
+  <
+    If     = ChoiceList.
+    IfRep  = Replicator ChoiceList.
+  >.
+  Input  = Element ExprList.
+  Output = Element ExprList.
+  CaseIn = Element CaseList.
+  After  = Element Expr.
+
+  SeqRep = Replicator Process.
+  Seq    = ProcList.
+  Case   = Selector:Expr ChoiceList.
+  While  = Expr Process.
+  Skip   = .
+  Stop   = .
+  Instance = [Sym: tSymbol] ExprList.
+>.
+
+AltList =
+<
+  NoAlt =.
+  AnAlts = SpecList Next: AltList REVERSE
+  <
+    AnAlt = Guard.
+    ANewAlt = AltType.
+  >.
+>.
+
+Guard = [Pos: tPosition] Expr
+<
+  AltInput  = Input  Process.
+  AltTimer  = After  Process.
+  AltCaseIn = CaseIn.
+  NoInput   = Process.
+>.
+
+ChoiceList  = 
+<
+  NoChoice =.
+  AChoices = SpecList  Next:ChoiceList REVERSE
+  <
+    AChoice = ExprList Process.
+    ANewIf  = IfType.
+  >.
+>.
+
+ProcList = 
+<
+  NoProcess = .
+  AProcess = Next: ProcList REVERSE Process.
+>.
+
+CaseList = 
+<
+  NoCase = .
+  ACase = Next: CaseList REVERSE SpecList ExprList Process.
+>.
+
+/*}}}*/
+
+END Abstract
+

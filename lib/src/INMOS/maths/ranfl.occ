@@ -1,0 +1,20 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.2 14/12/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+
+REAL32, INT32 FUNCTION RAN (VAL INT32 SeedRan)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  -- Removed the #INCLUDE "mathhdr.inc" by replacing `PLUS one' by
+  -- `PLUS 1(INT32)', this makes the routine more independent; V1.2,
+  -- 14-Dec-90 SRH
+  --}}}
+
+  VAL A IS 1664525(INT32) :
+  INT32 NewSeed :
+  VALOF
+    NewSeed := (SeedRan TIMES A) PLUS 1(INT32) --create next integer in sequence
+    RESULT SCALEB (REAL32 ROUND (NewSeed >> 1), -31), NewSeed
+:

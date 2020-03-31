@@ -1,0 +1,808 @@
+#############################################################################
+#
+# Make file for half of the occam2 toolset library hostio.lib, which half
+# depending on whether $(SWITCH)y is specified for OCCEXTRAS or not.
+#
+#                            6-Feb-91 SRH
+#
+#               This makefile is presently set up for UNIX
+#
+#############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+# Do not define anything for the preprocessor since the ifdef's in the
+# sources are there for C only.
+PREPROCESSOR=preocc
+PREOPT=
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+# times.t2_ requires INT32DIV and INT32REM from the compiler libraries
+OCCOPT=$(SWITCH)d $(OCCEXTRAS)
+
+
+# filename extensions
+2H=.t2h
+2X=.t2x
+AH=.tah
+AX=.tax
+8H=.t8h
+8X=.t8x
+
+
+# T2 class modules
+HOSTT2=	open$(2H) close$(2H) spread$(2H) soread$(2H) spwrite$(2H) sowrite$(2H) gets$(2H) puts$(2H) \
+	flush$(2H) seek$(2H) tell$(2H) eof$(2H) ferror$(2H) remove$(2H) rename$(2H) \
+	getkey$(2H) pollkey$(2H) getenv$(2H) time$(2H) system$(2H) exit$(2H) \
+	command$(2H) core$(2H) version$(2H) buffer$(2H) mux$(2H) ovbuffer$(2H) \
+	ovmux$(2H) packet$(2H) opentemp$(2H) exists$(2H) popen$(2H) parse$(2H) \
+	wstring$(2H) wint$(2H) whint$(2H) wint64$(2H) whint64$(2H) wreal32$(2H) \
+	fwstring$(2H) wreal64$(2H) readline$(2H) echoline$(2H) times$(2H) \
+	ask$(2H) reint$(2H) rehint$(2H) reaint$(2H) reint64$(2H) rehint64$(2H) \
+	rereal32$(2H) rereal64$(2H) wint32$(2H) whint32$(2H) reint32$(2H) \
+        rehint32$(2H) primux$(2H) ovprimux$(2H) \
+	open$(2X) close$(2X) spread$(2X) soread$(2X) spwrite$(2X) sowrite$(2X) gets$(2X) puts$(2X) \
+	flush$(2X) seek$(2X) tell$(2X) eof$(2X) ferror$(2X) remove$(2X) rename$(2X) \
+	getkey$(2X) pollkey$(2X) getenv$(2X) time$(2X) system$(2X) exit$(2X) \
+	command$(2X) core$(2X) version$(2X) buffer$(2X) mux$(2X) ovbuffer$(2X) \
+	ovmux$(2X) packet$(2X) opentemp$(2X) exists$(2X) popen$(2X) parse$(2X) \
+	wstring$(2X) wint$(2X) whint$(2X) wint64$(2X) whint64$(2X) wreal32$(2X) \
+	fwstring$(2X) wreal64$(2X) readline$(2X) echoline$(2X) times$(2X) \
+	ask$(2X) reint$(2X) rehint$(2X) reaint$(2X) reint64$(2X) rehint64$(2X) \
+	rereal32$(2X) rereal64$(2X) wint32$(2X) whint32$(2X) reint32$(2X) \
+        rehint32$(2X) primux$(2X) ovprimux$(2X)
+
+# TA class modules
+HOSTTA=	open$(AH) close$(AH) spread$(AH) soread$(AH) spwrite$(AH) sowrite$(AH) gets$(AH) puts$(AH) \
+	flush$(AH) seek$(AH) tell$(AH) eof$(AH) ferror$(AH) remove$(AH) rename$(AH) \
+	getkey$(AH) pollkey$(AH) getenv$(AH) time$(AH) system$(AH) exit$(AH) \
+	command$(AH) core$(AH) version$(AH) buffer$(AH) mux$(AH) ovbuffer$(AH) \
+	ovmux$(AH) packet$(AH) opentemp$(AH) exists$(AH) popen$(AH) parse$(AH) \
+	wstring$(AH) wint$(AH) whint$(AH) wint64$(AH) whint64$(AH) wreal32$(AH) \
+	fwstring$(AH) wreal64$(AH) readline$(AH) echoline$(AH) times$(AH) \
+	ask$(AH) reint$(AH) rehint$(AH) reaint$(AH) reint64$(AH) rehint64$(AH) \
+	rereal32$(AH) rereal64$(AH) wint32$(AH) whint32$(AH) reint32$(AH) \
+        rehint32$(AH) primux$(AH) ovprimux$(AH) \
+	open$(AX) close$(AX) spread$(AX) soread$(AX) spwrite$(AX) sowrite$(AX) gets$(AX) puts$(AX) \
+	flush$(AX) seek$(AX) tell$(AX) eof$(AX) ferror$(AX) remove$(AX) rename$(AX) \
+	getkey$(AX) pollkey$(AX) getenv$(AX) time$(AX) system$(AX) exit$(AX) \
+	command$(AX) core$(AX) version$(AX) buffer$(AX) mux$(AX) ovbuffer$(AX) \
+	ovmux$(AX) packet$(AX) opentemp$(AX) exists$(AX) popen$(AX) parse$(AX) \
+	wstring$(AX) wint$(AX) whint$(AX) wint64$(AX) whint64$(AX) wreal32$(AX) \
+	fwstring$(AX) wreal64$(AX) readline$(AX) echoline$(AX) times$(AX) \
+	ask$(AX) reint$(AX) rehint$(AX) reaint$(AX) reint64$(AX) rehint64$(AX) \
+	rereal32$(AX) rereal64$(AX) wint32$(AX) whint32$(AX) reint32$(AX) \
+        rehint32$(AX) primux$(AX) ovprimux$(AX)
+
+# T8 class modules
+HOSTT8=	open$(8H) close$(8H) spread$(8H) soread$(8H) spwrite$(8H) sowrite$(8H) gets$(8H) puts$(8H) \
+	flush$(8H) seek$(8H) tell$(8H) eof$(8H) ferror$(8H) remove$(8H) rename$(8H) \
+	getkey$(8H) pollkey$(8H) getenv$(8H) time$(8H) system$(8H) exit$(8H) \
+	command$(8H) core$(8H) version$(8H) buffer$(8H) mux$(8H) ovbuffer$(8H) \
+	ovmux$(8H) packet$(8H) opentemp$(8H) exists$(8H) popen$(8H) parse$(8H) \
+	wstring$(8H) wint$(8H) whint$(8H) wint64$(8H) whint64$(8H) wreal32$(8H) \
+	fwstring$(8H) wreal64$(8H) readline$(8H) echoline$(8H) times$(8H) \
+	ask$(8H) reint$(8H) rehint$(8H) reaint$(8H) reint64$(8H) rehint64$(8H) \
+	rereal32$(8H) rereal64$(8H) wint32$(8H) whint32$(8H) reint32$(8H) \
+        rehint32$(8H) primux$(8H) ovprimux$(8H) \
+	open$(8X) close$(8X) spread$(8X) soread$(8X) spwrite$(8X) sowrite$(8X) gets$(8X) puts$(8X) \
+	flush$(8X) seek$(8X) tell$(8X) eof$(8X) ferror$(8X) remove$(8X) rename$(8X) \
+	getkey$(8X) pollkey$(8X) getenv$(8X) time$(8X) system$(8X) exit$(8X) \
+	command$(8X) core$(8X) version$(8X) buffer$(8X) mux$(8X) ovbuffer$(8X) \
+	ovmux$(8X) packet$(8X) opentemp$(8X) exists$(8X) popen$(8X) parse$(8X) \
+	wstring$(8X) wint$(8X) whint$(8X) wint64$(8X) whint64$(8X) wreal32$(8X) \
+	fwstring$(8X) wreal64$(8X) readline$(8X) echoline$(8X) times$(8X) \
+	ask$(8X) reint$(8X) rehint$(8X) reaint$(8X) reint64$(8X) rehint64$(8X) \
+	rereal32$(8X) rereal64$(8X) wint32$(8X) whint32$(8X) reint32$(8X) \
+        rehint32$(8X) primux$(8X) ovprimux$(8X)
+
+
+#
+############################## target and rules ##############################
+#
+all: hostio.lib
+
+hostio.lib:	hostio.t2 hostio.ta hostio.t8
+
+
+hostio.t2: $(HOSTT2)
+	$(CONCATENATE) $(HOSTT2) $(INTO) hostio.t2
+
+hostio.ta: $(HOSTTA)
+	$(CONCATENATE) $(HOSTTA) $(INTO) hostio.ta
+
+hostio.t8: $(HOSTT8)
+	$(CONCATENATE) $(HOSTT8) $(INTO) hostio.t8
+
+
+# pattern matching rules
+# an explicit rule is chosen before a pattern matching rule
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+# actually, many of the hostio routines depend on hostio.inc
+%$(2H): %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t2 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*$(2H)
+
+%$(2X): %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t2 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*$(2X)
+
+%$(AH): %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)ta $(SWITCH)e $(OCCOPT) $(SWITCH)o $*$(AH)
+
+%$(AX): %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)ta $(SWITCH)e $(OCCOPT) $(SWITCH)o $*$(AX)
+
+%$(8H): %.occ
+	$(OCCAM) $< $(SWITCH)h $(SWITCH)t8 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*$(8H)
+
+%$(8X): %.occ
+	$(OCCAM) $< $(SWITCH)x $(SWITCH)t8 $(SWITCH)e $(OCCOPT) $(SWITCH)o $*$(8X)
+
+
+# special ones due to the need for the preprocessor
+exit$(2H):	exit.occ hostio.inc 
+	$(PREPROCESSOR) exit.occ $(PREOPT) $(SWITCH)o exit.p2h
+	$(OCCAM) exit.p2h $(SWITCH)t2 $(SWITCH)h $(SWITCH)e $(SWITCH)o exit$(2H) $(OCCOPT)
+	$(DELETE) exit.p2h
+
+exit$(AH):	exit.occ hostio.inc 
+	$(PREPROCESSOR) exit.occ $(PREOPT) $(SWITCH)o exit.pah
+	$(OCCAM) exit.pah $(SWITCH)ta $(SWITCH)h $(SWITCH)e $(SWITCH)o exit$(AH) $(OCCOPT)
+	$(DELETE) exit.pah
+
+exit$(8H):	exit.occ hostio.inc 
+	$(PREPROCESSOR) exit.occ $(PREOPT) $(SWITCH)o exit.p8h
+	$(OCCAM) exit.p8h $(SWITCH)t8 $(SWITCH)h $(SWITCH)e $(SWITCH)o exit$(8H) $(OCCOPT)
+	$(DELETE) exit.p8h
+
+
+exit$(2X):	exit.occ hostio.inc 
+	$(PREPROCESSOR) exit.occ $(PREOPT) $(SWITCH)o exit.p2x
+	$(OCCAM) exit.p2x $(SWITCH)t2 $(SWITCH)x $(SWITCH)e $(SWITCH)o exit$(2X) $(OCCOPT)
+	$(DELETE) exit.p2x
+
+exit$(AX):	exit.occ hostio.inc 
+	$(PREPROCESSOR) exit.occ $(PREOPT) $(SWITCH)o exit.pax
+	$(OCCAM) exit.pax $(SWITCH)ta $(SWITCH)x $(SWITCH)e $(SWITCH)o exit$(AX) $(OCCOPT)
+	$(DELETE) exit.pax
+
+exit$(8X):	exit.occ hostio.inc 
+	$(PREPROCESSOR) exit.occ $(PREOPT) $(SWITCH)o exit.p8x
+	$(OCCAM) exit.p8x $(SWITCH)t8 $(SWITCH)x $(SWITCH)e $(SWITCH)o exit$(8X) $(OCCOPT)
+	$(DELETE) exit.p8x
+
+
+# Build the library readwrit.lib so that so.read and so.write can be compiled.
+READWRIT=spread$(2H) spread$(2X) spread$(AH) spread$(AX) spread$(8H) spread$(8X) \
+	spwrite$(2H) spwrite$(2X) spwrite$(AH) spwrite$(AX) spwrite$(8H) spwrite$(8X)
+
+readwrit.lib:	$(READWRIT)
+	$(LIBRARIAN) $(READWRIT) $(SWITCH)o readwrit.lib $(LIBOPT)
+	
+soread$(2H): soread.occ readwrit.lib hostio.inc
+	$(OCCAM) soread $(SWITCH)t2 $(SWITCH)h $(SWITCH)o soread$(2H) $(SWITCH)e $(OCCOPT)
+
+soread$(2X): soread.occ readwrit.lib hostio.inc
+	$(OCCAM) soread $(SWITCH)t2 $(SWITCH)x $(SWITCH)o soread$(2X) $(SWITCH)e $(OCCOPT)
+
+soread$(AH): soread.occ readwrit.lib hostio.inc
+	$(OCCAM) soread $(SWITCH)ta $(SWITCH)h $(SWITCH)o soread$(AH) $(SWITCH)e $(OCCOPT)
+
+soread$(AX): soread.occ readwrit.lib hostio.inc
+	$(OCCAM) soread $(SWITCH)ta $(SWITCH)x $(SWITCH)o soread$(AX) $(SWITCH)e $(OCCOPT)
+
+soread$(8H): soread.occ readwrit.lib hostio.inc
+	$(OCCAM) soread $(SWITCH)t8 $(SWITCH)h $(SWITCH)o soread$(8H) $(SWITCH)e $(OCCOPT)
+
+soread$(8X): soread.occ readwrit.lib hostio.inc
+	$(OCCAM) soread $(SWITCH)t8 $(SWITCH)x $(SWITCH)o soread$(8X) $(SWITCH)e $(OCCOPT)
+
+
+sowrite$(2H): sowrite.occ readwrit.lib hostio.inc
+	$(OCCAM) sowrite $(SWITCH)t2 $(SWITCH)h $(SWITCH)o sowrite$(2H) $(SWITCH)e $(OCCOPT)
+
+sowrite$(2X): sowrite.occ readwrit.lib hostio.inc
+	$(OCCAM) sowrite $(SWITCH)t2 $(SWITCH)x $(SWITCH)o sowrite$(2X) $(SWITCH)e $(OCCOPT)
+
+sowrite$(AH): sowrite.occ readwrit.lib hostio.inc
+	$(OCCAM) sowrite $(SWITCH)ta $(SWITCH)h $(SWITCH)o sowrite$(AH) $(SWITCH)e $(OCCOPT)
+
+sowrite$(AX): sowrite.occ readwrit.lib hostio.inc
+	$(OCCAM) sowrite $(SWITCH)ta $(SWITCH)x $(SWITCH)o sowrite$(AX) $(SWITCH)e $(OCCOPT)
+
+sowrite$(8H): sowrite.occ readwrit.lib hostio.inc
+	$(OCCAM) sowrite $(SWITCH)t8 $(SWITCH)h $(SWITCH)o sowrite$(8H) $(SWITCH)e $(OCCOPT)
+
+sowrite$(8X): sowrite.occ readwrit.lib hostio.inc
+	$(OCCAM) sowrite $(SWITCH)t8 $(SWITCH)x $(SWITCH)o sowrite$(8X) $(SWITCH)e $(OCCOPT)
+
+
+
+splib.lib:	splib.lbb \
+	open$(2H) close$(2H) spread$(2H) soread$(2H) spwrite$(2H) sowrite$(2H) gets$(2H) puts$(2H) \
+	flush$(2H) seek$(2H) tell$(2H) eof$(2H) ferror$(2H) remove$(2H) \
+	rename$(2H) getkey$(2H) pollkey$(2H) getenv$(2H) time$(2H) system$(2H) \
+	exit$(2H) command$(2H) core$(2H) version$(2H) buffer$(2H) mux$(2H) \
+	ovbuffer$(2H) ovmux$(2H) packet$(2H) \
+	\
+	open$(AH) close$(AH) spread$(AH) soread$(AH) spwrite$(AH) sowrite$(AH) gets$(AH) puts$(AH) \
+	flush$(AH) seek$(AH) tell$(AH) eof$(AH) ferror$(AH) remove$(AH) \
+	rename$(AH) getkey$(AH) pollkey$(AH) getenv$(AH) time$(AH) system$(AH) \
+	exit$(AH) command$(AH) core$(AH) version$(AH) buffer$(AH) mux$(AH) \
+	ovbuffer$(AH) ovmux$(AH) packet$(AH) \
+	\
+	open$(8H) close$(8H) spread$(8H) soread$(8H) spwrite$(8H) sowrite$(8H) gets$(8H) puts$(8H) \
+	flush$(8H) seek$(8H) tell$(8H) eof$(8H) ferror$(8H) remove$(8H) \
+	rename$(8H) getkey$(8H) pollkey$(8H) getenv$(8H) time$(8H) system$(8H) \
+	exit$(8H) command$(8H) core$(8H) version$(8H) buffer$(8H) mux$(8H) \
+	ovbuffer$(8H) ovmux$(8H) packet$(8H) \
+	\
+	\
+	open$(2X) close$(2X) spread$(2X) soread$(2X) spwrite$(2X) sowrite$(2X) gets$(2X) puts$(2X) \
+	flush$(2X) seek$(2X) tell$(2X) eof$(2X) ferror$(2X) remove$(2X) \
+	rename$(2X) getkey$(2X) pollkey$(2X) getenv$(2X) time$(2X) system$(2X) \
+	exit$(2X) command$(2X) core$(2X) version$(2X) buffer$(2X) mux$(2X) \
+	ovbuffer$(2X) ovmux$(2X) packet$(2X) \
+	\
+	open$(AX) close$(AX) spread$(AX) soread$(AX) spwrite$(AX) sowrite$(AX) gets$(AX) puts$(AX) \
+	flush$(AX) seek$(AX) tell$(AX) eof$(AX) ferror$(AX) remove$(AX) \
+	rename$(AX) getkey$(AX) pollkey$(AX) getenv$(AX) time$(AX) system$(AX) \
+	exit$(AX) command$(AX) core$(AX) version$(AX) buffer$(AX) mux$(AX) \
+	ovbuffer$(AX) ovmux$(AX) packet$(AX) \
+	\
+	open$(8X) close$(8X) spread$(8X) soread$(8X) spwrite$(8X) sowrite$(8X) gets$(8X) puts$(8X) \
+	flush$(8X) seek$(8X) tell$(8X) eof$(8X) ferror$(8X) remove$(8X) \
+	rename$(8X) getkey$(8X) pollkey$(8X) getenv$(8X) time$(8X) system$(8X) \
+	exit$(8X) command$(8X) core$(8X) version$(8X) buffer$(8X) mux$(8X) \
+	ovbuffer$(8X) ovmux$(8X) packet$(8X)
+	$(LIBRARIAN) $(SWITCH)f splib.lbb $(SWITCH)o splib.lib $(LIBOPT)
+
+# h mode
+# t2 class
+opentemp$(2H):	opentemp.occ hostio.inc splib.lib 
+	$(OCCAM) opentemp $(SWITCH)t2 $(SWITCH)h $(SWITCH)o opentemp$(2H) $(SWITCH)e $(OCCOPT)
+
+exists$(2H):	exists.occ hostio.inc splib.lib 
+	$(OCCAM) exists $(SWITCH)t2 $(SWITCH)h $(SWITCH)o exists$(2H) $(SWITCH)e $(OCCOPT)
+
+popen$(2H):	popen.occ hostio.inc splib.lib 
+	$(OCCAM) popen $(SWITCH)t2 $(SWITCH)h $(SWITCH)o popen$(2H) $(SWITCH)e $(OCCOPT)
+
+parse$(2H):	parse.occ hostio.inc splib.lib 
+	$(OCCAM) parse $(SWITCH)t2 $(SWITCH)h $(SWITCH)o parse$(2H) $(SWITCH)e $(OCCOPT)
+
+wstring$(2H):	wstring.occ hostio.inc splib.lib 
+	$(OCCAM) wstring $(SWITCH)t2 $(SWITCH)h $(SWITCH)o wstring$(2H) $(SWITCH)e $(OCCOPT)
+
+fwstring$(2H):	fwstring.occ hostio.inc splib.lib 
+	$(OCCAM) fwstring $(SWITCH)t2 $(SWITCH)h $(SWITCH)o fwstring$(2H) $(SWITCH)e $(OCCOPT)
+
+wint$(2H):	wint.occ hostio.inc splib.lib  
+	$(OCCAM) wint $(SWITCH)t2 $(SWITCH)h $(SWITCH)o wint$(2H) $(SWITCH)e $(OCCOPT)
+
+whint$(2H):	whint.occ hostio.inc splib.lib  
+	$(OCCAM) whint $(SWITCH)t2 $(SWITCH)h $(SWITCH)o whint$(2H) $(SWITCH)e $(OCCOPT)
+
+wint32$(2H):	wint32.occ hostio.inc splib.lib  
+	$(OCCAM) wint32 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o wint32$(2H) $(SWITCH)e $(OCCOPT)
+
+whint32$(2H):	whint32.occ hostio.inc splib.lib  
+	$(OCCAM) whint32 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o whint32$(2H) $(SWITCH)e $(OCCOPT)
+
+wint64$(2H):	wint64.occ hostio.inc splib.lib  
+	$(OCCAM) wint64 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o wint64$(2H) $(SWITCH)e $(OCCOPT)
+
+whint64$(2H):	whint64.occ hostio.inc splib.lib  
+	$(OCCAM) whint64 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o whint64$(2H) $(SWITCH)e $(OCCOPT)
+
+wreal32$(2H):	wreal32.occ hostio.inc splib.lib  
+	$(OCCAM) wreal32 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o wreal32$(2H) $(SWITCH)e $(OCCOPT)
+
+wreal64$(2H):	wreal64.occ hostio.inc splib.lib  
+	$(OCCAM) wreal64 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o wreal64$(2H) $(SWITCH)e $(OCCOPT)
+
+readline$(2H):	readline.occ hostio.inc splib.lib 
+	$(OCCAM) readline $(SWITCH)t2 $(SWITCH)h $(SWITCH)o readline$(2H) $(SWITCH)e $(OCCOPT)
+
+echoline$(2H):	echoline.occ hostio.inc splib.lib 
+	$(OCCAM) echoline $(SWITCH)t2 $(SWITCH)h $(SWITCH)o echoline$(2H) $(SWITCH)e $(OCCOPT)
+
+# no e option here
+times$(2H):	times.occ hostio.inc splib.lib 
+	$(OCCAM) times $(SWITCH)t2 $(SWITCH)h $(SWITCH)o times$(2H) $(OCCOPT)
+
+# ta class
+opentemp$(AH):	opentemp.occ hostio.inc splib.lib 
+	$(OCCAM) opentemp $(SWITCH)ta $(SWITCH)h $(SWITCH)o opentemp$(AH) $(SWITCH)e $(OCCOPT)
+
+exists$(AH):	exists.occ hostio.inc splib.lib 
+	$(OCCAM) exists $(SWITCH)ta $(SWITCH)h $(SWITCH)o exists$(AH) $(SWITCH)e $(OCCOPT)
+
+popen$(AH):	popen.occ hostio.inc splib.lib 
+	$(OCCAM) popen $(SWITCH)ta $(SWITCH)h $(SWITCH)o popen$(AH) $(SWITCH)e $(OCCOPT)
+
+parse$(AH):	parse.occ hostio.inc splib.lib 
+	$(OCCAM) parse $(SWITCH)ta $(SWITCH)h $(SWITCH)o parse$(AH) $(SWITCH)e $(OCCOPT)
+
+wstring$(AH):	wstring.occ hostio.inc splib.lib 
+	$(OCCAM) wstring $(SWITCH)ta $(SWITCH)h $(SWITCH)o wstring$(AH) $(SWITCH)e $(OCCOPT)
+
+fwstring$(AH):	fwstring.occ hostio.inc splib.lib 
+	$(OCCAM) fwstring $(SWITCH)ta $(SWITCH)h $(SWITCH)o fwstring$(AH) $(SWITCH)e $(OCCOPT)
+
+wint$(AH):	wint.occ hostio.inc splib.lib  
+	$(OCCAM) wint $(SWITCH)ta $(SWITCH)h $(SWITCH)o wint$(AH) $(SWITCH)e $(OCCOPT)
+
+whint$(AH):	whint.occ hostio.inc splib.lib  
+	$(OCCAM) whint $(SWITCH)ta $(SWITCH)h $(SWITCH)o whint$(AH) $(SWITCH)e $(OCCOPT)
+
+wint32$(AH):	wint32.occ hostio.inc splib.lib  
+	$(OCCAM) wint32 $(SWITCH)ta $(SWITCH)h $(SWITCH)o wint32$(AH) $(SWITCH)e $(OCCOPT)
+
+whint32$(AH):	whint32.occ hostio.inc splib.lib  
+	$(OCCAM) whint32 $(SWITCH)ta $(SWITCH)h $(SWITCH)o whint32$(AH) $(SWITCH)e $(OCCOPT)
+
+wint64$(AH):	wint64.occ hostio.inc splib.lib  
+	$(OCCAM) wint64 $(SWITCH)ta $(SWITCH)h $(SWITCH)o wint64$(AH) $(SWITCH)e $(OCCOPT)
+
+whint64$(AH):	whint64.occ hostio.inc splib.lib  
+	$(OCCAM) whint64 $(SWITCH)ta $(SWITCH)h $(SWITCH)o whint64$(AH) $(SWITCH)e $(OCCOPT)
+
+wreal32$(AH):	wreal32.occ hostio.inc splib.lib  
+	$(OCCAM) wreal32 $(SWITCH)ta $(SWITCH)h $(SWITCH)o wreal32$(AH) $(SWITCH)e $(OCCOPT)
+
+wreal64$(AH):	wreal64.occ hostio.inc splib.lib  
+	$(OCCAM) wreal64 $(SWITCH)ta $(SWITCH)h $(SWITCH)o wreal64$(AH) $(SWITCH)e $(OCCOPT)
+
+readline$(AH):	readline.occ hostio.inc splib.lib 
+	$(OCCAM) readline $(SWITCH)ta $(SWITCH)h $(SWITCH)o readline$(AH) $(SWITCH)e $(OCCOPT)
+
+echoline$(AH):	echoline.occ hostio.inc splib.lib 
+	$(OCCAM) echoline $(SWITCH)ta $(SWITCH)h $(SWITCH)o echoline$(AH) $(SWITCH)e $(OCCOPT)
+
+times$(AH):	times.occ hostio.inc splib.lib 
+	$(OCCAM) times $(SWITCH)ta $(SWITCH)h $(SWITCH)o times$(AH) $(SWITCH)e $(OCCOPT)
+
+# t8 class
+opentemp$(8H):	opentemp.occ hostio.inc splib.lib 
+	$(OCCAM) opentemp $(SWITCH)t8 $(SWITCH)h $(SWITCH)o opentemp$(8H) $(SWITCH)e $(OCCOPT)
+
+exists$(8H):	exists.occ hostio.inc splib.lib 
+	$(OCCAM) exists $(SWITCH)t8 $(SWITCH)h $(SWITCH)o exists$(8H) $(SWITCH)e $(OCCOPT)
+
+popen$(8H):	popen.occ hostio.inc splib.lib 
+	$(OCCAM) popen $(SWITCH)t8 $(SWITCH)h $(SWITCH)o popen$(8H) $(SWITCH)e $(OCCOPT)
+
+parse$(8H):	parse.occ hostio.inc splib.lib 
+	$(OCCAM) parse $(SWITCH)t8 $(SWITCH)h $(SWITCH)o parse$(8H) $(SWITCH)e $(OCCOPT)
+
+wstring$(8H):	wstring.occ hostio.inc splib.lib 
+	$(OCCAM) wstring $(SWITCH)t8 $(SWITCH)h $(SWITCH)o wstring$(8H) $(SWITCH)e $(OCCOPT)
+
+fwstring$(8H):	fwstring.occ hostio.inc splib.lib 
+	$(OCCAM) fwstring $(SWITCH)t8 $(SWITCH)h $(SWITCH)o fwstring$(8H) $(SWITCH)e $(OCCOPT)
+
+wint$(8H):	wint.occ hostio.inc splib.lib  
+	$(OCCAM) wint $(SWITCH)t8 $(SWITCH)h $(SWITCH)o wint$(8H) $(SWITCH)e $(OCCOPT)
+
+whint$(8H):	whint.occ hostio.inc splib.lib  
+	$(OCCAM) whint $(SWITCH)t8 $(SWITCH)h $(SWITCH)o whint$(8H) $(SWITCH)e $(OCCOPT)
+
+wint32$(8H):	wint32.occ hostio.inc splib.lib  
+	$(OCCAM) wint32 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o wint32$(8H) $(SWITCH)e $(OCCOPT)
+
+whint32$(8H):	whint32.occ hostio.inc splib.lib  
+	$(OCCAM) whint32 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o whint32$(8H) $(SWITCH)e $(OCCOPT)
+
+wint64$(8H):	wint64.occ hostio.inc splib.lib  
+	$(OCCAM) wint64 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o wint64$(8H) $(SWITCH)e $(OCCOPT)
+
+whint64$(8H):	whint64.occ hostio.inc splib.lib  
+	$(OCCAM) whint64 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o whint64$(8H) $(SWITCH)e $(OCCOPT)
+
+wreal32$(8H):	wreal32.occ hostio.inc splib.lib  
+	$(OCCAM) wreal32 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o wreal32$(8H) $(SWITCH)e $(OCCOPT)
+
+wreal64$(8H):	wreal64.occ hostio.inc splib.lib  
+	$(OCCAM) wreal64 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o wreal64$(8H) $(SWITCH)e $(OCCOPT)
+
+readline$(8H):	readline.occ hostio.inc splib.lib 
+	$(OCCAM) readline $(SWITCH)t8 $(SWITCH)h $(SWITCH)o readline$(8H) $(SWITCH)e $(OCCOPT)
+
+echoline$(8H):	echoline.occ hostio.inc splib.lib 
+	$(OCCAM) echoline $(SWITCH)t8 $(SWITCH)h $(SWITCH)o echoline$(8H) $(SWITCH)e $(OCCOPT)
+
+times$(8H):	times.occ hostio.inc splib.lib 
+	$(OCCAM) times $(SWITCH)t8 $(SWITCH)h $(SWITCH)o times$(8H) $(SWITCH)e $(OCCOPT)
+
+
+# x mode
+# t2 class
+opentemp$(2X):	opentemp.occ hostio.inc splib.lib 
+	$(OCCAM) opentemp $(SWITCH)t2 $(SWITCH)x $(SWITCH)o opentemp$(2X) $(SWITCH)e $(OCCOPT)
+
+exists$(2X):	exists.occ hostio.inc splib.lib 
+	$(OCCAM) exists $(SWITCH)t2 $(SWITCH)x $(SWITCH)o exists$(2X) $(SWITCH)e $(OCCOPT)
+
+popen$(2X):	popen.occ hostio.inc splib.lib 
+	$(OCCAM) popen $(SWITCH)t2 $(SWITCH)x $(SWITCH)o popen$(2X) $(SWITCH)e $(OCCOPT)
+
+parse$(2X):	parse.occ hostio.inc splib.lib 
+	$(OCCAM) parse $(SWITCH)t2 $(SWITCH)x $(SWITCH)o parse$(2X) $(SWITCH)e $(OCCOPT)
+
+wstring$(2X):	wstring.occ hostio.inc splib.lib 
+	$(OCCAM) wstring $(SWITCH)t2 $(SWITCH)x $(SWITCH)o wstring$(2X) $(SWITCH)e $(OCCOPT)
+
+fwstring$(2X):	fwstring.occ hostio.inc splib.lib 
+	$(OCCAM) fwstring $(SWITCH)t2 $(SWITCH)x $(SWITCH)o fwstring$(2X) $(SWITCH)e $(OCCOPT)
+
+wint$(2X):	wint.occ hostio.inc splib.lib  
+	$(OCCAM) wint $(SWITCH)t2 $(SWITCH)x $(SWITCH)o wint$(2X) $(SWITCH)e $(OCCOPT)
+
+whint$(2X):	whint.occ hostio.inc splib.lib  
+	$(OCCAM) whint $(SWITCH)t2 $(SWITCH)x $(SWITCH)o whint$(2X) $(SWITCH)e $(OCCOPT)
+
+wint32$(2X):	wint32.occ hostio.inc splib.lib  
+	$(OCCAM) wint32 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o wint32$(2X) $(SWITCH)e $(OCCOPT)
+
+whint32$(2X):	whint32.occ hostio.inc splib.lib  
+	$(OCCAM) whint32 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o whint32$(2X) $(SWITCH)e $(OCCOPT)
+
+wint64$(2X):	wint64.occ hostio.inc splib.lib  
+	$(OCCAM) wint64 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o wint64$(2X) $(SWITCH)e $(OCCOPT)
+
+whint64$(2X):	whint64.occ hostio.inc splib.lib  
+	$(OCCAM) whint64 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o whint64$(2X) $(SWITCH)e $(OCCOPT)
+
+wreal32$(2X):	wreal32.occ hostio.inc splib.lib  
+	$(OCCAM) wreal32 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o wreal32$(2X) $(SWITCH)e $(OCCOPT)
+
+wreal64$(2X):	wreal64.occ hostio.inc splib.lib  
+	$(OCCAM) wreal64 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o wreal64$(2X) $(SWITCH)e $(OCCOPT)
+
+readline$(2X):	readline.occ hostio.inc splib.lib 
+	$(OCCAM) readline $(SWITCH)t2 $(SWITCH)x $(SWITCH)o readline$(2X) $(SWITCH)e $(OCCOPT)
+
+echoline$(2X):	echoline.occ hostio.inc splib.lib
+	$(OCCAM) echoline $(SWITCH)t2 $(SWITCH)x $(SWITCH)o echoline$(2X) $(SWITCH)e $(OCCOPT)
+
+# no e option here
+times$(2X):	times.occ hostio.inc splib.lib 
+	$(OCCAM) times $(SWITCH)t2 $(SWITCH)x $(SWITCH)o times$(2X) $(OCCOPT)
+
+# ta class
+opentemp$(AX):	opentemp.occ hostio.inc splib.lib 
+	$(OCCAM) opentemp $(SWITCH)ta $(SWITCH)x $(SWITCH)o opentemp$(AX) $(SWITCH)e $(OCCOPT)
+
+exists$(AX):	exists.occ hostio.inc splib.lib 
+	$(OCCAM) exists $(SWITCH)ta $(SWITCH)x $(SWITCH)o exists$(AX) $(SWITCH)e $(OCCOPT)
+
+popen$(AX):	popen.occ hostio.inc splib.lib 
+	$(OCCAM) popen $(SWITCH)ta $(SWITCH)x $(SWITCH)o popen$(AX) $(SWITCH)e $(OCCOPT)
+
+parse$(AX):	parse.occ hostio.inc splib.lib 
+	$(OCCAM) parse $(SWITCH)ta $(SWITCH)x $(SWITCH)o parse$(AX) $(SWITCH)e $(OCCOPT)
+
+wstring$(AX):	wstring.occ hostio.inc splib.lib 
+	$(OCCAM) wstring $(SWITCH)ta $(SWITCH)x $(SWITCH)o wstring$(AX) $(SWITCH)e $(OCCOPT)
+
+fwstring$(AX):	fwstring.occ hostio.inc splib.lib 
+	$(OCCAM) fwstring $(SWITCH)ta $(SWITCH)x $(SWITCH)o fwstring$(AX) $(SWITCH)e $(OCCOPT)
+
+wint$(AX):	wint.occ hostio.inc splib.lib  
+	$(OCCAM) wint $(SWITCH)ta $(SWITCH)x $(SWITCH)o wint$(AX) $(SWITCH)e $(OCCOPT)
+
+whint$(AX):	whint.occ hostio.inc splib.lib  
+	$(OCCAM) whint $(SWITCH)ta $(SWITCH)x $(SWITCH)o whint$(AX) $(SWITCH)e $(OCCOPT)
+
+wint32$(AX):	wint32.occ hostio.inc splib.lib  
+	$(OCCAM) wint32 $(SWITCH)ta $(SWITCH)x $(SWITCH)o wint32$(AX) $(SWITCH)e $(OCCOPT)
+
+whint32$(AX):	whint32.occ hostio.inc splib.lib  
+	$(OCCAM) whint32 $(SWITCH)ta $(SWITCH)x $(SWITCH)o whint32$(AX) $(SWITCH)e $(OCCOPT)
+
+wint64$(AX):	wint64.occ hostio.inc splib.lib  
+	$(OCCAM) wint64 $(SWITCH)ta $(SWITCH)x $(SWITCH)o wint64$(AX) $(SWITCH)e $(OCCOPT)
+
+whint64$(AX):	whint64.occ hostio.inc splib.lib  
+	$(OCCAM) whint64 $(SWITCH)ta $(SWITCH)x $(SWITCH)o whint64$(AX) $(SWITCH)e $(OCCOPT)
+
+wreal32$(AX):	wreal32.occ hostio.inc splib.lib  
+	$(OCCAM) wreal32 $(SWITCH)ta $(SWITCH)x $(SWITCH)o wreal32$(AX) $(SWITCH)e $(OCCOPT)
+
+wreal64$(AX):	wreal64.occ hostio.inc splib.lib  
+	$(OCCAM) wreal64 $(SWITCH)ta $(SWITCH)x $(SWITCH)o wreal64$(AX) $(SWITCH)e $(OCCOPT)
+
+readline$(AX):	readline.occ hostio.inc splib.lib 
+	$(OCCAM) readline $(SWITCH)ta $(SWITCH)x $(SWITCH)o readline$(AX) $(SWITCH)e $(OCCOPT)
+
+echoline$(AX):	echoline.occ hostio.inc splib.lib 
+	$(OCCAM) echoline $(SWITCH)ta $(SWITCH)x $(SWITCH)o echoline$(AX) $(SWITCH)e $(OCCOPT)
+
+times$(AX):	times.occ hostio.inc splib.lib 
+	$(OCCAM) times $(SWITCH)ta $(SWITCH)x $(SWITCH)o times$(AX) $(SWITCH)e $(OCCOPT)
+
+# t8 class
+opentemp$(8X):	opentemp.occ hostio.inc splib.lib 
+	$(OCCAM) opentemp $(SWITCH)t8 $(SWITCH)x $(SWITCH)o opentemp$(8X) $(SWITCH)e $(OCCOPT)
+
+exists$(8X):	exists.occ hostio.inc splib.lib 
+	$(OCCAM) exists $(SWITCH)t8 $(SWITCH)x $(SWITCH)o exists$(8X) $(SWITCH)e $(OCCOPT)
+
+popen$(8X):	popen.occ hostio.inc splib.lib 
+	$(OCCAM) popen $(SWITCH)t8 $(SWITCH)x $(SWITCH)o popen$(8X) $(SWITCH)e $(OCCOPT)
+
+parse$(8X):	parse.occ hostio.inc splib.lib 
+	$(OCCAM) parse $(SWITCH)t8 $(SWITCH)x $(SWITCH)o parse$(8X) $(SWITCH)e $(OCCOPT)
+
+wstring$(8X):	wstring.occ hostio.inc splib.lib 
+	$(OCCAM) wstring $(SWITCH)t8 $(SWITCH)x $(SWITCH)o wstring$(8X) $(SWITCH)e $(OCCOPT)
+
+fwstring$(8X):	fwstring.occ hostio.inc splib.lib 
+	$(OCCAM) fwstring $(SWITCH)t8 $(SWITCH)x $(SWITCH)o fwstring$(8X) $(SWITCH)e $(OCCOPT)
+
+wint$(8X):	wint.occ hostio.inc splib.lib  
+	$(OCCAM) wint $(SWITCH)t8 $(SWITCH)x $(SWITCH)o wint$(8X) $(SWITCH)e $(OCCOPT)
+
+whint$(8X):	whint.occ hostio.inc splib.lib  
+	$(OCCAM) whint $(SWITCH)t8 $(SWITCH)x $(SWITCH)o whint$(8X) $(SWITCH)e $(OCCOPT)
+
+wint32$(8X):	wint32.occ hostio.inc splib.lib  
+	$(OCCAM) wint32 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o wint32$(8X) $(SWITCH)e $(OCCOPT)
+
+whint32$(8X):	whint32.occ hostio.inc splib.lib  
+	$(OCCAM) whint32 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o whint32$(8X) $(SWITCH)e $(OCCOPT)
+
+wint64$(8X):	wint64.occ hostio.inc splib.lib  
+	$(OCCAM) wint64 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o wint64$(8X) $(SWITCH)e $(OCCOPT)
+
+whint64$(8X):	whint64.occ hostio.inc splib.lib  
+	$(OCCAM) whint64 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o whint64$(8X) $(SWITCH)e $(OCCOPT)
+
+wreal32$(8X):	wreal32.occ hostio.inc splib.lib  
+	$(OCCAM) wreal32 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o wreal32$(8X) $(SWITCH)e $(OCCOPT)
+
+wreal64$(8X):	wreal64.occ hostio.inc splib.lib  
+	$(OCCAM) wreal64 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o wreal64$(8X) $(SWITCH)e $(OCCOPT)
+
+readline$(8X):	readline.occ hostio.inc splib.lib 
+	$(OCCAM) readline $(SWITCH)t8 $(SWITCH)x $(SWITCH)o readline$(8X) $(SWITCH)e $(OCCOPT)
+
+echoline$(8X):	echoline.occ hostio.inc splib.lib 
+	$(OCCAM) echoline $(SWITCH)t8 $(SWITCH)x $(SWITCH)o echoline$(8X) $(SWITCH)e $(OCCOPT)
+
+times$(8X):	times.occ hostio.inc splib.lib 
+	$(OCCAM) times $(SWITCH)t8 $(SWITCH)x $(SWITCH)o times$(8X) $(SWITCH)e $(OCCOPT)
+
+
+
+solib.lib:	solib.lbb \
+	opentemp$(2H) exists$(2H) popen$(2H) parse$(2H) wstring$(2H) wint$(2H) \
+	whint$(2H) wint64$(2H) whint64$(2H) wreal32$(2H) wreal64$(2H) readline$(2H) \
+	echoline$(2H) times$(2H) fwstring$(2H) \
+	\
+	opentemp$(AH) exists$(AH) popen$(AH) parse$(AH) wstring$(AH) wint$(AH) \
+	whint$(AH) wint64$(AH) whint64$(AH) wreal32$(AH) wreal64$(AH) readline$(AH) \
+	echoline$(AH) times$(AH) fwstring$(AH) \
+	\
+	opentemp$(8H) exists$(8H) popen$(8H) parse$(8H) wstring$(8H) wint$(8H) \
+	whint$(8H) wint64$(8H) whint64$(8H) wreal32$(8H) wreal64$(8H) readline$(8H) \
+	echoline$(8H) times$(8H) fwstring$(8H) \
+	\
+	\
+	opentemp$(2X) exists$(2X) popen$(2X) parse$(2X) wstring$(2X) wint$(2X) \
+	whint$(2X) wint64$(2X) whint64$(2X) wreal32$(2X) wreal64$(2X) readline$(2X) \
+	echoline$(2X) times$(2X) fwstring$(2X) \
+	\
+	opentemp$(AX) exists$(AX) popen$(AX) parse$(AX) wstring$(AX) wint$(AX) \
+	whint$(AX) wint64$(AX) whint64$(AX) wreal32$(AX) wreal64$(AX) readline$(AX) \
+	echoline$(AX) times$(AX) fwstring$(AX) \
+	\
+	opentemp$(8X) exists$(8X) popen$(8X) parse$(8X) wstring$(8X) wint$(8X) \
+	whint$(8X) wint64$(8X) whint64$(8X) wreal32$(8X) wreal64$(8X) readline$(8X) \
+	echoline$(8X) times$(8X) fwstring$(8X)
+	$(LIBRARIAN) $(SWITCH)f solib.lbb $(SWITCH)o solib.lib $(LIBOPT)
+
+# h mode
+# t2 class
+ask$(2H):	ask.occ hostio.inc splib.lib solib.lib 
+	$(OCCAM) ask $(SWITCH)t2 $(SWITCH)h $(SWITCH)o ask$(2H) $(SWITCH)e $(OCCOPT)
+
+reint$(2H):	reint.occ hostio.inc solib.lib  
+	$(OCCAM) reint $(SWITCH)t2 $(SWITCH)h $(SWITCH)o reint$(2H) $(SWITCH)e $(OCCOPT)
+
+rehint$(2H):	rehint.occ hostio.inc solib.lib 
+	$(OCCAM) rehint $(SWITCH)t2 $(SWITCH)h $(SWITCH)o rehint$(2H) $(SWITCH)e $(OCCOPT)
+
+reaint$(2H):	reaint.occ hostio.inc solib.lib  
+	$(OCCAM) reaint $(SWITCH)t2 $(SWITCH)h $(SWITCH)o reaint$(2H) $(SWITCH)e $(OCCOPT)
+
+reint32$(2H):	reint32.occ hostio.inc solib.lib  
+	$(OCCAM) reint32 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o reint32$(2H) $(SWITCH)e $(OCCOPT)
+
+rehint32$(2H):	rehint32.occ hostio.inc solib.lib  
+	$(OCCAM) rehint32 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o rehint32$(2H) $(SWITCH)e $(OCCOPT)
+
+reint64$(2H):	reint64.occ hostio.inc solib.lib  
+	$(OCCAM) reint64 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o reint64$(2H) $(SWITCH)e $(OCCOPT)
+
+rehint64$(2H):	rehint64.occ hostio.inc solib.lib  
+	$(OCCAM) rehint64 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o rehint64$(2H) $(SWITCH)e $(OCCOPT)
+
+rereal32$(2H):	rereal32.occ hostio.inc solib.lib
+	$(OCCAM) rereal32 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o rereal32$(2H) $(SWITCH)e $(OCCOPT)
+
+rereal64$(2H):	rereal64.occ hostio.inc solib.lib  
+	$(OCCAM) rereal64 $(SWITCH)t2 $(SWITCH)h $(SWITCH)o rereal64$(2H) $(SWITCH)e $(OCCOPT)
+
+
+# ta class
+ask$(AH):	ask.occ hostio.inc splib.lib solib.lib 
+	$(OCCAM) ask $(SWITCH)ta $(SWITCH)h $(SWITCH)o ask$(AH) $(SWITCH)e $(OCCOPT)
+
+reint$(AH):	reint.occ hostio.inc solib.lib  
+	$(OCCAM) reint $(SWITCH)ta $(SWITCH)h $(SWITCH)o reint$(AH) $(SWITCH)e $(OCCOPT)
+
+rehint$(AH):	rehint.occ hostio.inc solib.lib  
+	$(OCCAM) rehint $(SWITCH)ta $(SWITCH)h $(SWITCH)o rehint$(AH) $(SWITCH)e $(OCCOPT)
+
+reaint$(AH):	reaint.occ hostio.inc solib.lib  
+	$(OCCAM) reaint $(SWITCH)ta $(SWITCH)h $(SWITCH)o reaint$(AH) $(SWITCH)e $(OCCOPT)
+
+reint32$(AH):	reint32.occ hostio.inc solib.lib  
+	$(OCCAM) reint32 $(SWITCH)ta $(SWITCH)h $(SWITCH)o reint32$(AH) $(SWITCH)e $(OCCOPT)
+
+rehint32$(AH):	rehint32.occ hostio.inc solib.lib  
+	$(OCCAM) rehint32 $(SWITCH)ta $(SWITCH)h $(SWITCH)o rehint32$(AH) $(SWITCH)e $(OCCOPT)
+
+reint64$(AH):	reint64.occ hostio.inc solib.lib  
+	$(OCCAM) reint64 $(SWITCH)ta $(SWITCH)h $(SWITCH)o reint64$(AH) $(SWITCH)e $(OCCOPT)
+
+rehint64$(AH):	rehint64.occ hostio.inc solib.lib  
+	$(OCCAM) rehint64 $(SWITCH)ta $(SWITCH)h $(SWITCH)o rehint64$(AH) $(SWITCH)e $(OCCOPT)
+
+rereal32$(AH):	rereal32.occ hostio.inc solib.lib  
+	$(OCCAM) rereal32 $(SWITCH)ta $(SWITCH)h $(SWITCH)o rereal32$(AH) $(SWITCH)e $(OCCOPT)
+
+rereal64$(AH):	rereal64.occ hostio.inc solib.lib  
+	$(OCCAM) rereal64 $(SWITCH)ta $(SWITCH)h $(SWITCH)o rereal64$(AH) $(SWITCH)e $(OCCOPT)
+
+
+# t8 class
+ask$(8H):	ask.occ hostio.inc splib.lib solib.lib 
+	$(OCCAM) ask $(SWITCH)t8 $(SWITCH)h $(SWITCH)o ask$(8H) $(SWITCH)e $(OCCOPT)
+
+reint$(8H):	reint.occ hostio.inc solib.lib  
+	$(OCCAM) reint $(SWITCH)t8 $(SWITCH)h $(SWITCH)o reint$(8H) $(SWITCH)e $(OCCOPT)
+
+rehint$(8H):	rehint.occ hostio.inc solib.lib  
+	$(OCCAM) rehint $(SWITCH)t8 $(SWITCH)h $(SWITCH)o rehint$(8H) $(SWITCH)e $(OCCOPT)
+
+reaint$(8H):	reaint.occ hostio.inc solib.lib  
+	$(OCCAM) reaint $(SWITCH)t8 $(SWITCH)h $(SWITCH)o reaint$(8H) $(SWITCH)e $(OCCOPT)
+
+reint32$(8H):	reint32.occ hostio.inc solib.lib  
+	$(OCCAM) reint32 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o reint32$(8H) $(SWITCH)e $(OCCOPT)
+
+rehint32$(8H):	rehint32.occ hostio.inc solib.lib  
+	$(OCCAM) rehint32 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o rehint32$(8H) $(SWITCH)e $(OCCOPT)
+
+reint64$(8H):	reint64.occ hostio.inc solib.lib  
+	$(OCCAM) reint64 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o reint64$(8H) $(SWITCH)e $(OCCOPT)
+
+rehint64$(8H):	rehint64.occ hostio.inc solib.lib  
+	$(OCCAM) rehint64 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o rehint64$(8H) $(SWITCH)e $(OCCOPT)
+
+rereal32$(8H):	rereal32.occ hostio.inc solib.lib  
+	$(OCCAM) rereal32 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o rereal32$(8H) $(SWITCH)e $(OCCOPT)
+
+rereal64$(8H):	rereal64.occ hostio.inc solib.lib  
+	$(OCCAM) rereal64 $(SWITCH)t8 $(SWITCH)h $(SWITCH)o rereal64$(8H) $(SWITCH)e $(OCCOPT)
+
+
+# x mode
+# t2 class
+ask$(2X):	ask.occ hostio.inc splib.lib solib.lib 
+	$(OCCAM) ask $(SWITCH)t2 $(SWITCH)x $(SWITCH)o ask$(2X) $(SWITCH)e $(OCCOPT)
+
+reint$(2X):	reint.occ hostio.inc solib.lib  
+	$(OCCAM) reint $(SWITCH)t2 $(SWITCH)x $(SWITCH)o reint$(2X) $(SWITCH)e $(OCCOPT)
+
+rehint$(2X):	rehint.occ hostio.inc solib.lib  
+	$(OCCAM) rehint $(SWITCH)t2 $(SWITCH)x $(SWITCH)o rehint$(2X) $(SWITCH)e $(OCCOPT)
+
+reaint$(2X):	reaint.occ hostio.inc solib.lib  
+	$(OCCAM) reaint $(SWITCH)t2 $(SWITCH)x $(SWITCH)o reaint$(2X) $(SWITCH)e $(OCCOPT)
+
+reint32$(2X):	reint32.occ hostio.inc solib.lib  
+	$(OCCAM) reint32 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o reint32$(2X) $(SWITCH)e $(OCCOPT)
+
+rehint32$(2X):	rehint32.occ hostio.inc solib.lib
+	$(OCCAM) rehint32 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o rehint32$(2X) $(SWITCH)e $(OCCOPT)
+
+reint64$(2X):	reint64.occ hostio.inc solib.lib  
+	$(OCCAM) reint64 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o reint64$(2X) $(SWITCH)e $(OCCOPT)
+
+rehint64$(2X):	rehint64.occ hostio.inc solib.lib
+	$(OCCAM) rehint64 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o rehint64$(2X) $(SWITCH)e $(OCCOPT)
+
+rereal32$(2X):	rereal32.occ hostio.inc solib.lib  
+	$(OCCAM) rereal32 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o rereal32$(2X) $(SWITCH)e $(OCCOPT)
+
+rereal64$(2X):	rereal64.occ hostio.inc solib.lib  
+	$(OCCAM) rereal64 $(SWITCH)t2 $(SWITCH)x $(SWITCH)o rereal64$(2X) $(SWITCH)e $(OCCOPT)
+
+
+# ta class
+ask$(AX):	ask.occ hostio.inc splib.lib solib.lib 
+	$(OCCAM) ask $(SWITCH)ta $(SWITCH)x $(SWITCH)o ask$(AX) $(SWITCH)e $(OCCOPT)
+
+reint$(AX):	reint.occ hostio.inc solib.lib  
+	$(OCCAM) reint $(SWITCH)ta $(SWITCH)x $(SWITCH)o reint$(AX) $(SWITCH)e $(OCCOPT)
+
+rehint$(AX):	rehint.occ hostio.inc solib.lib  
+	$(OCCAM) rehint $(SWITCH)ta $(SWITCH)x $(SWITCH)o rehint$(AX) $(SWITCH)e $(OCCOPT)
+
+reaint$(AX):	reaint.occ hostio.inc solib.lib  
+	$(OCCAM) reaint $(SWITCH)ta $(SWITCH)x $(SWITCH)o reaint$(AX) $(SWITCH)e $(OCCOPT)
+
+reint32$(AX):	reint32.occ hostio.inc solib.lib  
+	$(OCCAM) reint32 $(SWITCH)ta $(SWITCH)x $(SWITCH)o reint32$(AX) $(SWITCH)e $(OCCOPT)
+
+rehint32$(AX):	rehint32.occ hostio.inc solib.lib  
+	$(OCCAM) rehint32 $(SWITCH)ta $(SWITCH)x $(SWITCH)o rehint32$(AX) $(SWITCH)e $(OCCOPT)
+
+reint64$(AX):	reint64.occ hostio.inc solib.lib  
+	$(OCCAM) reint64 $(SWITCH)ta $(SWITCH)x $(SWITCH)o reint64$(AX) $(SWITCH)e $(OCCOPT)
+
+rehint64$(AX):	rehint64.occ hostio.inc solib.lib  
+	$(OCCAM) rehint64 $(SWITCH)ta $(SWITCH)x $(SWITCH)o rehint64$(AX) $(SWITCH)e $(OCCOPT)
+
+rereal32$(AX):	rereal32.occ hostio.inc solib.lib  
+	$(OCCAM) rereal32 $(SWITCH)ta $(SWITCH)x $(SWITCH)o rereal32$(AX) $(SWITCH)e $(OCCOPT)
+
+rereal64$(AX):	rereal64.occ hostio.inc solib.lib  
+	$(OCCAM) rereal64 $(SWITCH)ta $(SWITCH)x $(SWITCH)o rereal64$(AX) $(SWITCH)e $(OCCOPT)
+
+
+# t8 class
+ask$(8X):	ask.occ hostio.inc splib.lib solib.lib 
+	$(OCCAM) ask $(SWITCH)t8 $(SWITCH)x $(SWITCH)o ask$(8X) $(SWITCH)e $(OCCOPT)
+
+reint$(8X):	reint.occ hostio.inc solib.lib  
+	$(OCCAM) reint $(SWITCH)t8 $(SWITCH)x $(SWITCH)o reint$(8X) $(SWITCH)e $(OCCOPT)
+
+rehint$(8X):	rehint.occ hostio.inc solib.lib  
+	$(OCCAM) rehint $(SWITCH)t8 $(SWITCH)x $(SWITCH)o rehint$(8X) $(SWITCH)e $(OCCOPT)
+
+reaint$(8X):	reaint.occ hostio.inc solib.lib  
+	$(OCCAM) reaint $(SWITCH)t8 $(SWITCH)x $(SWITCH)o reaint$(8X) $(SWITCH)e $(OCCOPT)
+
+reint32$(8X):	reint32.occ hostio.inc solib.lib  
+	$(OCCAM) reint32 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o reint32$(8X) $(SWITCH)e $(OCCOPT)
+
+rehint32$(8X):	rehint32.occ hostio.inc solib.lib  
+	$(OCCAM) rehint32 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o rehint32$(8X) $(SWITCH)e $(OCCOPT)
+
+reint64$(8X):	reint64.occ hostio.inc solib.lib  
+	$(OCCAM) reint64 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o reint64$(8X) $(SWITCH)e $(OCCOPT)
+
+rehint64$(8X):	rehint64.occ hostio.inc solib.lib  
+	$(OCCAM) rehint64 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o rehint64$(8X) $(SWITCH)e $(OCCOPT)
+
+rereal32$(8X):	rereal32.occ hostio.inc solib.lib  
+	$(OCCAM) rereal32 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o rereal32$(8X) $(SWITCH)e $(OCCOPT)
+
+rereal64$(8X):	rereal64.occ hostio.inc solib.lib  
+	$(OCCAM) rereal64 $(SWITCH)t8 $(SWITCH)x $(SWITCH)o rereal64$(8X) $(SWITCH)e $(OCCOPT)

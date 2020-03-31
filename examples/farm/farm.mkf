@@ -1,0 +1,138 @@
+# Makefile for farm produced by omakef version 1.50
+
+ARCH=sun4
+OCCOPTIONS=-mn 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+XOCCOPT=-s
+XCCOPT=-DUSE_NONBLOCKING_SOCKETS
+XCL-DEP=$(SPOC)/lib/$(ARCH)/libspserver.a
+
+
+# Any command-line definitions:
+
+farm=farm
+farm-LDD=loop.o controller.o worker.o $(SPOC)/lib/sun4/libdblmath.a            \
+         $(SPOC)/lib/sun4/libhostio.a $(SPOC)/lib/sun4/libstring.a             \
+         $(SPOC)/lib/sun4/libconvert.a $(SPOC)/lib/sun4/libIntrinsics.a 
+$(farm): $(farm).$(O) $(CLINK-DEP) $(farm-LDD)
+	$(CLINK) $(farm).$(O) -o $(farm) $(farm-LDD) $(CLINK-DEP) $(CLLIB)
+
+farm-HDR=loop.hdr worker.hdr controller.hdr $(SPOC)/lib/sun4/Intrinsics.hdr 
+$(farm).$(O): $(farm).$(C) $(C2OBJ-DEP) $(farm-HDR)
+	$(C2OBJ) $(farm).$(C) -o $(farm).$(O)
+
+farm-DEP=loop.t worker.t controller.t $(SPOC)/lib/sun4/Intrinsics.lib          \
+         farm.inc $(SPOC)/lib/sun4/hostio.inc 
+$(farm).$(C): $(farm).$(OCC) $(farm-DEP) $(OCC2C-DEP)
+	$(OCC2PGM) $(farm).$(OCC) -o $(farm).$(C)
+
+
+
+controller=controller
+controller-HDR=$(SPOC)/lib/sun4/convert.hdr $(SPOC)/lib/sun4/string.hdr        \
+               $(SPOC)/lib/sun4/dblmath.hdr $(SPOC)/lib/sun4/hostio.hdr        \
+               $(SPOC)/lib/sun4/Intrinsics.hdr 
+$(controller).$(O): $(controller).$(C) $(C2OBJ-DEP) $(controller-HDR)
+	$(C2OBJ) $(controller).$(C) -o $(controller).$(O)
+
+controller-DEP=$(SPOC)/lib/sun4/convert.lib $(SPOC)/lib/sun4/string.lib        \
+               $(SPOC)/lib/sun4/dblmath.lib $(SPOC)/lib/sun4/hostio.lib        \
+               $(SPOC)/lib/sun4/Intrinsics.lib farm.inc                        \
+               $(SPOC)/lib/sun4/hostio.inc 
+$(controller).$(C): $(controller).$(OCC) $(controller-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(controller).$(OCC) -o $(controller).$(C)
+
+controller-LHD=
+$(controller).$(HDR): $(controller).$(C) $(controller-HDR) $(controller-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(controller).$(C) -o $(controller).$(X)
+	$(INVOKE) ./$(controller).$(X) $(controller-LHD) $(controller).$(HDR)
+	$(RM) $(controller).$(X)
+
+$(controller).$(T): $(controller).$(C)
+
+
+
+worker=worker
+worker-HDR=$(SPOC)/lib/sun4/dblmath.hdr $(SPOC)/lib/sun4/Intrinsics.hdr 
+$(worker).$(O): $(worker).$(C) $(C2OBJ-DEP) $(worker-HDR)
+	$(C2OBJ) $(worker).$(C) -o $(worker).$(O)
+
+worker-DEP=$(SPOC)/lib/sun4/dblmath.lib $(SPOC)/lib/sun4/Intrinsics.lib        \
+           farm.inc 
+$(worker).$(C): $(worker).$(OCC) $(worker-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(worker).$(OCC) -o $(worker).$(C)
+
+worker-LHD=
+$(worker).$(HDR): $(worker).$(C) $(worker-HDR) $(worker-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(worker).$(C) -o $(worker).$(X)
+	$(INVOKE) ./$(worker).$(X) $(worker-LHD) $(worker).$(HDR)
+	$(RM) $(worker).$(X)
+
+$(worker).$(T): $(worker).$(C)
+
+
+
+loop=loop
+loop-HDR=$(SPOC)/lib/sun4/Intrinsics.hdr 
+$(loop).$(O): $(loop).$(C) $(C2OBJ-DEP) $(loop-HDR)
+	$(C2OBJ) $(loop).$(C) -o $(loop).$(O)
+
+loop-DEP=$(SPOC)/lib/sun4/Intrinsics.lib farm.inc 
+$(loop).$(C): $(loop).$(OCC) $(loop-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(loop).$(OCC) -o $(loop).$(C)
+
+loop-LHD=
+$(loop).$(HDR): $(loop).$(C) $(loop-HDR) $(loop-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(loop).$(C) -o $(loop).$(X)
+	$(INVOKE) ./$(loop).$(X) $(loop-LHD) $(loop).$(HDR)
+	$(RM) $(loop).$(X)
+
+$(loop).$(T): $(loop).$(C)
+
+
+
+
+clean:
+	rm -f farm farm.o farm.c controller.o controller.c controller.hdr      \
+        controller.t worker.o worker.c worker.hdr worker.t loop.o loop.c       \
+        loop.hdr loop.t 

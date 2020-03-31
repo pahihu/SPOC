@@ -1,0 +1,45 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "MSDOS library V1.0"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "msdos.inc"
+
+PROC dos.port.write (CHAN OF SP fs, ts, VAL INT16 port.location,
+                     VAL BYTE value, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To write a given value to a given port.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       port.location - the address where the port is to be found,
+  --           the address being in the I/O space of the PC and hence is
+  --           an unsigned number between 0 and 64K
+  -- In:       value - the value to write to port.location
+  -- Out:      result - spr.ok if the write was successful; otherwise
+  --           >= spr.operation.failed
+  -- Notes:    No check is made to ensure that the value written to the
+  --           port has been correctly read by the device connected to
+  --           the port ( if any ).
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  INT16 temp.INT16 :
+  SEQ
+    --{{{  pack up the data into the buffer (5 bytes)
+    buffer [0] := sp.DOS.tag
+    buffer [1] := dos.port.write.tag
+    
+    temp.INT16 := INT16 port.location
+    VAL [2]BYTE b.temp RETYPES temp.INT16 :
+    [buffer FROM 2 FOR 2] := b.temp
+    
+    buffer [4] := value
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    fs ? temp.INT16 :: buffer
+    --}}}
+    --{{{  unpack the data                  (1 byte)
+    result := buffer [0]
+    --}}}
+:

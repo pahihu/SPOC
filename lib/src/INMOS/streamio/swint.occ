@@ -1,0 +1,123 @@
+#OPTION "E"  -- no compiler libs
+#COMMENT "Stream i/o library, V1.1, 13/06/90"
+#COMMENT "(c) Copyright INMOS Limited 1989, 1990"
+#INCLUDE "streamio.inc"
+#USE "convert.lib"
+
+--{{{  history
+-- Altered completely so that there is no longer a maximum limit on the
+-- total size of string that is output.
+-- Also defined it to be an error if the requested field width is negative.
+-- New version is 1.1 ( old version was 0.01, 23-Dec-88 )  13-June-90 SRH
+--}}}
+
+--{{{  ss.write.int
+PROC ss.write.int (CHAN OF SS scrn, VAL INT number, field )
+
+  --{{{  specification
+  -- Purpose:  To write to the given screen stream an integer as decimal
+  --           ASCII digits, padded out with leading spaces to the
+  --           specified field width.
+  -- Channels: scrn - for output
+  -- In:       number - the integer that is desired to be written
+  -- In:       field - the desired field width of the string
+  -- Notes:    If the field width is too small for the number, then it is
+  --           widened as necessary; a zero value for the field width will
+  --           give minimum width; a negative field width is an error.
+  --}}}
+
+  IF
+    field < 0
+      STOP
+    TRUE
+      [11]BYTE string : -- 11 characters in -2147483648 = MOSTNEG INT32;
+      INT len :
+      SEQ
+        INTTOSTRING (len, string, number)
+        --{{{  output any necessary spaces
+        VAL spaces IS "                    " :  -- 20 spaces
+        INT number.of.spaces, fill.this.time :
+        SEQ
+          number.of.spaces := field - len
+          WHILE number.of.spaces > 0
+            SEQ
+              IF
+                number.of.spaces > (SIZE spaces)
+                  fill.this.time := SIZE spaces
+                TRUE
+                  fill.this.time := number.of.spaces
+              scrn ! st.out.string;
+                INT32 fill.this.time :: [spaces FROM 0 FOR fill.this.time]
+              number.of.spaces := number.of.spaces - fill.this.time
+        --}}}output any necessary spaces
+        -- now output the string representation of the integer
+        scrn ! st.out.string; INT32 len :: [string FROM 0 FOR len]
+:
+--}}}ss.write.int
+--{{{  ss.write.hex.int
+PROC ss.write.hex.int (CHAN OF SS scrn, VAL INT number, field )
+
+  --{{{  specification
+  -- Purpose:  To write an integer as hexadecimal ASCII characters
+  --           preceded by the '#' character to the given screen stream.
+  -- Channels: scrn - for output
+  -- In:       number - the integer to write out
+  -- In:       field - the field width to use when writing the hex;
+  --           if field is larger than the size of the number then the
+  --           number is padded with leading 0's or F's as appropriate;
+  --           if field is smaller than the size of the number then the
+  --           number is truncated at the left to field characters;
+  --           field does not take the '#' into account.
+  --           A negative field width is an error.
+  --}}}
+
+  IF
+    field < 0
+      STOP
+    TRUE
+      [8]BYTE string :
+      INT len :
+      SEQ
+        HEXTOSTRING (len, string, number)
+        scrn ! st.out.byte; '#'
+        --{{{  sign extend if necessary
+        VAL size.fill.string IS 10 :
+        VAL [size.fill.string]BYTE zeroes IS "0000000000" :
+        VAL [size.fill.string]BYTE effs   IS "FFFFFFFFFF" :
+        --{{{  PROC sign.extend
+        PROC sign.extend (VAL INT how.many, VAL [size.fill.string]BYTE fill.string)
+          INT number.to.fill, fill.this.time :
+          SEQ
+            number.to.fill := how.many
+            WHILE number.to.fill > 0
+              SEQ
+                IF
+                  number.to.fill > (SIZE fill.string)
+                    fill.this.time := SIZE fill.string
+                  TRUE
+                    fill.this.time := number.to.fill
+                scrn ! st.out.string;
+                  INT32 fill.this.time :: [fill.string FROM 0 FOR fill.this.time]
+                number.to.fill := number.to.fill - fill.this.time
+        :
+        --}}}
+        IF
+          number < 0
+            sign.extend (field - len, effs)
+          TRUE
+            sign.extend (field - len, zeroes)
+        --}}}
+        --{{{  output the number, truncated if necessary
+        INT start :
+        SEQ
+          IF
+            len > field
+              SEQ
+                start := len - field
+                len   := field
+            TRUE
+              start := 0
+          scrn ! st.out.string; INT32 len :: [string FROM start FOR len]
+        --}}}
+:
+--}}}ss.write.hex.int

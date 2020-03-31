@@ -1,0 +1,54 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+PROC INTTOSTRING (INT len, []BYTE string, VAL INT n)
+
+  --{{{  history
+  -- Beta-2 (27feb87)
+  -- V1.0, 1-Jul-88
+  -- Added V to OPTIONs; V1.1, 22-Mar-90 SRH
+  --}}}
+
+  INT R, W:
+  BYTE b:
+  BOOL Neg:
+  SEQ
+    IF
+      n < 0
+        SEQ
+          W := 0 MINUS n
+          Neg := TRUE
+          len := 0
+      n > 0
+        SEQ
+          W := n
+          Neg := FALSE
+          len := 0
+      TRUE
+        SEQ
+          W := n
+          Neg := FALSE
+          len := 1
+          string[0] := '0'
+    WHILE W <> 0
+      SEQ
+        W, R := LONGDIV (0, W, 10)
+        string[len] := (BYTE (R + (INT '0')))
+        len := len + 1
+    IF
+      Neg
+        SEQ
+          string[len] := '-'
+          len := len + 1
+      TRUE
+        SKIP
+    W := 0
+    R := (len - 1)
+    WHILE (W < R)
+      SEQ
+        b := string[W]
+        string[W] := string[R]
+        string[R] := b
+        W := W + 1
+        R := R - 1
+:

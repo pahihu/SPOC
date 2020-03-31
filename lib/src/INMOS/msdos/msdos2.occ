@@ -1,0 +1,72 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "MSDOS library V1.0"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "msdos.inc"
+
+PROC dos.call.interrupt (CHAN OF SP fs, ts, VAL INT16 interrupt,
+                         VAL [dos.interrupt.regs.size]BYTE register.block.in,
+                         BYTE carry.flag,
+                         [dos.interrupt.regs.size]BYTE register.block.out,
+                         BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To invoke an interrupt call on the host PC, with the
+  --           processor's registers initialised to desired values.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       interrupt - the interrupt number
+  -- In:       register.block.in - the register values to which to
+  --           initialise the PC's registers on this interrupt
+  -- Out:      carry.flag - if result is spr.ok, the value of the PC's
+  --           carry flag on return from the interrupt; otherwise
+  --           undefined
+  -- Out:      register.block.out - if result is spr.ok, the values
+  --           stored in the processor's registers on return from the
+  --           interrupt; otherwise undefined
+  -- Out:      result - spr.ok if the interrupt was successful;
+  --           otherwise >= spr.operation.failed
+  -- Notes:    Each register value occupies 4 bytes:
+  --                register           start position in block
+  --                                  ( least significant byte )
+  --                   ax                          0
+  --                   bx                          4
+  --                   cx                          8
+  --                   dx                         12
+  --                   di                         16
+  --                   si                         20
+  --                   cs                         24
+  --                   ds                         28
+  --                   es                         32
+  --                   ss                         36
+  --}}}
+  --{{{  more information
+  -- On a 16-bit IBM PC the 2 most significant bytes of each 4 byte
+  -- register value in a block are ignored.
+  -- Note that the registers cs and ss cannot be changed using this routine.
+  --}}}
+
+  [dos.interrupt.regs.size + 4]BYTE buffer :
+  INT16 temp.INT16 :
+  SEQ
+    --{{{  pack up the data into the buffer (4 bytes plus register block)
+    buffer [0] := sp.DOS.tag
+    buffer [1] := dos.call.interrupt.tag
+    
+    temp.INT16 := INT16 interrupt
+    VAL [2]BYTE b.temp RETYPES temp.INT16 :
+    [buffer FROM 2 FOR 2] := b.temp
+    
+    [buffer FROM 4 FOR dos.interrupt.regs.size] := register.block.in
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 (dos.interrupt.regs.size + 4) :: buffer
+    fs ? temp.INT16 :: buffer
+    --}}}
+    --{{{  unpack the data                  (2 bytes plus register block)
+    result := buffer [0]
+    
+    carry.flag := buffer [1]
+    register.block.out := [buffer FROM 2 FOR dos.interrupt.regs.size]
+    --}}}
+:

@@ -1,0 +1,64 @@
+#COMMENT "Host i/o library, V1.1, 13/05/90"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.seek
+PROC sp.seek (CHAN OF SP fs, ts, VAL INT32 streamid, offset, origin, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To set the file position for the specified stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the open stream
+  --           associated with the file the position of which is to be set
+  -- In:       offset - the offset from origin of the new position for reading
+  --           or writing.  For a binary file the new position will be offset
+  --           bytes, perhaps negative, from the position defined by origin.
+  --           For a text file offset must be zero or a value returned by
+  --           so.tell; in the latter case origin must be spo.start, and
+  --           offset greater than or equal to zero.
+  -- In:       origin - one of
+  --             spo.start    the start of the file
+  --             spo.current  the current position in the file
+  --             spo.end      the end of the file
+  -- Out:      result - equal to spr.ok if the file position was successfully
+  --           set; otherwise takes on a value indicating what the problem was:
+  --             spr.bad.origin        invalid origin
+  --           >=spr.operation.failed  the seek failed - see hostio.inc or
+  --                                   iserver documentation for further details
+  --}}}
+
+  IF
+    (origin <> spo.start) AND (origin <> spo.current) AND (origin <> spo.end)
+      result := spr.bad.origin
+    TRUE
+      [14]BYTE buffer :  -- 13 really, plus 1 to make it even
+      SEQ
+        --{{{  pack the data into the buffer (13 bytes)
+        buffer [0] := sp.seek.tag
+        
+        VAL [4]BYTE b.streamid RETYPES streamid :
+        [buffer FROM 1 FOR 4] := b.streamid
+        
+        VAL [4]BYTE b.offset RETYPES offset :
+        [buffer FROM 5 FOR 4] := b.offset
+        
+        VAL [4]BYTE b.origin RETYPES origin :
+        [buffer FROM 9 FOR 4] := b.origin
+        --}}}pack the data into the buffer (13 bytes)
+        --{{{  send and receive the buffer
+        ts ! 14(INT16)  :: buffer
+        
+        INT16 temp.INT16 :
+        fs ? temp.INT16 :: buffer
+        --}}}send and receive the buffer
+        --{{{  copy out the result           (1 byte)
+        result := buffer [0]
+        --}}}
+:
+--}}}sp.seek
+--{{{  so.seek
+PROC so.seek (CHAN OF SP fs, ts, VAL INT32 streamid, offset, origin, BYTE result)
+
+  sp.seek (fs, ts, streamid, offset, origin, result)
+:
+--}}}so.seek

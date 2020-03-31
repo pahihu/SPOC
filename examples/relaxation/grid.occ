@@ -1,0 +1,29 @@
+#INCLUDE "hostio.inc"
+#INCLUDE "grid.inc"
+
+#USE "snglmath.lib"
+#USE "calc.tco"
+#USE "master.tco"
+
+PROC main(CHAN OF SP fs,ts, []INT mem)
+  VAL exit IS [3,3,3,3, 2,2,2,1, 2,3,1,1, 0,0,0,1] :
+  [GridDim][GridDim][4]CHAN OF sor ch :
+  CHAN OF sor dummy, fromGrid :
+  PAR
+    master(fs,ts,fromGrid,ch[0][0][3])
+    PAR i = 0 FOR GridDim
+      PAR j = 0 FOR GridDim
+        VAL node IS j + (i * GridDim) :
+        VAL iu IS (i + 1) REM GridDim :
+        VAL id IS (i + (GridDim-1)) REM GridDim :
+        VAL jl IS (j + (GridDim-1)) REM GridDim :
+        VAL jr IS (j + 1) REM GridDim :
+        IF
+          (i = 0) AND (j = 0)
+            calc(node+1, exit[node],ch[i][j],[ch[iu][j][BOTTOM],ch[i][jr][LEFT],ch[id][j][TOP],fromGrid])
+          (i = 0) AND (j = (GridDim-1))
+            calc(node+1, exit[node],ch[i][j],[ch[iu][j][BOTTOM],dummy,ch[id][j][TOP],ch[i][jl][RIGHT]])
+          TRUE
+            calc(node+1, exit[node],ch[i][j],[ch[iu][j][BOTTOM],ch[i][jr][LEFT],ch[id][j][TOP],ch[i][jl][RIGHT]])
+:
+

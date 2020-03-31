@@ -1,0 +1,128 @@
+.TH odebug 1 "1st October 1993" "SPOC Tools" "SPOC Tools"
+.SH NAME
+odebug \- Source-level debugger for Occam programs
+.SH SYNOPSIS
+.B odebug file
+
+.SH DESCRIPTION
+
+This manual page documents the source-level debugger of the
+.B SPOC (Southampton Portable Occam Compilation) system.
+.B odebug
+is a Unix shell script file, which executes the 
+.B GNU gdb
+debugger preparing it (with a predefined set of macro commands) for debugging Occam
+programs. When the script is run it must be supplied with the
+name of an executable file which has been produced by running
+.B occ2c
+with a 
+.B \-g
+option and then compiling the generated C using
+.B gcc
+with a 
+.B \-g
+option. The debugger runs the program, executing the C
+preamble and then stops at the first line of occam,
+displaying the source for that line. 
+
+A tutorial describing use of the debugger can be found
+in the
+.I SPOC User Guide.
+
+The most useful
+commands available are summarised below, some are standard 
+.B gdb
+commands, others are defined in the script 
+.B occam.gdb
+which is distributed with the system.
+
+.TP
+.B break \fR[\|\fIfile\fB:\fR\|]\fIline
+\&
+Set a breakpoint at line
+.I line\c
+\& (in \c
+.I file
+\&).
+.TP
+.B break \fR[\|\fIfile\fB:\fR\|]\fIfunction
+\&
+Set a breakpoint at 
+.I function\c
+\& (in \c
+.I file
+\&). The specified function name must be that of the C function
+generated for the occam subroutine, the mappings are given
+by the 
+.B olistsubs
+command.
+.TP
+.B step
+Executes occam line by line.
+.TP
+.B cont
+Continues execution until next breakpoint
+.TP
+.B list \fR[[\|\fIfile\fB:\fR\|]\fIline\fR]
+Lists code around current line of execution or at
+.I line\c
+\& (in \c \&
+.I file
+\&) if those optiona are supplied.
+.TP
+.B rerun
+Restarts execution of occam program
+.TP
+.B oall
+Displays values of all occam variables in scope
+.TP
+.B oids
+Displays values of a list of occam identifiers
+
+A space separated identifier list should be placed in ID 
+using the set command before this command is called.
+For example:
+
+set ID="a b fred"
+
+oids
+
+.TP
+.B ostep
+Steps through the occam program and displaying the new values
+of the currently selected occam variables.
+
+.TP
+.B oframe
+Displays values of all occam variables declared in current stack frame.
+
+.TP
+.B oup
+Displays values of all occam variables declared in caller's stack frame.
+This can be called repeatedly to progress further away from the current stack frame.
+
+.TP
+.B odown
+Displays values of all occam variables declared in callee's stack frame. This
+can be called repeatedly to return back towards the current stack frame.
+
+.TP
+.B oshow
+Repeats most recent occam variable dump.
+
+.TP
+.B olistsubs
+Lists all occam subroutines in the module and gives the C
+function names which they map to. This is useful for placing
+breakpoints on entry to a specific routine.
+
+.TP
+.B onext
+Steps through the execution of the program stopping at
+the start of each freshly scheduled process.
+
+.SH BUGS
+
+Bugs?
+
+

@@ -1,0 +1,85 @@
+#  Make file for the single precision maths part of the C from occam library
+#
+# The macros OUTNAME2, OUTNAMEA and OUTNAME8 must be supplied
+# from the command line.
+#
+# This file is cribbed from the make file for snglmath, without RAN.
+#
+# C routines must not have vector space.
+#
+#                           20-Dec-90 SRH
+#
+# This makefile is presently set up for UNIX.
+
+
+OUTNAME2=
+OUTNAMEA=
+OUTNAME8=
+
+SWITCH=-
+
+# for the flexibility of passing in something from the command line
+OCCEXTRAS=
+
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d C
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)x $(SWITCH)v $(SWITCH)u $(SWITCH)zlcp %c $(SWITCH)zlcs % $(OCCEXTRAS)
+
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+MATHT2=   alogflt2.t2x \
+	  expflt2.t2x powflt2.t2x \
+	  sinflt2.t2x cosflt2.t2x \
+	  tanflt2.t2x asinfl.t2x \
+	  acosfl.t2x atanfl.t2x \
+	  hyperfl.t2x
+
+MATHTA=	  alogfl.tax \
+	  expfl.tax powfl.tax \
+	  sinfl.tax cosfl.tax \
+	  tanfl.tax asinfl.tax \
+	  acosfl.tax atanfl.tax \
+	  hyperfl.tax
+
+MATHT8=	  alogfl.t8x \
+	  expfl.t8x powfl.t8x \
+	  sinfl.t8x cosfl.t8x \
+	  tanfl.t8x asinfl.t8x \
+	  acosfl.t8x atanfl.t8x \
+	  hyperfl.t8x
+
+
+# force a build
+all: $(OUTNAME2) $(OUTNAMEA) $(OUTNAME8) mathhdr.inc
+
+$(OUTNAME2): $(MATHT2)
+	$(CONCATENATE)  $(MATHT2) $(INTO) $(OUTNAME2)
+
+$(OUTNAMEA): $(MATHTA)
+	$(CONCATENATE)  $(MATHTA) $(INTO) $(OUTNAMEA)
+
+$(OUTNAME8): $(MATHT8)
+	$(CONCATENATE)	$(MATHT8) $(INTO) $(OUTNAME8)
+
+
+# Pattern matching rules; define C for the PREPROCESSOR so that the
+# #PRAGMA TRANSLATE lines in the source are included for C.
+# All object files actually depend on mathhdr.inc also.
+
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

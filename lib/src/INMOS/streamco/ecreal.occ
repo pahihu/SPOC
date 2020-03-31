@@ -1,0 +1,193 @@
+#COMMENT "TDS/TOOLSET conversion library V1.1 08/01/90"
+#COMMENT "Copyright INMOS Limited 1989"
+#USE "string.lib"
+#USE "convert.lib"
+#INCLUDE "hostio.inc"
+#INCLUDE "streamio.inc"
+#USE "streamio.lib"
+
+-- Bug 169 cured by not letting j go negative in delete.char
+-- 08-JAN-90 SRH channel retyping introduced
+
+VAL backspace      IS 8 :
+VAL delete         IS 127 :
+
+--{{{  get.real.with.del
+PROC get.real.with.del (CHAN OF INT in, CHAN OF ANY echo,
+                        INT len, []BYTE str, INT char)
+  -- gobbles chars to a sign or digit, then stores chars to one which
+  -- cannot be part of a real number.
+  -- Allows more than one '.' but only one 'e' or 'E'.
+  -- Echoes chars down echo and allows deletion.
+  --{{{  
+  CHAN OF KS in RETYPES in :
+  INT ch:
+  INT pos, j:
+  BOOL first:
+  INT alphamask:
+  --{{{  delete.char
+  PROC delete.char ()
+    --{{{  
+    IF
+      pos = 0
+        SKIP
+      TRUE
+        SEQ
+          IF
+            j > 0
+              j := j - 1
+            TRUE
+              SKIP
+          pos := pos - 1
+          --{{{  terminal type independent del char left
+          ss.write.char(echo, BYTE backspace)
+          ss.write.char(echo, ' ')
+          ss.write.char(echo, BYTE backspace)
+          --}}}
+    --}}}
+  :
+  --}}}
+  --{{{  echo.if.not.first
+  PROC echo.if.not.first()
+    IF
+      first
+        SEQ
+          first := FALSE
+          pos := 1
+      ch < 0
+        ss.beep(echo)
+      TRUE
+        SEQ
+          ss.write.char(echo, BYTE ch)
+          --{{{  extra *n if *c
+          IF
+            ch = (INT'*c')
+              SEQ
+                pos := 0
+                ss.write.char(echo, '*N')
+            TRUE
+              pos := pos + 1
+          --}}}
+  :
+  --}}}
+  SEQ
+    alphamask := #5F
+    first := TRUE
+    pos := 0
+    ch := char
+    --{{{  ignore leading rubbish
+    WHILE (ch >= 256) OR
+          ((ch <> (INT'+')) AND (ch <> (INT'-')) AND
+           (ch >= 0) AND (NOT is.digit (BYTE ch)) )
+      SEQ
+        IF
+          (ch = delete) OR (ch = backspace)
+            delete.char ()
+          TRUE
+            echo.if.not.first ()
+        ks.read.char(in, ch)
+    --}}}
+    j := 0
+    IF
+      ch < 0
+        SKIP -- input error (not number error)
+      TRUE
+        SEQ
+          WHILE is.digit (BYTE ch) OR
+                (ch = (INT'.')) OR
+                (ch = (INT'+')) OR (ch = (INT'-')) OR
+                ((ch /\ alphamask) = (INT'E')) OR
+                (ch = delete) OR (ch = backspace)
+            --{{{  build up string of real number
+            SEQ
+              IF
+                (ch = delete) OR (ch = backspace)
+                  delete.char ()
+                j < (SIZE str)
+                  SEQ
+                    IF
+                      (ch /\ alphamask) = (INT'E')
+                        SEQ
+                          alphamask := 0     -- ensure another e or E terminates
+                          ch := INT 'E'      -- force echo 'E'
+                      TRUE
+                        SKIP
+                    echo.if.not.first()
+                    str[j] := BYTE ch
+                    j := j + 1
+                TRUE
+                  ss.beep(echo)
+              --{{{  get next ch
+              ks.read.char(in, ch)
+              IF
+                (ch < 0) OR (ch >= 256)
+                  SEQ
+                    char := ch
+                    ch := 0
+                TRUE
+                  SKIP
+              --}}}
+            --}}}
+    echo.if.not.first()
+    len := j
+    IF
+      ch = 0
+        SKIP
+      TRUE
+        char := ch
+  --}}}
+:
+
+--}}}
+--{{{  read.echo.real32
+PROC read.echo.real32 (CHAN OF INT source, CHAN OF ANY echo,
+                       REAL32 number, INT char)
+  -- skips input up to a digit, + or -, then reads a
+  -- sequence of digits (with optional decimal point and exponent)
+  -- up to the first invalid character, returned as char
+  -- converts the digits to a floating point value in number.
+  VAL max.rep.size IS 40:
+  [max.rep.size]BYTE string:
+  INT length:
+  BOOL error:
+  SEQ
+    get.real.with.del (source, echo, length, string, char)
+    IF
+      char < 0
+        SKIP
+      TRUE
+        SEQ
+          STRINGTOREAL32 (error, number, [string FROM 0 FOR length])
+          IF
+            error OR NOTFINITE(number)
+              char := ft.number.error
+            TRUE
+              SKIP
+:
+--}}}
+--{{{  read.echo.real64
+PROC read.echo.real64 (CHAN OF INT source, CHAN OF ANY echo,
+                       REAL64 number, INT char)
+  -- skips input up to a digit, + or -, then reads a
+  -- sequence of digits (with optional decimal point and exponent)
+  -- up to the first invalid character, returned as char
+  -- converts the digits to a floating point value in number.
+  VAL max.rep.size IS 40:
+  [max.rep.size]BYTE string:
+  INT length:
+  BOOL error:
+  SEQ
+    get.real.with.del (source, echo, length, string, char)
+    IF
+      char < 0
+        SKIP
+      TRUE
+        SEQ
+          STRINGTOREAL64 (error, number, [string FROM 0 FOR length])
+          IF
+            error OR DNOTFINITE(number)
+              char := ft.number.error
+            TRUE
+              SKIP
+:
+--}}}

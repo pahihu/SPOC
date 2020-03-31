@@ -1,0 +1,91 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE TAN "TAN%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE TAN "TAN%f"
+#PRAGMA TRANSLATE TANP "TANP%f"
+#endif
+#endif
+
+REAL32 FUNCTION TAN (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    IF
+      NOTFINITE (X)
+        --{{{  NaN or Inf
+        IF
+          ISNAN (X)
+            RWork := X    -- transmit NaN
+          TRUE
+            RWork := undefined.NaN
+        --}}}
+      ABS(X) > TMax
+        RWork := inexact.NaN
+      TRUE
+        BOOL Even :
+        REAL32 XWork :
+        SEQ
+          --{{{  reduce argument
+          VAL REAL32 TwoOverPi  RETYPES #3F22F983(INT32) :
+          INT32 N :
+          SEQ
+            N := INT32 ROUND (X * TwoOverPi)
+            XWork := REAL32 ROUND ((REAL64 X) - ((REAL64 ROUND N) * DPiBy2))
+            Even := ((N /\ one) = 0(INT32))
+          --}}}
+          REAL32 XNum, XDen :
+          SEQ
+            --{{{  approximation in primary range
+            VAL P1 IS -9.58017723E-2(REAL32) :
+            VAL Q2 IS  9.71685835E-3(REAL32) :
+            VAL Q1 IS -4.29135777E-1(REAL32) :
+            VAL REAL32 G IS XWork * XWork :
+            SEQ
+              XNum := ((P1*G) * XWork) + XWork
+              XDen := (((Q2 * G) + Q1) * G) + One
+            --}}}
+            --{{{  construct result
+            IF
+              Even
+                RWork := REAL32OP (XNum, Div, XDen)
+              XNum = Zero
+                RWork := unstable.NaN
+              TRUE
+                RWork := - REAL32OP (XDen, Div, XNum)
+            --}}}
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  TANP
+REAL32 FUNCTION TANP( VAL INT dummy, VAL INT X )
+
+  -- TANP exists for when the FORTRAN intrinsic TAN is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to TANP.  When TANP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts TANP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for TANP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT TAN( Xtemp )
+:
+--}}}
+#endif

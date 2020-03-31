@@ -1,0 +1,276 @@
+#INCLUDE "hostio.inc"
+#USE "snglmath.lib"
+#USE "Xio.t"
+
+VAL WIDTH IS 800:
+VAL HEIGHT IS 500:
+
+VAL MIN.ICO.WIDTH IS 5:
+VAL MIN.ICO.HEIGHT IS 5:
+VAL DEFAULT.ICO.WIDTH IS 120:
+VAL DEFAULT.ICO.HEIGHT IS 120:
+VAL DEFAULT.DELTAX IS 15:
+VAL DEFAULT.DELTAY IS 11:
+
+PROC ico(CHAN OF SP fs,ts)
+  --{{{  Definitions and ico data
+  VAL MAXVERTS IS 12:
+  VAL MAXNV IS MAXVERTS:
+  VAL MAXFACES IS 20:
+  VAL MAXEDGES IS 30:
+  VAL MAXEDGESPERPOLY IS 20:   -- great rhombicosidodecahedron has 180 edges
+  
+  VAL numverts IS 12:
+  VAL numedges IS 30:
+  VAL numfaces IS 20:
+  
+  VAL X IS 0:
+  VAL Y IS 1:
+  VAL Z IS 2:
+  
+  VAL []INT f IS [ 3,0, 2, 1, 3,0, 3, 2, 3,0, 4, 3, 3,0, 5, 4, 3,0, 1, 5, 3,1, 6, 10, 3,1, 2, 6, 3,2, 7, 6, 3,2, 3, 7, 3,3, 8, 7, 3,3, 4, 8, 3,4, 9, 8, 3,4, 5, 9, 3,5, 10, 9, 3,5, 1, 10, 3,10, 6, 11, 3,6, 7, 11, 3,7, 8, 11, 3,8, 9, 11, 3,9, 10, 11 ]:
+  
+  VAL [][3]REAL32 ico IS [[ 0.00000000(REAL32), 0.00000000(REAL32),-0.95105650(REAL32)],
+              [ 0.00000000(REAL32), 0.85065080(REAL32),-0.42532537(REAL32)],
+              [ 0.80901698(REAL32), 0.26286556(REAL32),-0.42532537(REAL32)], 
+              [ 0.50000000(REAL32),-0.68819095(REAL32),-0.42532537(REAL32)],
+              [-0.50000000(REAL32),-0.68819095(REAL32),-0.42532537(REAL32)],
+              [-0.80901698(REAL32), 0.26286556(REAL32),-0.42532537(REAL32)],
+              [ 0.50000000(REAL32), 0.68819095(REAL32), 0.42532537(REAL32)],
+              [ 0.80901698(REAL32),-0.26286556(REAL32), 0.42532537(REAL32)],
+              [ 0.00000000(REAL32),-0.85065080(REAL32), 0.42532537(REAL32)],
+              [-0.80901698(REAL32),-0.26286556(REAL32), 0.42532537(REAL32)],
+              [-0.50000000(REAL32), 0.68819095(REAL32), 0.42532537(REAL32)],
+              [ 0.00000000(REAL32), 0.00000000(REAL32), 0.95105650(REAL32)]]:
+  
+  --}}}
+  
+  --{{{  PROC ConcatMat(VAL [4][4]REAL32 l, VAL [4][4]REAL32 r, [4][4]REAL32 m)
+  PROC ConcatMat(VAL [4][4]REAL32 l, VAL [4][4]REAL32 r, [4][4]REAL32 m)
+    SEQ i = 0 FOR 4
+      SEQ j = 0 FOR 4
+        m[i][j] := (((l[i][0] * r[0][j]) +
+                     (l[i][1] * r[1][j]))+
+                     (l[i][2] * r[2][j]))+
+                     (l[i][3] * r[3][j])
+  :
+  
+  
+  --}}}
+  --{{{  PROC IdentMat([4][4]REAL32 m)
+  PROC IdentMat([4][4]REAL32 m)
+    SEQ i = 0 FOR 4
+      SEQ
+        SEQ j = 0 FOR 4
+          m[i][j] := 0.0 (REAL32)
+  
+        m[i][i] := 1.0 (REAL32)
+  :
+  
+  --}}}
+  --{{{  PROC FormatRotateMat(VAL BYTE axis, VAL REAL32 angle, [4][4]REAL32 m)
+  PROC FormatRotateMat(VAL BYTE axis, VAL REAL32 angle, [4][4]REAL32 m)
+    REAL32 s, c:
+    SEQ
+      IdentMat(m)
+  
+      s := SIN(angle)
+      c := COS(angle)
+  
+      CASE (INT axis)
+        (INT 'x')
+          SEQ
+            m[1][1] := c
+            m[2][2] := c
+            m[1][2] := s
+            m[2][1] := -s
+  
+        (INT 'y')
+          SEQ
+            m[0][0] := c
+            m[2][2] := c
+            m[2][0] := s
+            m[0][2] := -s
+  
+        (INT 'z')
+          SEQ
+            m[0][0] := c
+            m[1][1] := c
+            m[0][1] := s
+            m[1][0] := -s
+  :
+  
+  --}}}
+  --{{{  PROC PartialNonHomTransform(VAL [4][4]REAL32 m, VAL [3]REAL32 in, [3]REAL32 out)
+  PROC PartialNonHomTransform(VAL [4][4]REAL32 m, VAL [3]REAL32 in, [3]REAL32 out)
+    SEQ
+      out[X] := ((in[X] * m[0][0]) + (in[Y] * m[1][0])) + (in[Z] * m[2][0])
+      out[Y] := ((in[X] * m[0][1]) + (in[Y] * m[1][1])) + (in[Z] * m[2][1])
+      out[Z] := ((in[X] * m[0][2]) + (in[Y] * m[1][2])) + (in[Z] * m[2][2])
+  :
+  
+  --}}}
+  --{{{  vars for drawpoly
+  [4][4]REAL32 xform:
+  [2][MAXNV][3]REAL32 xv:
+  INT buffer:
+  REAL32 wo2,ho2:
+  BYTE XResult:
+  
+  --}}}
+  --{{{  PROC init.drawPoly(VAL INT icoW,icoH)
+  PROC init.drawPoly(VAL INT icoW,icoH)
+    [4][4]REAL32 r1:
+    [4][4]REAL32 r2:
+    SEQ
+      wo2 := (REAL32 TRUNC icoW) / 2.0(REAL32)
+      ho2 := (REAL32 TRUNC icoH) / 2.0(REAL32)
+      buffer := 0
+      
+      FormatRotateMat('x', (5.0(REAL32) * 3.1416(REAL32)) / 180.0(REAL32), r1)
+      FormatRotateMat('y', (5.0(REAL32) * 3.1416(REAL32)) / 180.0(REAL32), r2)
+      ConcatMat(r1, r2, xform)
+  
+      SEQ i = 0 FOR numverts
+        SEQ
+          xv[0][i][X] := ico[i][X]
+          xv[0][i][Y] := ico[i][Y]
+          xv[0][i][Z] := ico[i][Z]
+      
+  
+  :
+  --}}}
+  --{{{  PROC drawPoly(VAL INT icoX,icoY,icoW,icoH)
+  PROC drawPoly(VAL INT icoX,icoY,icoW,icoH,prevX,prevY)
+    INT p0,p1,i,j,k,pcount:
+    REAL32 xvz:
+    [MAXNV][2]INT v2:
+    [MAXNV][MAXNV]BOOL drawn:
+    INT ecount:
+    [MAXEDGES][2][2]INT16 Edge:
+      
+    SEQ
+      buffer := 1 - buffer
+      SEQ i = 0 FOR numverts
+        PartialNonHomTransform(xform, xv[1-buffer][i], xv[buffer][i])
+      
+      VAL pxv IS xv[buffer]:
+      SEQ
+        SEQ i = 0 FOR numverts
+          REAL32 dd:
+          SEQ
+            dd := (pxv[i][X] + 1.0(REAL32)) * wo2
+            v2[i][X] := icoX + (INT TRUNC dd)
+            dd := (pxv[i][Y] + 1.0(REAL32)) * ho2
+            v2[i][Y] := icoY + (INT TRUNC dd)
+          
+        SEQ i = 0 FOR MAXNV
+          SEQ j = 0 FOR MAXNV
+            drawn[i][j] := FALSE
+  
+        pcount := 0
+        ecount := 0
+        SEQ i = 0 FOR numfaces
+          SEQ
+            VAL vc IS f[pcount]:
+            SEQ
+              xvz := 0.0 (REAL32)
+              SEQ j = 1 FOR vc
+                xvz := xvz + pxv[f[j+pcount]][Z]
+  
+              IF
+                (xvz >= 0.0(REAL32))
+                  SEQ
+                    SEQ j = 1 FOR vc
+                      INT k:
+                      SEQ
+                        IF
+                          (j < vc)
+                            k := j + 1
+                          TRUE
+                            k := 1
+                    
+                        p0 := f[j+pcount]
+                        p1 := f[k+pcount]
+                    
+                        IF
+                          NOT drawn[p0][p1]
+                            SEQ
+                              drawn[p0][p1] := TRUE
+                              drawn[p1][p0] := TRUE
+                              Edge[ecount][0][X] := (INT16 v2[p0][X])
+                              Edge[ecount][0][Y] := (INT16 v2[p0][Y])
+                              Edge[ecount][1][X] := (INT16 v2[p1][X])
+                              Edge[ecount][1][Y] := (INT16 v2[p1][Y])
+                              ecount := ecount + 1
+                          TRUE
+                            SKIP
+                TRUE
+                  SKIP
+            pcount := pcount + (1 + f[pcount])      
+          
+            XClearArea(prevX,prevY,icoW,icoH)
+            XDrawSegments(ecount,Edge)
+            XFlush()
+  
+  :          
+  --}}}
+
+  INT icoX, icoY:
+  INT prevX, prevY:
+  INT icodeltax2, icodeltay2:
+  INT winX, winY, winW, winH:
+  INT icoW,icoH:
+  INT icoDeltaX,icoDeltaY:
+
+  SEQ
+    --{{{  initilise ico vars
+    winW := WIDTH
+    winH := HEIGHT
+    winX := 0
+    winY := 0
+    icoW := DEFAULT.ICO.WIDTH
+    icoH := DEFAULT.ICO.HEIGHT
+    icoX := winW / 2
+    icoY := winH / 2
+    icoDeltaX := DEFAULT.DELTAX
+    icoDeltaY := DEFAULT.DELTAY
+    icodeltax2 := icoDeltaX
+    icodeltay2 := icoDeltaY
+    
+    prevX := icoX
+    prevY := icoY
+    
+    init.drawPoly(icoW,icoH)
+    --}}}
+    XInitDisplay(WIDTH,HEIGHT,"Occam X-ICO")
+    XFlush()
+    
+    WHILE TRUE
+      SEQ
+        icoX := icoX + icoDeltaX
+        IF
+          (icoX < 0) OR ((icoX + icoW) > winW)
+            SEQ
+              icoX := icoX - icodeltax2
+              icoDeltaX := -icoDeltaX
+              icodeltax2 := icoDeltaX * 2
+          TRUE
+            SKIP
+        icoY := icoY + icoDeltaY
+        IF
+          (icoY < 0) OR ((icoY + icoH) > winH)
+            SEQ
+              icoY := icoY - icodeltay2
+              icoDeltaY := - icoDeltaY
+              icodeltay2 := icoDeltaY * 2
+          TRUE
+            SKIP
+        
+        drawPoly(icoX, icoY, icoW, icoH, prevX, prevY)
+        prevX := icoX
+        prevY := icoY
+      
+:
+
+

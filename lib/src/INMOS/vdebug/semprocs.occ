@@ -1,0 +1,167 @@
+--{{{  semaphore procs (T8, TA, T2)
+#OPTION "E V W" -- disable compiler libraries, no vector space, full ASM allowed
+
+--{{{  #PRAGMA TRANSLATEs
+#ifdef OCCAM
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.INIT "SEMAPHORE.INIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#else
+#ifdef C
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.INIT "SEMAPHORE.INIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE SEMAPHORE.WAIT "SEMAPHORE.WAIT%"
+#PRAGMA TRANSLATE SEMAPHORE.INIT "SEMAPHORE.INIT%"
+#PRAGMA TRANSLATE SEMAPHORE.SIGNAL "SEMAPHORE.SIGNAL%"
+#endif
+#endif
+#endif
+--}}}
+
+--{{{  library references
+#INCLUDE "txhdr.inc"
+#INCLUDE "semhdr.inc"
+--}}}  
+
+--{{{  README
+--  Nigel:  13 Feb 1990    Converted to ASM
+
+--  Should be built with:  oc -zv -x -e -w -v {-t8, -ta, -t2}
+
+--                       -zv = do i/o NOT by call (ie. normal)
+--                       -x  = universal error mode
+--                       -e  = disable compiler libraries
+--                       -w  = full ASM code insertion
+--                       -v  = disable separate vector space
+--}}}  
+
+--{{{  SEMAPHORE.INIT
+PROC SEMAPHORE.INIT ([semaphore.size] INT sema)
+  SEQ
+    sema [sema.count.i    ] := 1
+    sema [sema.front.ptr.i] := MOSTNEG INT
+:
+--}}}  
+--{{{  SEMAPHORE.WAIT
+PROC SEMAPHORE.WAIT ([semaphore.size] INT sema)
+  --{{{  Semaphore :
+  -- queue of processes waiting for service
+  INT front.ptr IS sema [sema.front.ptr.i] :
+  INT back.ptr  IS sema [sema.back.ptr.i] :
+  
+  -- semaphore counter used to protect critical region around use of VLE channel
+  INT semaphore IS sema [sema.count.i] :
+  --}}}  
+  INT Wdesc :
+  ASM
+    --{{{  semaphore := semaphore - 1
+    LD semaphore
+    ADC -1
+    ST semaphore
+    --}}}  
+    --{{{  IF NOT (0 > semaphore) GOTO cont.wait
+    LDC 0
+    LD semaphore
+    GT
+    CJ :cont.wait
+    --}}}  
+    --{{{    calculate Wdesc
+    LDLP 0    --  get Wptr
+    LDPRI
+    OR
+    ST Wdesc
+    --}}}  
+    --{{{    IF front.ptr = NotProcess.p GOTO first.on.queue
+    LD front.ptr
+    MINT
+    DIFF
+    CJ :first.on.queue
+    --}}}  
+    --{{{      back.ptr[Link.s] := Wdesc
+    LD Wdesc
+    LD back.ptr
+    LDC ~1
+    AND
+    STNL Link.s
+    --}}}  
+    --{{{      GOTO ld.back.ptr
+    LDC 0
+    CJ :ld.back.ptr
+    --}}}  
+    :first.on.queue
+    --{{{      front.ptr := Wdesc
+    LD Wdesc
+    ST front.ptr
+    --}}}  
+    :ld.back.ptr
+    --{{{    back.ptr := Wdesc
+    LD Wdesc
+    ST back.ptr
+    --}}}  
+    --{{{    deschedule
+    STOPP
+    --}}}  
+    :cont.wait
+:
+--}}}  
+--{{{  SEMAPHORE.SIGNAL
+PROC SEMAPHORE.SIGNAL ([semaphore.size] INT sema)
+  --{{{  Semaphore :
+  -- queue of processes waiting for service
+  INT front.ptr IS sema [sema.front.ptr.i] :
+  INT back.ptr  IS sema [sema.back.ptr.i] :
+  
+  -- semaphore counter used to protect critical region around use of VLE channel
+  INT semaphore IS sema [sema.count.i] :
+  --}}}  
+  INT id :
+  ASM
+    --{{{  semaphore := semaphore + 1
+    LD semaphore
+    ADC 1
+    ST semaphore
+    --}}}  
+    --{{{  IF NOT (1 > semaphore) GOTO cont
+    LDC 1
+    LD semaphore
+    GT
+    CJ :cont.signal
+    --}}}  
+    --{{{    save descriptor
+    LD front.ptr
+    ST id
+    --}}}  
+    --{{{    IF front.ptr = back.ptr GOTO one.item.on.list
+    LD front.ptr
+    LD back.ptr
+    DIFF
+    CJ  :one.item.on.list
+    --}}}  
+    --{{{      front.ptr := [front.ptr, Link.s]
+    LD front.ptr
+    LDC ~1
+    AND
+    LDNL Link.s
+    ST front.ptr
+    --}}}  
+    --{{{      GOTO resched
+    LDC 0
+    CJ :resched
+    --}}}  
+    :one.item.on.list
+    --{{{      front.ptr := NotProcess.p
+    MINT
+    ST front.ptr
+    --}}}  
+    :resched
+    --{{{      Reschedule process
+    LD id
+    RUNP
+    --}}}  
+    :cont.signal
+:
+--}}}  
+--}}}  

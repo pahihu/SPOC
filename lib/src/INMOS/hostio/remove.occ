@@ -1,0 +1,68 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.remove
+PROC sp.remove (CHAN OF SP fs, ts, VAL []BYTE name, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To delete the specified file.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       name - the name of the file to be deleted; the filename must
+  --           fill all of the bytes of name
+  -- Out:      result - equals spr.ok if the file was removed; otherwise
+  --           takes on a value indicating what went wrong:
+  --             spr.bad.packet.size   name too large,
+  --                                     (SIZE name) > sp.max.removename.size
+  --             spr.bad.name          name is null
+  --           >=spr.operation.failed  the delete failed - see hostio.inc or
+  --                                   iserver documentation for further details
+  -- Notes:    No path environment variable is used; what is in name is all
+  --           that is considered.
+  --}}}
+
+  IF
+    (SIZE name) > sp.max.removename.size
+      result := spr.bad.packet.size
+    (SIZE name) = 0
+      result := spr.bad.name
+    TRUE
+      [sp.max.packet.data.size]BYTE buffer :
+      INT16 temp.INT16 :
+      SEQ
+        --{{{  pack up the data into the buffer (3 bytes plus data)
+        buffer [0] := sp.remove.tag
+        
+        temp.INT16 := INT16 (SIZE name)
+        VAL [2]BYTE b.temp RETYPES temp.INT16 :
+        [buffer FROM 1 FOR 2] := b.temp
+        
+        [buffer FROM 3 FOR SIZE name] := name
+        --}}}pack up the data into the buffer (3 bytes plus data)
+        --{{{  send and receive the buffer
+        SEQ
+          INT len :
+          SEQ
+            -- Size of buffer is (SIZE name) + 3.
+            -- Add 1, then mask off bottom bit, to ensure it is even
+            len := ((SIZE name) + 4) /\ ((-1) << 1)
+            IF
+              len < sp.min.packet.data.size
+                temp.INT16 := INT16 sp.min.packet.data.size
+              TRUE
+                temp.INT16 := INT16 len
+        
+          ts ! temp.INT16 :: buffer
+          fs ? temp.INT16 :: buffer
+        --}}}send and receive the buffer
+        --{{{  unpack the data                  (1 byte)
+        result := buffer [0]
+        --}}}
+:
+--}}}sp.remove
+--{{{  so.remove
+PROC so.remove (CHAN OF SP fs, ts, VAL []BYTE name, BYTE result)
+
+  sp.remove (fs, ts, name, result)
+:
+--}}}so.remove

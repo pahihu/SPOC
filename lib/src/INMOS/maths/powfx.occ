@@ -1,0 +1,266 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#PRAGMA TRANSLATE IncExp "IncExp%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE POWER "POWER%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#PRAGMA TRANSLATE IncExp "IncExp%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE POWER "POWER%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#PRAGMA TRANSLATE IncExp "IncExp%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+#ifdef OCCAM
+REAL32 FUNCTION POWER (VAL REAL32 Base.r, Expn.r)
+#else
+#ifdef C
+-- NOTE - This function has been altered to work with C, compared to occam
+--        it returns one extra value and uses an extra identifier - underflow
+
+INT, REAL32 FUNCTION POWER (VAL REAL32 Base.r, Expn.r) -- extra ret. value for C
+#else
+#ifdef FORTRAN
+REAL32 FUNCTION POWER (VAL REAL32 Base.r, Expn.r)
+#endif
+#endif
+#endif
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  #ifdef C
+  INT underflow : -- for C
+  #endif
+  REAL32 RWork :
+  VALOF
+    --{{{  definitions and variables
+    VAL INT64 convert.to.integer.limit RETYPES (REAL64 ROUND #3FFFFFFF) :
+    VAL BMax IS  2031(INT) :        -- 16*log2(Inf-1)
+    VAL BMin IS -2384(INT) :        -- 16*log2(smallest real) + 1
+    --{{{  a table of A
+    VAL A  IS  [#40000000(INT), #3D495F45(INT), #3AB031BA(INT),
+      #383337BB(INT), #35D13F33(INT), #33892305(INT), #3159CA84(INT),
+      #2F4228E8(INT), #2D413CCD(INT), #2B560FBB(INT), #297FB5AA(INT),
+      #27BD4C98(INT), #260DFC14(INT), #2470F4DD(INT), #22E57079(INT),
+      #216AB0DA(INT), #20000000(INT)] :
+    --}}}
+    VAL INT Base RETYPES Base.r :
+    VAL INT Expn RETYPES Expn.r :
+    VAL BWork IS Base /\ (~(MOSTNEG INT)) :
+    VAL EWork IS Expn /\ (~(MOSTNEG INT)) :
+    INT M, G, BType, EType :
+    --}}}
+    SEQ
+      #ifdef C
+      underflow := 0  -- for C
+      #endif
+      --{{{  unpack base and determine types
+      G, M, BType := UNPACKSN (BWork)
+      INT A, B : -- don't need these parts of Expn
+      A, B, EType := UNPACKSN (EWork)
+      --}}}
+      IF
+        --{{{  special cases
+        --{{{  NaNs
+        BType = nan
+          IF
+            BWork > EWork
+              RWork := Base.r
+            TRUE
+              RWork := Expn.r -- precedence rule for NaNs
+        EType = nan
+          RWork := Expn.r  -- transmit NaNs
+        --}}}
+        --{{{  Base < 0
+        Base < 0
+          RWork := undefined.NaN
+        --}}}
+        --{{{  Expn = +/- Inf
+        EType = inf
+          IF
+            (Base = unity) OR (BType = 0)  -- Base = 0 or 1
+              RWork := unstable.NaN
+            Base < unity                   -- 0 < Base < 1
+              IF
+                Expn > 0
+                  RWork := Zero
+                TRUE
+                  RWork := RInf
+            Expn > 0                       -- Base > 1, Expn = Inf
+              RWork := RInf
+            TRUE                           -- Base > 1, Expn = -Inf
+              RWork := Zero
+        --}}}
+        --{{{  Expn = 1
+        Expn = unity
+          RWork := Base.r
+        --}}}
+        -- case Expn = 0 will come out right in any case
+        --{{{  Base = 0
+        BType = nought
+          IF
+            Expn <= 0
+              RWork := undefined.NaN
+            TRUE
+              RWork := Base.r
+        --}}}
+        --{{{  Base = 1
+        Base = unity
+          RWork := One
+        --}}}
+        --{{{  Base = Inf
+        BType = inf
+          IF
+            EWork >= unity
+              IF
+                Expn > 0
+                  RWork := RInf
+                TRUE
+                  RWork := Zero
+            TRUE  -- |E| < 1
+              RWork := undefined.NaN
+        --}}}
+        --}}}
+        TRUE
+          --{{{  variables
+          REAL32 W2, U2, U1 :
+          INT P, IW1 :
+          --}}}
+          SEQ
+            --{{{  deal with denormals and adjust base to [0.25, 0.5)
+            IF
+              M = 1   -- Base denormal ?, must normalise and adjust M
+                SEQ
+                  INT Discard :
+                  M, G, Discard := NORMALISE (G, 0)
+                  M :=  (2 - RealXcess) - M
+              TRUE
+                M := M - (RealXcess - 1)
+            G := G >> 2
+            --}}}
+            --{{{  find P by binary chop
+            IF
+              G <= A [8]
+                P := 8
+              TRUE
+                P := 0
+            IF
+              G <= A [P + 4]
+                P := P + 4
+              TRUE
+                SKIP
+            IF
+              G <= A [P + 2]
+                P := P + 3
+              TRUE
+                P := P + 1
+            --}}}
+            --{{{  first polynomial --> U2
+            VAL L2EBy8 IS #17154765(INT) :  -- log2(e)/8 in fixed point
+            VAL a IS A[P] :
+            INT Z :    -- fixed-point rational approximation for log2(G)
+            SEQ
+              Z := FracDiv ((G - a) << 4, G + a)
+              U2 := ReFloat (FRACMUL (L2EBy8, Z +
+                       FRACMUL (FRACMUL (FRACMUL (Z, Z), #002AADD7), Z)))
+            --}}}
+            --{{{  compute U1
+            M := (M * 16) -  P
+            IF
+              M = 0
+                U1 := Zero
+              TRUE
+                U1 := IncExp(REAL32 ROUND M, -4)
+            --}}}
+            --{{{  compute U*Y in double-length
+            VAL REAL64 W IS (REAL64 Expn.r) * ((REAL64 U1) + (REAL64 U2)) :
+            VAL INT64 W.i RETYPES W : -- W is Expn * Ln2(Base)
+            INT64 V.i :
+            SEQ
+              V.i := W.i + (4(INT64) << 52)  -- increments exponent by 4
+              IF
+                V.i > convert.to.integer.limit
+                  IW1 := BMax + 1
+                (V.i /\ (~(MOSTNEG INT64))) > convert.to.integer.limit
+                  IW1 := BMin - 1
+                TRUE
+                  SEQ
+                    REAL64 V RETYPES V.i :
+                    IW1 := INT ROUND V
+                    IF
+                      IW1 = 0
+                        W2 := REAL32 ROUND W
+                      TRUE
+                        W2 := REAL32 ROUND (W - (REAL64 (IncExp (REAL32 ROUND IW1, -4))))
+            --}}}
+            IF
+              --{{{  over- and under- flow
+              IW1 > BMax -- too large to exponentiate
+                RWork := RInf
+              IW1 < BMin -- too small to exponentiate
+                -- RWork := inexact.NaN  -- alternative response
+                SEQ
+                  #ifdef C
+                  underflow := 1  -- for C
+                  #endif
+                  RWork := Zero
+              --}}}
+              TRUE
+                INT w2 :
+                SEQ
+                  --{{{  adjust W
+                  w2 := FIX (W2)
+                  IF
+                    w2 > 0
+                      SEQ
+                        IW1 := IW1 + 1
+                        w2 := w2 - #08000000(INT)
+                    TRUE
+                      SKIP
+                  --}}}
+                  --{{{  extract P and M
+                  IF
+                    IW1 < 0
+                      G := IW1 / 16
+                    TRUE
+                      G := (IW1 / 16) + 1
+                  P := (G * 16) - IW1
+                  M := G + 1
+                  --}}}
+                  --{{{  construct result
+                  VAL a IS A [P] :
+                  INT RWork.i RETYPES RWork :
+                  -- fixed-point rational approximation to 2^w2
+                  RWork.i := ROUNDSN (M + RealXcess, a + FRACMUL (a, FRACMUL (w2, #58B9085F +
+                             FRACMUL (w2, #1EBE62A7 + FRACMUL (w2, #06F547EB)))), 0)
+                  --}}}
+    #ifdef OCCAM
+    RESULT RWork
+    #else
+    #ifdef C
+    RESULT underflow, RWork  -- for C
+    #else
+    #ifdef FORTRAN
+    RESULT RWork
+    #endif
+    #endif
+    #endif
+:

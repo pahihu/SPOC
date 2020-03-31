@@ -1,0 +1,151 @@
+##############################################################################
+#
+#       Make file for occam2 toolset libraries debug.lib and virtual.lib
+#
+#                               4-Dec-90 SRH
+#
+#                This makefile is presently set up for UNIX
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line
+OCCEXTRAS=
+
+# tools and global options
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d OCCAM
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(SWITCH)u $(SWITCH)w $(SWITCH)v $(SWITCH)x $(OCCEXTRAS)
+
+
+#
+############################# target and rules #############################
+#
+all: debug.lib virtual.lib
+
+debug.lib:	semprocs.lib virtual.lib debug.t2 debug.t8 debug.ta
+	$(LIBRARIAN) debug.t2 debug.t8 debug.ta $(SWITCH)o debug.lib $(LIBOPT)
+
+debug.t2:	debugy.t2x debugsup.t2x dbgtimer.t2x dbgtimer.y2x \
+		semprocs.t2x semprocs.lib virtual.lib
+	$(CONCATENATE) debugy.t2x debugsup.t2x dbgtimer.t2x dbgtimer.y2x \
+			semprocs.t2x $(INTO) debug.t2
+
+debug.ta:	debugy.tax debugsup.tax dbgtimer.tax dbgtimer.yax \
+		semprocs.tax semprocs.lib virtual.lib
+	$(CONCATENATE) debugy.tax debugsup.tax dbgtimer.tax dbgtimer.yax \
+			semprocs.tax $(INTO) debug.ta
+
+debug.t8:	debugy.t8x debugsup.t8x dbgtimer.t8x dbgtimer.y8x \
+		semprocs.t8x semprocs.lib virtual.lib
+	$(CONCATENATE) debugy.t8x debugsup.t8x dbgtimer.t8x dbgtimer.y8x \
+			semprocs.t8x $(INTO) debug.t8
+
+
+semprocs.lib:	semprocs.lbb semprocs.t8x semprocs.tax semprocs.t2x
+	$(LIBRARIAN) $(SWITCH)f semprocs.lbb $(SWITCH)o semprocs.lib $(LIBOPT)
+
+semprocs.t8x:	semprocs.occ txhdr.inc semhdr.inc
+	$(PREPROCESSOR) semprocs.occ $(PREOPT) $(SWITCH)o semprocs.tmp
+	$(OCCAM) semprocs.tmp $(SWITCH)t8 $(SWITCH)zv $(SWITCH)o semprocs.t8x $(OCCOPT)
+	$(DELETE) semprocs.tmp
+
+semprocs.tax:	semprocs.occ txhdr.inc semhdr.inc
+	$(PREPROCESSOR) semprocs.occ $(PREOPT) $(SWITCH)o semprocs.tmp
+	$(OCCAM) semprocs.tmp $(SWITCH)ta $(SWITCH)zv $(SWITCH)o semprocs.tax $(OCCOPT)
+	$(DELETE) semprocs.tmp
+
+semprocs.t2x:	semprocs.occ txhdr.inc semhdr.inc
+	$(PREPROCESSOR) semprocs.occ $(PREOPT) $(SWITCH)o semprocs.tmp
+	$(OCCAM) semprocs.tmp $(SWITCH)t2 $(SWITCH)zv $(SWITCH)o semprocs.t2x $(OCCOPT)
+	$(DELETE) semprocs.tmp
+
+
+debugsup.t8x:	debugsup.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib
+	$(PREPROCESSOR) debugsup.occ $(PREOPT) $(SWITCH)o debugsup.tmp
+	$(OCCAM) debugsup.tmp $(SWITCH)t8 $(SWITCH)zv $(SWITCH)o debugsup.t8x  $(OCCOPT)
+	$(DELETE) debugsup.tmp
+
+debugsup.tax:	debugsup.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib
+	$(PREPROCESSOR) debugsup.occ $(PREOPT) $(SWITCH)o debugsup.tmp
+	$(OCCAM) debugsup.tmp $(SWITCH)ta $(SWITCH)zv $(SWITCH)o debugsup.tax  $(OCCOPT)
+	$(DELETE) debugsup.tmp
+
+debugsup.t2x:	debugsup.occ txhdr.inc kernapp.inc semhdr.inc semprocs.lib
+	$(PREPROCESSOR) debugsup.occ $(PREOPT) $(SWITCH)o debugsup.tmp
+	$(OCCAM) debugsup.tmp $(SWITCH)t2 $(SWITCH)zv $(SWITCH)o debugsup.t2x  $(OCCOPT)
+	$(DELETE) debugsup.tmp
+
+dbgtimer.t8x:	dbgtimer.occ
+	$(OCCAM) dbgtimer.occ $(SWITCH)t8 $(SWITCH)o dbgtimer.t8x $(OCCOPT)
+
+dbgtimer.tax:	dbgtimer.occ
+	$(OCCAM) dbgtimer.occ $(SWITCH)ta $(SWITCH)o dbgtimer.tax $(OCCOPT)
+
+dbgtimer.t2x:	dbgtimer.occ
+	$(OCCAM) dbgtimer.occ $(SWITCH)t2 $(SWITCH)o dbgtimer.t2x $(OCCOPT)
+
+
+# y options for the occam compiler
+dbgtimer.y8x:	dbgtimer.occ
+	$(OCCAM) dbgtimer.occ $(SWITCH)y $(SWITCH)t8 $(SWITCH)o dbgtimer.y8x $(OCCOPT)
+
+dbgtimer.yax:	dbgtimer.occ
+	$(OCCAM) dbgtimer.occ $(SWITCH)y $(SWITCH)ta $(SWITCH)o dbgtimer.yax $(OCCOPT)
+
+dbgtimer.y2x:	dbgtimer.occ
+	$(OCCAM) dbgtimer.occ $(SWITCH)y $(SWITCH)t2 $(SWITCH)o dbgtimer.y2x $(OCCOPT)
+
+debugy.t8x:	debugy.occ
+	$(OCCAM) debugy.occ $(SWITCH)y $(SWITCH)t8 $(SWITCH)o debugy.t8x $(OCCOPT)
+
+debugy.tax:	debugy.occ
+	$(OCCAM) debugy.occ $(SWITCH)y $(SWITCH)ta $(SWITCH)o debugy.tax $(OCCOPT)
+
+debugy.t2x:	debugy.occ
+	$(OCCAM) debugy.occ $(SWITCH)y $(SWITCH)t2 $(SWITCH)o debugy.t2x $(OCCOPT)
+
+
+
+virtual.lib:	virtual.t2 virtual.t8 virtual.ta semprocs.lib
+	$(LIBRARIAN) virtual.t2 virtual.t8 virtual.ta $(SWITCH)o virtual.lib $(LIBOPT)
+
+virtual.t8:	virtual.t8x txhdr.inc kernapp.inc semhdr.inc virthdr.inc \
+	semprocs.lib
+	$(CONCATENATE) virtual.t8x $(INTO) virtual.t8
+
+virtual.ta:	virtual.tax txhdr.inc kernapp.inc semhdr.inc virthdr.inc \
+	semprocs.lib
+	$(CONCATENATE) virtual.tax $(INTO) virtual.ta
+
+virtual.t2:	virtual.t2x txhdr.inc kernapp.inc semhdr.inc virthdr.inc \
+	semprocs.lib
+	$(CONCATENATE) virtual.t2x $(INTO) virtual.t2
+
+virtual.t8x:	virtual.occ txhdr.inc kernapp.inc semhdr.inc virthdr.inc \
+	semprocs.lib
+	$(PREPROCESSOR) virtual.occ $(PREOPT) $(SWITCH)o virtual.tmp
+	$(OCCAM) virtual.tmp $(SWITCH)t8 $(SWITCH)zv $(SWITCH)o virtual.t8x $(OCCOPT)
+	$(DELETE) virtual.tmp
+
+virtual.tax:	virtual.occ txhdr.inc kernapp.inc semhdr.inc virthdr.inc \
+	semprocs.lib
+	$(PREPROCESSOR) virtual.occ $(PREOPT) $(SWITCH)o virtual.tmp
+	$(OCCAM) virtual.tmp $(SWITCH)ta $(SWITCH)zv $(SWITCH)o virtual.tax $(OCCOPT)
+	$(DELETE) virtual.tmp
+
+virtual.t2x:	virtual.occ txhdr.inc kernapp.inc semhdr.inc virthdr.inc \
+	semprocs.lib
+	$(PREPROCESSOR) virtual.occ $(PREOPT) $(SWITCH)o virtual.tmp
+	$(OCCAM) virtual.tmp $(SWITCH)t2 $(SWITCH)zv $(SWITCH)o virtual.t2x $(OCCOPT)
+	$(DELETE) virtual.tmp

@@ -1,0 +1,67 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+
+REAL64, INT64 FUNCTION DRAN (VAL INT64 DSeedRan)
+
+  -- version for 32-bit machine.
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL64 DRanOut :
+  INT64 DNewSeed :
+  VALOF
+    [2] INT DNewSeed RETYPES DNewSeed :
+    [2] INT DRanOut RETYPES DRanOut :
+    VAL [2] INT DSeedRan RETYPES DSeedRan :
+    VAL A IS [#4C957F2D, #5851F42D] :
+    -- This is the hexadecimal form of 6364136223846793005,
+    -- a multiplier found by C.E.Haynes.
+    INT work0, work1, work2, carry, c0 :
+    SEQ
+      carry, work0 := LONGPROD (A[0], DSeedRan[0], 0)
+      c0, work1    := LONGPROD (A[1], DSeedRan[0], carry)
+      carry, work2 := LONGPROD (A[0], DSeedRan[1], work1)
+      carry, DNewSeed[0] := LONGSUM (work0, 1, 0)
+      carry, DNewSeed[1] := LONGSUM (work2, 0, carry)
+      --{{{  turn INT64 into floating-point result
+      IF
+        (DNewSeed[0] \/ DNewSeed[1]) = 0
+          DRanOut := [0,0]
+        TRUE
+          INT XExp :
+          [2] INT RWork :
+          PLACE RWork IN WORKSPACE :
+          SEQ
+            --{{{  normalise
+            VAL BitsPerWord IS 32 :
+            INT places IS XExp :
+            IF
+              DNewSeed[1] <> 0
+                --{{{  
+                INT carry :
+                SEQ
+                  RWork[1], RWork[0] := SHIFTRIGHT (DNewSeed[1], DNewSeed[0], 1)
+                  places, RWork[1], carry := NORMALISE (RWork[1], RWork[0])
+                  RWork[0], carry := SHIFTLEFT (RWork[0], 0, places)
+                --}}}
+              TRUE
+                --{{{  
+                INT carry :
+                SEQ
+                  places, RWork[1], carry := NORMALISE (DNewSeed[0], 0)
+                  RWork[0] := 0
+                  places := places + (BitsPerWord + 1)
+                --}}}
+            --}}}
+            --{{{  pack
+            RWork[1], DRanOut[0] := SHIFTRIGHT (RWork[1] /\ (~(MOSTNEG INT)), RWork[0],
+                                                                          DRealShift)
+            DRanOut[1] := ((DRealXcess - XExp) << (DRealExpSh - BitsPerWord)) \/ RWork[1]
+            --}}}
+      --}}}
+    RESULT DRanOut, DNewSeed
+:

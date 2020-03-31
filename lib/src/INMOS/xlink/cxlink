@@ -1,0 +1,76 @@
+#                 Make file for C library xlink stuff
+#
+# The macros OUTNAME2, OUTNAMEA and OUTNAME8 must be supplied from the
+# command line.
+#
+# All of the routines in xlink.lib have some ASM in them using the RESETCH 
+# instruction.  They are such that they will not work with virtual channels,
+# but we want them to be callable from anything ( ie library i/o or 
+# instruction i/o ), and thus everything should be compiled with the
+# zv option: do i/o not by call, but mark as by call.  This means that
+# use of the xlink.lib routines during interactive debugging will lead to
+# undefined results.
+#
+# The routines for C must not have vector space.
+#
+#                               4-Dec-90 SRH
+#
+# This makefile is presently set up for UNIX
+
+
+OUTNAME2=
+OUTNAMEA=
+OUTNAME8=
+
+SWITCH=-
+
+# for the flexibility of passing something in from the command line
+OCCEXTRAS=
+
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d C
+OCCAM=oc
+OCCOPT=$(SWITCH)e $(SWITCH)d $(SWITCH)x $(SWITCH)v $(SWITCH)zv $(SWITCH)u $(OCCEXTRAS)
+
+CONCATENATE=cat
+INTO=>
+DELETE=rm
+
+# The routine Reinitialise, which is in xlink0.occ, is not required by C
+XLINKS2= xlink1.t2x xlink2.t2x xlink3.t2x xlink4.t2x
+
+XLINKSA= xlink1.tax xlink2.tax xlink3.tax xlink4.tax
+
+XLINKS8= xlink1.t8x xlink2.t8x xlink3.t8x xlink4.t8x
+
+
+# force a build
+all: $(OUTNAME2) $(OUTNAMEA) $(OUTNAME8)
+
+$(OUTNAME2): $(XLINKS2)
+	$(CONCATENATE) $(XLINKS2) $(INTO) $(OUTNAME2)
+
+$(OUTNAMEA): $(XLINKSA)
+	$(CONCATENATE) $(XLINKSA) $(INTO) $(OUTNAMEA)
+
+$(OUTNAME8): $(XLINKS8)
+	$(CONCATENATE) $(XLINKS8) $(INTO) $(OUTNAME8)
+
+
+# pattern matching rules; define TRANSLATE for PREPROCESSOR so that the
+# #PRAGMA TRANSLATE lines in the source are included.
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x
+

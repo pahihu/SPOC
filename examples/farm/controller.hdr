@@ -1,0 +1,6 @@
+#ifndef __controller_INCLUDES__
+#define __controller_INCLUDES__
+typedef struct SF_P_control_controller tSF_P_control_controller;
+#define WS_P_control_controller (1168)
+void P_control_controller (tSF_P_control_controller *FP);
+#endif

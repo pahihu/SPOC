@@ -1,0 +1,74 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE NORMALISE64 "NORMALISE64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE NORMALISE64 "NORMALISE64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE NORMALISE64 "NORMALISE64%f"
+#endif
+#endif
+#endif
+
+INT64, INT64, INT64 FUNCTION NORMALISE64 (VAL INT64 Hi.in, Lo.in)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  INT64 Hi.out, Lo.out :
+  INT places :
+  VALOF
+    VAL BitsPerWord IS 32(INT) :
+    --{{{  RETYPES
+    VAL [2]INT hi.in RETYPES Hi.in :
+    VAL [2]INT lo.in RETYPES Lo.in :
+    [2]INT hi.out RETYPES Hi.out :
+    [2]INT lo.out RETYPES Lo.out :
+    --}}}
+    IF
+      hi.in[1] <> 0
+        --{{{  
+        SEQ
+          INT carry :
+          places, hi.out[1], carry := NORMALISE( hi.in[1], hi.in[0])
+          INT carry :
+          hi.out[0], carry := SHIFTLEFT( hi.in[0], lo.in[1], places)
+          lo.out[1], lo.out[0] := SHIFTLEFT( lo.in[1], lo.in[0], places)
+        --}}}
+      hi.in[0] <> 0
+        --{{{  
+        SEQ
+          INT carry :
+          places, hi.out[1], carry := NORMALISE( hi.in[0], lo.in[1])
+          hi.out[0], lo.out[1] := SHIFTLEFT( lo.in[1], lo.in[0], places)
+          lo.out[0] := 0
+          places := places + BitsPerWord
+        --}}}
+      lo.in[1] <> 0
+        --{{{  
+        SEQ
+          places, hi.out[1], hi.out[0] := NORMALISE( lo.in[1], lo.in[0])
+          lo.out := [0,0]
+          places := places + (2*BitsPerWord)
+        --}}}
+      lo.in[0] <> 0
+        --{{{  
+        SEQ
+          places, hi.out[1], hi.out[0] := NORMALISE( lo.in[0], 0)
+          lo.out := [0,0]
+          places := places + (3*BitsPerWord)
+        --}}}
+      TRUE
+        --{{{  
+        SEQ
+          hi.out := [0,0]
+          lo.out := [0,0]
+          places := 4*BitsPerWord
+        --}}}
+    RESULT INT64 places, Hi.out, Lo.out
+:

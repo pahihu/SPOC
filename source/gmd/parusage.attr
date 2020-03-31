@@ -1,0 +1,83 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attribute declarations for parallel usage module
+||@(#)   System : occam 2 c
+||@(#) Filename : parusage.attr
+||@(#)  Version : 1.13
+||@(#)     Date : 11/26/93
+\*@(#)====================================================*/
+/*}}}*/
+
+MODULE ParUsageTree
+
+TREE
+
+EXPORT
+{
+  typedef struct tParUsageStruct tParUsageStruct;
+  typedef tParUsageStruct* tParUsage;
+
+  typedef struct tLinExpr tLinExpr;
+  typedef tLinExpr* pLinExpr;
+  #include "Omega.h"
+  #include "ParUsage.h"
+}
+
+GLOBAL
+{
+  #undef writepLinExpr
+  #define writepLinExpr(a) WriteLinExpr(yyf,a);
+}
+
+PROPERTY INPUT
+
+RULE
+
+AccessList =
+<
+  AnAccess = Next:AccessList [Sym: tSymbol] ElementList.
+  NoAccess =.
+>.
+
+ElementList =
+<
+  AnElement = Next:ElementList Element.
+  NoElement =.
+>.
+
+END ParUsageTree
+
+MODULE ParUsageDefinitions
+
+DECLARE
+  /*{{{  ParallelUsage*/
+  SpecList Spec Process ExprList Elemental
+  AltList Guard Type Protocol Formals SeqProList TagProList
+  CaseList Expr Replicator ProcList ChoiceList FieldList = [ PU:tParUsage THREAD ].
+  ProcList ExprList = [ PAR:bool INH].
+  ElementalExpr = [PAR:bool SYN].
+  ProcList = [ Pos:tPosition INH].
+  /*}}}*/
+  /*{{{  LValues*/
+  ExprList Expr Elemental = [ LV:bool INH].
+  /*}}}*/
+  /*{{{  SimpleExpr*/
+  Elemental = [SE:bool SYN].  /* true for simple expressions */
+  Replicator = [SE:bool SYN].
+  Array = [SE:bool SYN].
+  StringElement = [SE:bool SYN].
+  /*}}}*/
+  /*{{{  LinearExpressions*/
+  Array = [LE:pLinExpr SYN].
+  Replicator,Range,TableRange,StringRange = [FromLE:pLinExpr SYN].
+  Replicator,Range,TableRange,StringRange = [ForLE:pLinExpr SYN].
+  Table,Subscript,String,TableSubscript,StringSubscript = [LE:pLinExpr SYN].
+  /*}}}*/
+  /*{{{  ReverseLink */
+  Elemental = [RVL:tTree INH].
+  /*}}}*/
+END ParUsageDefinitions

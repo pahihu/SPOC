@@ -1,0 +1,170 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DCOS "DCOS%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DCOS "DCOS%f"
+#PRAGMA TRANSLATE DCOSP "DCOSP%f"
+#PRAGMA TRANSLATE DCOSPP "DCOSPP%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL64 FUNCTION DCOS (VAL REAL64 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL64 RWork :
+  VALOF
+    --{{{  definitions and variables
+    -- Threshold for sin(x) = x is 2 ** (-ManBits/2), see C&W pp137.
+    VAL Eps  IS #3E50000000000000(INT64) :
+    -- Limit on X is Pi * 2**(ManBits/2). See C&W p134.
+    VAL XMax IS #41A921FB54442D18(INT64):
+    VAL INT64 X.i RETYPES X :
+    REAL64 XWork :
+    INT64 XWork.i RETYPES XWork :
+    --}}}
+    SEQ
+      XWork.i := X.i /\ (~(MOSTNEG INT64))  -- XWork = |X|
+      IF
+        --{{{  special cases
+        XWork.i >= DRealInf  -- X is NaN or Inf
+          IF
+            XWork.i = DRealInf  -- X is Inf
+              RWork := Dundefined.NaN
+            TRUE
+              VAL REAL64 X RETYPES X.i :
+              RWork := X    -- transmit received NaN
+        XWork.i > XMax      -- X is too large for an exact result to be computed
+          RWork := Dinexact.NaN
+        XWork.i < Eps
+          RWork := DOne
+        --}}}
+        TRUE
+          BOOL Odd :
+          SEQ
+            --{{{  reduce argument
+            REAL64 XWork RETYPES XWork.i :
+            REAL64 XN :
+            INT32 N :
+            VAL one IS 1(INT32) :
+            SEQ
+              N  := INT32 ROUND ((XWork + DPiBy2) * DInvPi)
+              Odd := ((N /\ one) = one)
+              XN := IncExp64 (REAL64 ROUND (( N << 1) - one), -1)
+              -- XN = (2N - 1)/2 = N - 1/2
+              -- extended precision
+              XWork := (XWork - (XN * DPi.part.1)) - (XN * DPi.part.2)
+            --}}}
+            --{{{  ensure XWork is positive
+            IF
+              XWork.i < Dzero
+                SEQ
+                  XWork.i := XWork.i /\ (~(MOSTNEG INT64))
+                  Odd := NOT Odd
+              TRUE
+                SKIP
+            --}}}
+            --{{{  approximation in primary range
+            IF
+              XWork.i < Eps
+                REAL64 XWork RETYPES XWork.i :
+                RWork := XWork
+              XWork.i > Nearly.DPiBy2
+                RWork := DOne
+              TRUE
+                --{{{  fixed-point rational approximation
+                -- XWork is in the range [Eps, Nearly Pi/2]
+                -- This implementation uses a polynomial approximation from
+                -- Cody & Waite "Software Manual for the Elementary Functions",
+                -- pp125-138. The fixed point version is used here.
+                VAL R IS [#000000006203FDA6(INT64), #FFFFFFE51BDF23F8(INT64),
+                          #000005848F1A1AB5(INT64), #FFFF28CDD5A511FB(INT64),
+                          #00171DE3A524F063(INT64), #FE5FE5FE5FEC1E5E(INT64),
+                          #111111111110B00C(INT64), #AAAAAAAAAAAAACFE(INT64)] :
+                INT64 G :
+                REAL64 XWork RETYPES XWork.i :
+                SEQ
+                  G := FIX64 (IncExp64(XWork, -1)) -- FIX X/2
+                  G := FracMult64 (G, G) -- polynomial in (XWork/2)^2
+                  RWork := (ReFloat64 (FracMult64 (G,
+                                       FracMult64 (G,
+                                       FracMult64 (G,
+                                       FracMult64 (G,
+                                       FracMult64 (G,
+                                       FracMult64 (G,
+                                       FracMult64 (G,
+                                       FracMult64 (G, R[0]) +
+                                                      R[1]) +
+                                                      R[2]) +
+                                                      R[3]) +
+                                                      R[4]) +
+                                                      R[5]) +
+                                                      R[6]) +
+                                                      R[7])) * XWork) + XWork
+                --}}}
+            --}}}
+            IF
+              Odd
+                RWork := - RWork
+              TRUE
+                SKIP
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  DCOSP/DCOSPP
+-- This 'P' version exists for when the FORTRAN intrinsic DCOS is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DCOSP.  When DCOSP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DCOSP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DCOSP( VAL INT dummy, VAL REAL64 X ) IS DCOS( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DCOSPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DCOS( X )
+:
+#endif
+--}}}
+#endif

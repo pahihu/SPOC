@@ -1,0 +1,375 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%O"
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE DPOWER "DPOWER%c"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DPOWER "DPOWER%f"
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#PRAGMA TRANSLATE IncExp64 "IncExp64%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+#ifdef OCCAM
+REAL64 FUNCTION DPOWER (VAL REAL64 Base.r, Expn.r)
+#else
+#ifdef C
+-- NOTE - This function has been altered to work with C, compared to occam
+--        it returns one extra value and uses an extra identifier - underflow
+-- Uncommented overflow := 1 in special cases section; 20-Dec-90 SRH
+
+REAL64, INT FUNCTION DPOWER (VAL REAL64 Base.r, Expn.r) --extra ret. value for C
+#else
+#ifdef FORTRAN
+REAL64 FUNCTION DPOWER (VAL REAL64 Base.r, Expn.r)
+#endif
+#endif
+#endif
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  #ifdef C
+  INT underflow : -- for C
+  #endif
+  REAL64 Result :
+  VALOF
+    --{{{  definitions
+    VAL ExpBit IS  Done << DRealExpSh :
+    VAL ManMask IS ExpBit - Done :
+    VAL L2EBy8 IS #171547652B82FE17(INT64) : -- log2(e)/8 in fixed point
+    -- 2^(BitsInFrac-4) in floating point
+    VAL BMax   IS 16368(INT64) :            -- 16*log2(Inf-1)
+    --{{{  a table of A
+    VAL A IS [#4000000000000000(INT64), #3D495F454921B30B(INT64),
+              #3AB031B9F7490E4C(INT64), #383337BB0AA53844(INT64),
+              #35D13F32B5A75ABD(INT64), #3389230547E12039(INT64),
+              #3159CA845541B6B7(INT64), #2F4228E7D6030DB0(INT64),
+              #2D413CCCFE779921(INT64), #2B560FBA90A852B2(INT64),
+              #297FB5AA6C544E3B(INT64), #27BD4C982468446B(INT64),
+              #260DFC14636E2A5C(INT64), #2470F4DCEAC470CE(INT64),
+              #22E57078FAA2F5BA(INT64), #216AB0D9F3121EC5(INT64),
+              #2000000000000000(INT64)] :
+    --}}}
+    VAL INT64 Base RETYPES Base.r :
+    VAL INT64 Expn RETYPES Expn.r :
+    VAL BWork IS Base /\ (~(MOSTNEG INT64)) :
+    VAL EWork IS Expn /\ (~(MOSTNEG INT64)) :
+    --}}}
+    --{{{  FUNCTION Reduce
+    REAL64 FUNCTION Reduce (VAL REAL64 X.r)
+      REAL64 RWork :
+      VALOF
+        VAL RedMax IS #4310000000000000(INT64) :
+        VAL INT64 RedMin RETYPES 0.03125(REAL64) : -- 1/32
+        VAL INT64 X.i RETYPES X.r :
+        VAL X IS X.i /\ (~(MOSTNEG INT64)) :
+        IF
+          X > RedMax  -- reduce has no effect
+            VAL REAL64 X.r RETYPES X.i :
+            RWork := X.r
+          X < RedMin
+            RWork := DZero
+          TRUE  -- we can safely convert 16*X to integer
+            SEQ
+              VAL REAL64 X.r RETYPES X.i :
+              RWork := REAL64 ROUND (INT64 ROUND IncExp64 (X.r, 4))
+              IF
+                INT64 RW RETYPES RWork :  -- for fast comaprison
+                RW = Dzero
+                  SKIP
+                TRUE -- IncExp is safe
+                  RWork := IncExp64 (RWork, -4)
+        RESULT RWork
+    :
+    --}}}
+    SEQ
+      #ifdef C
+      underflow := 0  -- for C
+      #endif
+      IF
+        --{{{  special cases
+        --{{{  NaNs
+        BWork > DRealInf
+          IF
+            BWork > EWork
+              Result := Base.r
+            TRUE
+              Result := Expn.r -- precedence rule for NaNs
+        EWork > DRealInf
+          Result := Expn.r  -- transmit NaNs
+        --}}}
+        --{{{  Base < 0
+        Base < Dzero
+          Result := Dundefined.NaN
+        --}}}
+        --{{{  Expn = +/- Inf
+        EWork = DRealInf
+          IF
+            (BWork = Dzero) OR (Base = Dunity) -- unstable cases
+              Result := Dunstable.NaN
+            Expn = DRealInf   -- +Inf
+              IF
+                Base < Dunity  -- 0 < Base < 1
+                  Result := DZero
+                TRUE           -- 1 < Base
+                  Result := DRInf
+            -- cases expn = -Inf
+            Base < Dunity
+              Result := DRInf
+            TRUE
+              SEQ
+                #ifdef C
+                underflow := 1  -- for C
+                #endif
+                Result := DZero
+        --}}}
+        --{{{  Base = 0
+        BWork = Dzero
+          IF
+            Expn <= Dzero
+              Result := Dundefined.NaN
+            TRUE
+              Result := Base.r
+        --}}}
+        --{{{  Base = 1
+        Base = Dunity -- case E = +/- Inf done above
+          Result := DOne
+        --}}}
+        --{{{  Base = Inf
+        Base = DRealInf
+          IF
+            EWork >= Dunity
+              IF
+                Expn > Dzero
+                  Result := DRInf
+                TRUE
+                  Result := DZero
+            TRUE  -- |E| < 1
+              Result := Dundefined.NaN
+        --}}}
+        --{{{  Expn = 1
+        Expn = Dunity
+          Result := Base.r
+        --}}}
+        -- Case Expn = 0 will work out in any case
+        --}}}
+        TRUE
+          --{{{  variables
+          INT P, M :
+          INT64 G, IW1 :
+          REAL64 U2.r, U1.r, W2 :
+          --}}}
+          SEQ
+            --{{{  adjust base to [0.25, 0.5) and compute M
+            M := INT (BWork >> DRealExpSh)
+            G := BWork /\ ManMask
+            IF
+              M = 0    -- Base denormal, must normalise and adjust M
+                [2] INT g RETYPES G :
+                VAL [2] INT bwork RETYPES BWork :
+                SEQ
+                  M, g[1], g[0] := NORMALISE (bwork[1], bwork[0])
+                  M := (1 + DRealShift) - M
+                  g[1], g[0] := SHIFTRIGHT (g[1], g[0], 2)
+              TRUE
+                -- G is now in fixed point
+                G := (G \/ ExpBit) << (DRealShift - 2)
+            M := M + (1 - (INT DRealXcess))
+            --}}}
+            --{{{  find P by binary chop
+            IF
+              G <= A [8]
+                P := 8
+              TRUE
+                P := 0
+            IF
+              G <= A [P + 4]
+                P := P + 4
+              TRUE
+                SKIP
+            IF
+              G <= A [P + 2]
+                P := P + 3
+              TRUE
+                P := P + 1
+            --}}}
+            --{{{  first polynomial --> U2
+            VAL a IS A[P] :
+            INT64 Z, V :
+            SEQ
+              Z := FracDiv64 ((G - a) << 4, G + a)
+              V := FracMult64 (Z, Z)
+              U2.r := ReFloat64 (FracMult64 (L2EBy8, Z +
+                                 FracMult64 (FracMult64 (V,
+                                 FracMult64 (V,
+                                 FracMult64 (V, #000000124CAB5145(INT64)) +
+                                                #000019999953ADC6(INT64)) +
+                                                #002AAAAAAAAC666C(INT64)), Z)))
+            --}}}
+            --{{{  compute U1.r
+            M := (M * 16) - P
+            IF
+              M = 0
+                U1.r := DZero
+              TRUE
+                U1.r := IncExp64(REAL64 ROUND M, -4)
+            --}}}
+            --{{{  estimate size of result
+            VAL L IS (REAL32 ROUND U1.r) + (REAL32 ROUND U2.r) :  -- can't overflow
+            IF
+              VAL INT L.i RETYPES L :
+              (L.i /\ (~(MOSTNEG INT))) = 0 -- L = DZero
+                W2 := DRInf
+              TRUE
+                VAL limit IS REAL32 ROUND (DRealXcess + DBitsInFrac) :
+                W2 := REAL64 ROUND (limit/L)
+            --}}}
+            IF
+              --{{{  under- and over- flow
+              INT64 W2.i RETYPES W2 :
+              EWork > (W2.i /\ (~(MOSTNEG INT64))) -- is one or other special case
+                IF
+                  Expn > Dzero
+                    IF
+                      W2.i > Dzero -- both positive
+                        Result := DRInf
+                      TRUE
+                        Result := DZero
+                  -- exponent is negative
+                  W2.i > Dzero
+                    SEQ
+                      #ifdef C
+                      underflow := 1  -- for C
+                      #endif
+                      Result := DZero
+                  TRUE  -- both negative
+                    Result := DRInf
+              --}}}
+              TRUE
+                SEQ
+                  --{{{  extended product U*Y
+                  REAL64 W1, W :
+                  SEQ
+                    REAL64 Y1, Y2 :
+                    SEQ
+                      Y1 := Reduce(Expn.r)
+                      Y2 := Expn.r - Y1
+                      W := (U1.r * Y2) + (U2.r * Expn.r)
+                      W1 := Reduce (W)
+                      W2 := W - W1
+                      W := W1 + (U1.r * Y1)
+                    W1 := Reduce (W)
+                    W2 := W2 + (W - W1)
+                    W := Reduce (W2)
+                    W1 := W1 + W
+                    IF
+                      INT64 W1.i RETYPES W1 : -- so that we can do integer comparison
+                      W1.i = Dzero
+                        IW1 := Dzero
+                      TRUE
+                        IW1 := INT64 TRUNC IncExp64(W1, 4)
+                    W2 := W2 - W
+                  --}}}
+                  IF
+                    --{{{  overflow
+                    IW1 > BMax
+                      Result := DRInf
+                    --}}}
+                    TRUE
+                      INT64 w2 :
+                      SEQ
+                        --{{{  adjust w2
+                        w2 := FIX64 (W2)
+                        IF
+                          w2 > Dzero
+                            SEQ
+                              IW1 := IW1 + Done
+                              w2 := w2 - #0800000000000000(INT64)
+                          TRUE
+                            SKIP
+                        --}}}
+                        --{{{  extract P and M
+                        VAL iw1 IS INT IW1 :
+                        SEQ
+                          IF
+                            iw1 < 0
+                              M := iw1/16
+                            TRUE
+                              M := (iw1/16) + 1
+                          P := (M * 16) - iw1
+                        M := M + 1
+                        --}}}
+                        --{{{  second polynomial --> W2 = 2^w2
+                        VAL Q IS [#0004F0C8D50D31B3(INT64), #002BAEB1AC5E49A5(INT64),
+                                  #013B2A9E777FC93B(INT64), #071AC2353D2E1509(INT64),
+                                  #1EBFBDFF817E98E8(INT64), #58B90BFBE8E6AED2(INT64)] :
+                        VAL a IS A [P] :
+                        W2 := ReFloat64 (FracMult64 (FracMult64 (w2,
+                                                     FracMult64 (w2,
+                                                     FracMult64 (w2,
+                                                     FracMult64 (w2,
+                                                     FracMult64 (w2,
+                                                     FracMult64 (w2, Q[0]) +
+                                                     Q[1]) + Q[2]) + Q[3]) + Q[4]) + Q[5]), a) + a)
+                        --}}}
+                        --{{{  construct result
+                        INT64 W2.i RETYPES W2 :
+                        INT64 RExp :
+                        INT64 Result.i RETYPES Result :
+                        SEQ
+                          RExp := (W2.i >> DRealExpSh) + (INT64 M)
+                          IF
+                            RExp <= Dzero
+                              --{{{  produce denormalised output
+                              VAL shift IS 1 - (INT RExp) :
+                              INT64 N :
+                              SEQ
+                                W2.i, N := SHIFTRIGHT64 ((W2.i /\ ManMask) \/ ExpBit, Dzero, shift)
+                                IF
+                                  N >= Dzero
+                                    Result.i := W2.i
+                                  (N <> (MOSTNEG INT64)) OR ((W2.i /\ Done) = Done)
+                                    Result.i := W2.i + Done
+                                  TRUE
+                                    Result.i := W2.i
+                              --}}}
+                            TRUE
+                              Result.i := (W2.i /\ ManMask) \/ (RExp << DRealExpSh)
+                        --}}}
+    #ifdef OCCAM
+    RESULT Result
+    #else
+    #ifdef C
+    RESULT Result, underflow  -- for C
+    #else
+    #ifdef FORTRAN
+    RESULT Result
+    #endif
+    #endif
+    #endif
+:

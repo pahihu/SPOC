@@ -1,0 +1,136 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%O"
+#PRAGMA TRANSLATE FIX64 "FIX64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%c"
+#PRAGMA TRANSLATE FIX64 "FIX64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE SHIFTRIGHT64 "SHIFTRIGHT64%f"
+#PRAGMA TRANSLATE FIX64 "FIX64%f"
+#endif
+#endif
+#endif
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  SHIFTRIGHT64
+INT64, INT64 FUNCTION SHIFTRIGHT64 (VAL INT64 Hi.in, Lo.in,VAL INT Places)
+
+  INT64 Hi.out, Lo.out :
+  VALOF
+    VAL BitsPerWord IS 32(INT) :
+    --{{{  RETYPES
+    VAL [2]INT hi.in RETYPES Hi.in :
+    VAL [2]INT lo.in RETYPES Lo.in :
+    [2]INT hi.out RETYPES Hi.out :
+    [2]INT lo.out RETYPES Lo.out :
+    --}}}
+    INT places :
+    SEQ
+      places := Places
+      IF
+        places < BitsPerWord
+          --{{{  
+          SEQ
+            INT carry :
+            carry, lo.out[0] := SHIFTRIGHT( lo.in[1], lo.in[0], places)
+            INT carry :
+            carry, lo.out[1] := SHIFTRIGHT( hi.in[0], lo.in[1], places)
+            hi.out[1], hi.out[0] := SHIFTRIGHT( hi.in[1], hi.in[0], places)
+          --}}}
+        places < (2*BitsPerWord)
+          --{{{  
+          SEQ
+            places := places - BitsPerWord
+            INT carry :
+            carry, lo.out[0] := SHIFTRIGHT( hi.in[0], lo.in[1], places)
+            hi.out[0], lo.out[1] := SHIFTRIGHT( hi.in[1], hi.in[0], places)
+            hi.out[1] := 0
+          --}}}
+        places < (3*BitsPerWord)
+          --{{{  
+          SEQ
+            lo.out[1], lo.out[0] := SHIFTRIGHT( hi.in[1], hi.in[0],
+                                                places - (2*BitsPerWord))
+            hi.out := [0,0]
+          --}}}
+        places < (4*BitsPerWord)
+          --{{{  
+          SEQ
+            lo.out[0] := hi.in[1] >> (places - (3*BitsPerWord))
+            lo.out[1] := 0
+            hi.out := [0,0]
+          --}}}
+        TRUE
+          --{{{  
+          SEQ
+            hi.out := [0,0]
+            lo.out := [0,0]
+          --}}}
+    RESULT Hi.out, Lo.out
+:
+--}}}
+--{{{  FIX64
+INT64 FUNCTION FIX64 (VAL REAL64 X.r)
+
+  INT64 RWork :
+  VALOF
+    --{{{  Convert X to fixed point (32-bit machine only)
+    -- Returns the signed fixed point fraction corresponding to X.
+    -- Assumes X is < 1. Rounds to nearest or even.
+    VAL DRealShift      IS         11(INT) :
+    VAL DRealXcess      IS       1023(INT) :
+    VAL BitsPerI64      IS         64(INT) :
+    VAL Dzero IS 0(INT64) :
+    VAL Done  IS 1(INT64) :
+    VAL UFlowExp IS (DRealXcess - BitsPerI64) :
+    VAL INT64 X RETYPES X.r :
+    VAL [2] INT X.i RETYPES X :
+    VAL INT XExp IS (X.i [1] << 1) >> 21 : -- remove sign and extract exponent
+    IF
+      XExp < UFlowExp  -- number too small
+        RWork := Dzero
+      TRUE
+        INT64 XFrac :
+        SEQ
+          VAL INT64 X RETYPES X.i :
+          XFrac := X << 11 -- remove exponent and make room for bit
+          [2] INT XF.i RETYPES XFrac :
+          XF.i [1] := XF.i [1] \/ (MOSTNEG INT) -- put back implicit bit
+          --{{{  generate fraction
+          VAL XE IS (DRealXcess - XExp) : -- Magnitude of true exponent
+          IF
+            XE <= DRealShift               -- Exact result will fit
+              RWork := XFrac >> XE
+            TRUE
+              SEQ
+                RWork, XFrac := SHIFTRIGHT64 (XFrac, Dzero, XE)
+                [2] INT LB RETYPES XFrac :
+                [2] INT RW RETYPES RWork :
+                IF
+                  LB[1] >= 0
+                    SKIP
+                  (LB[1] <> (MOSTNEG INT)) OR (LB[0] <> 0) OR ((RW[0] /\ 1) = 1)
+                    INT64 RWork RETYPES RW :
+                    RWork := RWork + Done
+                  TRUE
+                    SKIP
+          --}}}
+          --{{{  fixup sign
+          IF
+            X.i [1] < 0
+              RWork := -RWork
+            TRUE
+              SKIP
+          --}}}
+    --}}}
+    RESULT RWork
+:
+--}}}

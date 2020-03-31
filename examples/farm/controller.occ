@@ -1,0 +1,334 @@
+#INCLUDE "farm.inc"
+#INCLUDE "hostio.inc"
+#USE "hostio.lib"  -- iserver libraries
+#USE "dblmath.lib" -- maths libraries
+#USE "string.lib"  -- guess what
+#USE "convert.lib"
+
+PROC control(CHAN OF SP fs,ts, CHAN OF farming toFarm,fromFarm)
+  --{{{  COMMENT PROC get.me.a.real64 (CHAN OF SP fs, ts, REAL64 n, BOOL Error)
+  --PROC get.me.a.real64 (CHAN OF SP fs, ts, REAL64 n, BOOL Error)
+  --  -- This allows you to enter a real64 value without having
+  --  -- to type in a .0 on the end of integer values.
+  --  [24]BYTE string :
+  --  INT len :
+  --  BYTE result :
+  --  SEQ
+  --    so.read.echo.line (fs, ts, len, string, result)
+  --    IF
+  --      result = spr.ok
+  --        SEQ
+  --          IF
+  --            char.pos('.',string) < 0
+  --              append.text(len,string,".0")
+  --            TRUE
+  --              SKIP
+  --          STRINGTOREAL64 (Error, n, [string FROM 0 FOR len])
+  --
+  --      TRUE
+  --        Error := TRUE
+  --:
+  --}}}
+  --{{{  COMMENT PROC get.me.a.yn (CHAN OF SP fs,ts, BOOL Yes, Error)
+  --PROC get.me.a.yn (CHAN OF SP fs,ts, BOOL Yes, Error)
+  --  BYTE reply, result :
+  --
+  --  SEQ
+  --    Error := FALSE
+  --    sp.getkey(fs,ts,reply,result)
+  --    so.write.char(fs,ts,reply)
+  --    so.write.nl(fs,ts)
+  --    IF
+  --      result <> spr.ok
+  --        Error := TRUE
+  --      (reply = 'Y') OR (reply = 'y')
+  --        Yes := TRUE
+  --      (reply = 'N') OR (reply = 'n')
+  --        Yes := FALSE
+  --      TRUE
+  --        Error := TRUE
+  --:
+  --}}}
+  --{{{  Variable Definitions
+  REAL64 Lower,Upper,PacketDeltaX,SampleDeltaX,Index,Power,Sum,Value:
+  INT NoOfSamples,NoOfPackets,TotalSamples,EqnType:
+  
+  BOOL Error,More,AskFunc:
+  
+  REAL64 Elapsed:
+  INT Time1,Time2:
+  TIMER clock:
+  
+  [MaxWorkers]INT PktCount:
+  INT NoOfWorkers, Node :
+  
+  CHAN OF farming FlowCtrl,toValve :
+  --}}}
+  SEQ
+    More := TRUE
+    AskFunc := TRUE
+    WHILE More
+      SEQ
+        --{{{  Output message
+        SEQ
+          so.write.nl(fs,ts)
+          so.write.nl(fs,ts)
+          so.write.string.nl(fs,ts,"Numerical Integration")
+          so.write.string.nl(fs,ts,"This program uses a process farm of up to 16 calculation processes")
+          so.write.string.nl(fs,ts,"to perform numerical integration of a simple equation,y=x^2")
+          
+        --}}}
+        --{{{  Input all required user data
+        SEQ
+          --{{{  
+          EqnType := 1
+          Power := 2.0 (REAL64)
+          Lower := 0.0 (REAL64)
+          Upper :=100.0 (REAL64)
+          
+          --}}}
+          --{{{  COMMENT Input and validate equation type
+          --Error := AskFunc
+          --WHILE (Error)
+          --  SEQ
+          --    so.write.string(fs,ts,"Enter equation type [1 = X^n, 2 = exp(-x^n)]:")
+          --    so.read.echo.int(fs,ts,EqnType,Error)
+          --    so.write.nl(fs,ts)
+          --    IF
+          --      Error = TRUE
+          --        SKIP
+          --      (EqnType < 1) OR (EqnType > 2)
+          --        Error := TRUE
+          --      TRUE
+          --        SKIP
+          --}}}
+          --{{{  COMMENT Input Power of x in integral
+          --Error := AskFunc
+          --WHILE (Error)
+          --  SEQ
+          --    so.write.string(fs,ts,"Enter Power of X in equation :")
+          --    get.me.a.real64(fs,ts,Power,Error)
+          --    so.write.nl(fs,ts)
+          --}}}
+          --{{{  COMMENT Input Lower limit for integral
+          --Error := AskFunc
+          --WHILE (Error)
+          --  SEQ
+          --    so.write.string(fs,ts,"Enter Lower limit for integral :")
+          --    get.me.a.real64(fs,ts,Lower,Error)
+          --    so.write.nl(fs,ts)
+          --    IF
+          --      Lower < 0.0 (REAL64)
+          --        Error := TRUE
+          --      TRUE
+          --        SKIP
+          --}}}
+          --{{{  COMMENT Input Upper limit for integral
+          --Error := AskFunc
+          --WHILE (Error)
+          --  SEQ
+          --    so.write.string(fs,ts,"Enter Upper limit for integral :")
+          --    get.me.a.real64(fs,ts,Upper,Error)
+          --    so.write.nl(fs,ts)
+          --    IF
+          --      Upper < Lower
+          --        Error := TRUE
+          --      TRUE
+          --        SKIP
+          --}}}
+          --{{{  Input and validate Number of Workers
+          Error := TRUE
+          WHILE (Error)
+            SEQ
+              so.write.string(fs,ts,"Enter Number of Worker Processes:")
+              so.read.echo.int(fs,ts,NoOfWorkers,Error)
+              so.write.nl(fs,ts)
+              IF
+                Error = TRUE
+                  SKIP
+                (NoOfWorkers < 1) OR (NoOfWorkers > MaxWorkers)
+                  Error := TRUE
+                TRUE
+                  SKIP
+          --}}}
+          --{{{  Input and validate Number of Packets
+          Error := TRUE
+          WHILE (Error)
+            SEQ
+              so.write.string(fs,ts,"Enter Number of Packets: ")
+              so.read.echo.int(fs,ts,NoOfPackets,Error)
+              so.write.nl(fs,ts)
+              IF
+                Error = TRUE
+                  SKIP
+                (NoOfPackets < 1)
+                  Error := TRUE
+                TRUE
+                  SKIP
+          --}}}
+          --{{{  Input and validate Number of Samples
+          Error := TRUE
+          WHILE (Error)
+            SEQ
+              so.write.string(fs,ts,"Enter Number of Samples/Packet: ")
+              so.read.echo.int(fs,ts,NoOfSamples,Error)
+              so.write.nl(fs,ts)
+              IF
+                Error = TRUE
+                  SKIP
+                (NoOfSamples < 1)
+                  Error := TRUE
+                TRUE
+                  SKIP
+          --}}}
+        --}}}
+        --{{{  Initialise variables and print user stuff
+        SEQ
+          TotalSamples := NoOfPackets * NoOfSamples
+          PacketDeltaX := (Upper - Lower) / (REAL64 ROUND(NoOfPackets))
+          SampleDeltaX := PacketDeltaX / (REAL64 ROUND(NoOfSamples))
+          SEQ i = 0 FOR NoOfWorkers
+            PktCount[i] := 0
+        
+          so.write.nl(fs,ts)
+          IF
+            EqnType=1
+              SEQ
+                so.write.string(fs,ts,"Calculating Integral of x^")
+                so.write.real64(fs,ts,Power,0,0)
+        
+            EqnType=2
+              SEQ
+                so.write.string(fs,ts,"Calculating Integral of exp(-x^")
+                so.write.real64(fs,ts,Power,0,0)
+                so.write.string(fs,ts,")")
+        
+          so.write.nl(fs,ts)
+          so.write.string(fs,ts,"Range ")
+          so.write.real64(fs,ts,Lower,0,0)
+          so.write.string(fs,ts," to ")
+          so.write.real64(fs,ts,Upper,0,0)
+          so.write.string(fs,ts,"  Packet Delta ")
+          so.write.real64(fs,ts,PacketDeltaX,0,0)
+          so.write.string(fs,ts,"  Sample Delta ")
+          so.write.real64(fs,ts,SampleDeltaX,0,0)
+          so.write.nl(fs,ts)
+        --}}}
+        --{{{  Output Initial packet and start Timer
+        SEQ
+          toFarm!initial.packet; EqnType; NoOfSamples; SampleDeltaX; Power; 0
+          clock ? Time1
+        --}}}
+        PRI PAR -- Make these processes execute at high priority
+          PAR
+            --{{{  Output all work packets to valve
+            SEQ
+              Index := Lower
+              SEQ i = 0 FOR NoOfPackets
+                SEQ
+                  -- so.write.string(fs,ts,"Work Packet ")
+                  -- so.write.real64(fs,ts,Index,0,5)
+                  toValve!work.packet; Index
+                  Index := Index + PacketDeltaX
+                  -- so.write.string(fs,ts," .. Sent")
+                  -- so.write.nl(fs,ts)
+            --}}}
+            --{{{  Collect result packets
+            SEQ
+              Sum := 0.0 (REAL64)
+            
+              SEQ i = 0 FOR NoOfPackets
+                SEQ
+                  fromFarm?CASE
+                    result.packet; Value; Node
+                      SEQ
+                        Sum := Sum + Value
+                        PktCount[Node] := PktCount[Node] + 1
+                        FlowCtrl!more.packet
+            
+              Sum := Sum * SampleDeltaX
+              FlowCtrl!stop.packet
+            --}}}
+            --{{{  Valve Process
+            SEQ
+              INT PacketsOutstanding :
+              REAL64 x :
+              BOOL More :
+            
+              SEQ
+                PacketsOutstanding := 0
+                More := TRUE
+                WHILE More
+                  PRI ALT  -- Priority to flow control process
+                    FlowCtrl?CASE
+                      --{{{  Allow more work out
+                      more.packet
+                        PacketsOutstanding := PacketsOutstanding - 1
+                      
+                      stop.packet
+                        More := FALSE
+                      --}}}
+                    (PacketsOutstanding < (2 * NoOfWorkers)) & toValve?CASE
+                      --{{{  Send one work packet to farm
+                      -- We only receive and send work packets
+                      work.packet; x
+                        SEQ
+                          toFarm!work.packet; x
+                          PacketsOutstanding := PacketsOutstanding + 1
+                      --}}}
+            --}}}
+
+          SKIP
+        --{{{  Output results
+        SEQ
+          clock ? Time2
+          so.write.string(fs,ts,"Value of Integral = ")
+          so.write.real64(fs,ts,Sum,0,0)
+          so.write.nl(fs,ts)
+          so.write.string(fs,ts,"Calculation took ")
+          Elapsed := (REAL64 ROUND(Time2 MINUS Time1)) / 15625.0 (REAL64)
+          so.write.real64(fs,ts,Elapsed,3,3)
+          so.write.string(fs,ts," seconds")
+          so.write.nl(fs,ts)
+          so.write.string(fs,ts,"Worker     Packets Processed    Percent")
+          so.write.nl(fs,ts)
+          SEQ i = 0 FOR NoOfWorkers
+            SEQ
+              so.write.int(fs,ts,i,4)
+              so.write.string(fs,ts,"      ")
+              so.write.int(fs,ts,PktCount[i],10)
+              so.write.string(fs,ts,"              ")
+              so.write.real64(fs,ts,(REAL64 ROUND(PktCount[i] * 100)) / (REAL64 ROUND(NoOfPackets)),3,2)
+              so.write.nl(fs,ts)
+        --}}}
+        --{{{  COMMENT Ask for repeat Y/N
+        --SEQ
+        --  Error := TRUE
+        --  WHILE (Error)
+        --    SEQ
+        --      so.write.string(fs,ts,"Repeat Program Y/N ?")
+        --      get.me.a.yn(fs,ts,More,Error)
+        --
+        --  IF
+        --    More
+              --{{{  Ask for new parameters Y/N
+              --SEQ
+              --  Error := TRUE
+              --  WHILE (Error)
+              --    SEQ
+              --      so.write.string(fs,ts,"Enter new function Parameters Y/N ?")
+              --      get.me.a.yn(fs,ts,AskFunc,Error)
+              --}}}
+        --    TRUE
+        --      SKIP
+        --}}}
+
+    --{{{  Send Stop Packet out, wait for return
+    SEQ
+      toFarm!stop.packet    -- Stop Farm processes
+      fromFarm?CASE
+        stop.packet
+          SKIP
+    --}}}
+    so.exit(fs,ts,sps.success)
+:

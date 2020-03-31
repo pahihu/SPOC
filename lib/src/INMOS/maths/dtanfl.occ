@@ -1,0 +1,107 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE DTAN "DTAN%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DTAN "DTAN%f"
+#PRAGMA TRANSLATE DTANP "DTANP%f"
+#PRAGMA TRANSLATE DTANPP "DTANPP%f"
+#endif
+#endif
+
+REAL64 FUNCTION DTAN (VAL REAL64 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL64 RWork :
+  VALOF
+    IF
+      DNOTFINITE (X)
+        --{{{  Inf or NaN
+        IF
+          DISNAN (X)
+            RWork := X    -- transmit NaN
+          TRUE
+            RWork := Dundefined.NaN
+        --}}}
+      TRUE
+        --{{{  variables
+        REAL64 XWork :
+        INT32 N :
+        BOOL ok :
+        --}}}
+        SEQ
+          ok, N, XWork := DARGUMENT.REDUCE (X, DPiBy2, DPiBy2.err)
+          IF
+            ok  -- argument reduction was accurate
+              REAL64 XNum, XDen :
+              SEQ
+                --{{{  approximation in primary range
+                -- XWork is in the range [-Pi/4, Pi/4]
+                VAL P3 IS -1.7861707342254426711E-5(REAL64) :
+                VAL P2 IS  3.4248878235890589960E-3(REAL64) :
+                VAL P1 IS -1.3338350006421960681E-1(REAL64) :
+                VAL Q4 IS  4.9819433993786512270E-7(REAL64) :
+                VAL Q3 IS -3.1181531907010027307E-4(REAL64) :
+                VAL Q2 IS  2.5663832289440112864E-2(REAL64) :
+                VAL Q1 IS -4.6671683339755294240E-1(REAL64) :
+                VAL Q0 IS  1.0(REAL64) :
+                VAL G IS XWork * XWork :
+                SEQ
+                  XNum := (((((((P3*G)+P2)*G)+P1)*G)*XWork)+XWork)
+                  XDen := ((((((((Q4*G)+Q3)*G)+Q2)*G)+Q1)*G)+Q0)
+                --}}}
+                --{{{  construct result
+                IF
+                  ((N /\ one) = 0(INT32)) -- N even
+                    RWork := REAL64OP (XNum, Div, XDen)
+                  XNum = DZero
+                    RWork := Dunstable.NaN
+                  TRUE
+                    RWork := REAL64OP ((-XDen), Div, XNum)
+                --}}}
+            TRUE -- argument reduction not accurate
+              RWork := Dinexact.NaN
+    RESULT RWork
+:
+#ifdef FORTRAN
+--{{{  DTANP/DTANPP
+-- This 'P' version exists for when the FORTRAN intrinsic DTAN is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DTANP.  When DTANP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DTANP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value. The occam calling convention is to pass REAL64s
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DTANP( VAL INT dummy, VAL REAL64 X ) IS DTAN( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DTANPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DTAN( X )
+:
+#endif
+--}}}
+#endif

@@ -1,0 +1,50 @@
+#OPTION "E"  -- no compiler libs
+#COMMENT "Debug support library, V2.1 3/10/90"
+#COMMENT "(c) Copyright INMOS Limited, 1988, 1989, 1990"
+
+PROC DEBUG.TIMER (CHAN OF INT stop)
+
+  --{{{  specification
+  -- Purpose:  To enable the debugger to find a way into a
+  --           deadlocked program by always ensuring there
+  --           is a process on the timer or the run queues.
+  -- Channels: stop - for input
+  -- Notes:    This procedure will continually wait on the
+  --           timer until it is told to terminate by the
+  --           receipt of any value on the stop input channel.
+  --           The odds are that this process will be found
+  --           on the timer queue.
+  --           This process may be run at any priority on
+  --           16 and 32 bit processors.
+  --}}}
+  --{{{  history
+  -- V1.1, 17-Mar-90.
+  -- Altered so that the routine does not terminate after one day;
+  -- now can be run on 16- or 32-bit processors, unlike its
+  -- predecessor ( V1.1 ) which was of use only of 32-bit
+  -- processors; also moved routine from process.lib to debug.lib
+  -- because it is more sensibly placed in the latter;  V2.0,
+  -- NH/SRH 15-Aug-90.
+  -- Changed the name from debug.timer to DEBUG.TIMER so as to be
+  -- consistent with the other routines in debug.lib which are all
+  -- in upper case; TS/765, V2.1, SRH 3-Oct-90
+  --}}}
+
+  VAL huge.delay IS (MOSTPOS INT) - 1 :
+
+  TIMER time:
+  INT now, any:
+  BOOL running :
+  SEQ
+    running := TRUE
+
+    WHILE running
+      SEQ
+        time ? now
+        PRI ALT
+          stop ? any
+            running := FALSE
+          time ? AFTER now PLUS huge.delay
+            SKIP
+:
+

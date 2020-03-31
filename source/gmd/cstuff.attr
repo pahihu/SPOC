@@ -1,0 +1,165 @@
+/*{{{  File banner*/
+/* @(#)(#)=====================================================*\
+|| @(#)(#)  Project : GPMIMD ESPRIT P5404
+|| @(#)(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+|| @(#)(#)            University of Southampton
+||  
+|| @(#)(#)    Title : Attribute declarations for conversion to C
+|| @(#)(#)   System : OCCAM 2 C
+|| @(#)(#) Filename : cstuff.attr
+|| @(#)(#)  Version : 1.20
+|| @(#)(#)     Date : 1/14/94
+\* @(#)(#)====================================================*/
+/*}}}*/
+
+/*{{{  MODULE CStuff*/
+MODULE CStuff
+
+TREE
+
+EXPORT
+{
+  typedef tTree tChain;
+  typedef tTree tFrame;
+  typedef tTree tChoiceList;
+  typedef tTree tIfType;
+
+  extern FILE *yyf;
+}
+
+END CStuff
+/*}}}*/
+
+/*{{{  MODULE SpecList*/
+MODULE SpecList
+
+EVAL CoutAg
+
+DECLARE SpecList = [DCL:int SYN].
+
+END SpecList
+/*}}}*/
+
+/*{{{  MODULE ProcList*/
+MODULE ProcList
+
+EVAL CoutAg
+
+/* Count of number of non-empty Spec-Lists : */
+
+DECLARE Process, ProcList, ChoiceList, AltList, Guard, CaseList = [SLC:int SYN].
+
+END ProcList
+/*}}}*/
+
+/*{{{  MODULE AltReplicators*/
+MODULE AltReplicators
+
+EVAL CoutAg
+
+DECLARE 
+
+AltType AltList = [ARC:int SYN] .   /* Count of number of Alt Replicators */
+
+Process = [TLA:bool INH] .          /* Top-level Alt boolean */
+
+END AltReplicators
+/*}}}*/
+
+/*{{{  MODULE DefProc*/
+MODULE DefProc
+
+EVAL CoutAg
+
+DECLARE
+/* DefProc DefAFunc = [NLR:bool] [NLW:bool] */
+  DefProc = [isPar:bool].
+
+END DefProc
+/*}}}*/
+
+/*{{{  MODULE CodeGenOrder*/
+MODULE CodeGenOrder
+
+EVAL CoutAg
+
+DECLARE
+
+Start DefAProc DefAFunc HCode = [CGNext:tChain].
+Start = [OuterProc:tSymbol].
+
+END CodeGenOrder
+/*}}}*/
+
+/*{{{  MODULE Call*/
+MODULE Call
+
+EVAL CoutAg
+
+DECLARE
+
+Instance FuncCall = [Frame:tFrame].
+
+END Process
+/*}}}*/
+
+/*{{{  MODULE Labels*/
+MODULE Labels
+
+DECLARE
+
+AChoice = [Label:int].
+AnAlt   = [Label:int].
+ACase   = [Label:int].
+
+END Case
+
+/*}}}*/
+
+/*{{{  MODULE FlattenIfs*/
+MODULE FlattenIfs
+
+DECLARE
+
+IfType = [BackChoiceList:tChoiceList] [BackIfType:tIfType] .
+
+END FlattenIfs
+/*}}}*/
+
+/*{{{  MODULE MarkDims*/
+MODULE MarkDims
+
+EVAL CoutAg
+
+DECLARE
+
+Type = [D INH] .
+
+END MarkDims
+/*}}}*/
+
+/*{{{  MODULE Parent*/
+MODULE Parent
+
+EVAL CoutAg
+
+DECLARE
+
+  Process ProcList SpecList Spec AltList 
+  CaseList ChoiceList Guard Replicator
+  Elemental IdList Expr ExprList Formals = [Parent:tSymbol INH] .
+
+END Parent
+/*}}}*/
+
+/*{{{  MODULE AtomicSpec*/
+MODULE AtomicSpec
+
+EVAL CoutAg
+
+DECLARE
+  Formals Replicator IdList SpecList Spec = [AtomicSpec:bool INH].
+
+END Atomics
+
+/*}}}*/

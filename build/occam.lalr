@@ -1,0 +1,833 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+  @(#)  Project : GPMIMD ESPRIT P5404
+  @(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+  @(#)            University of Southampton
+  @(#)    Title : BNF for occam parser
+  @(#)   System : occam2c
+  @(#) Filename : occam.bnf
+  @(#)  Version : 1.69
+  @(#)     Date : 2/16/94
+\*@(#)====================================================*/
+/*}}}*/
+
+/*{{{  GLOBAL*/
+GLOBAL
+{
+  #include "Scanner.h"
+  #include "TreeFix.h"
+  #include "Tree.h"
+  #include "Symbol.h"
+  #include "TypeChk.h"
+  
+  #define InheritTypes(t)
+  #define DEBUG(s) fprintf(stderr,"DEBUG: %s\n",s);
+
+  typedef struct { tScanAttribute Scan; tTree Tree; } tParsAttribute;
+
+  #define Posn(a)  ((a).Scan.Position)
+  #define Val(a) ((a).Scan.Value)
+  #define InsertASpec(a,s) a=mASpec(s,a)
+
+  static tSymbol S;
+  static tTree T;
+  static last_type_was_chan = false;
+  static tValue Vtrue,Vfalse;
+}
+/*}}}*/
+/*{{{  BEGIN*/
+BEGIN
+{
+  OpenScope();
+  Vtrue.Number = true;
+  Vfalse.Number = false;
+
+}
+/*}}}*/
+/*{{{  CLOSE*/
+CLOSE
+{
+  CloseScope();
+}
+/*}}}*/
+TOKEN
+  DECLCOMMA = 1
+  ID = 2
+  EOL = 3
+  NUMBER = 4
+  HEXNUMBER = 5
+  CHCON = 6
+  STR = 7
+  CSTR = 8
+  RNUMBER = 9
+  BEGIN = 10
+  END = 11
+  LT = 12
+  GT = 13
+  LE = 14
+  GE = 15
+  EQ = 16
+  NE = 17
+  ADD = 18
+  SUBTRACT = 19
+  MULTIPLY = 20
+  DIVIDE = 21
+  BITEOR = 22
+  LSHIFT = 23
+  RSHIFT = 24
+  DCOLON = 25
+  ASSIGN = 26
+  LP = 27
+  RP = 28
+  COLON = 29
+  SEMICOLON = 30
+  COMMA = 31
+  AMPERSAND = 32
+  LSB = 33
+  RSB = 34
+  QUERY = 35
+  PLING = 36
+  HASHC = 37
+  HASHH = 38
+  TYPEID = 39
+  AFTER = 40
+  ALT = 41
+  AND = 42
+  ANY = 43
+  BITAND = 44
+  BITNOT = 45
+  BITOR = 46
+  BOOL = 47
+  BYTE = 48
+  CASE = 49
+  CHAN = 50
+  ELSE = 51
+  FALSE = 52
+  FOR = 53
+  FROM = 54
+  FUNCTION = 55
+  IF = 56
+  INT = 57
+  INT16 = 58
+  INT32 = 59
+  INT64 = 60
+  IS = 61
+  MINUS = 62
+  MOSTNEG = 63
+  MOSTPOS = 64
+  NOT = 65
+  OF = 66
+  OR = 67
+  PAR = 68
+  PLACED = 69
+  PLUS = 70
+  PORT = 71
+  PRI = 72
+  PROC = 73
+  PROCESSOR = 74
+  PROTOCOL = 75
+  REAL32 = 76
+  REAL64 = 77
+  REM = 78
+  RESULT = 79
+  RETYPES = 80
+  ROUND = 81
+  SEQ = 82
+  SIZE = 83
+  SKIP = 84
+  STOP = 85
+  TIMER = 86
+  TIMES = 87
+  TRUE = 88
+  TRUNC = 89
+  VAL = 90
+  VALOF = 91
+  WHILE = 92
+  EXTERN_OCCAM = 93
+  EXTERN_ATOMIC = 94
+  EXTERN_F90 = 95
+  EXTERN_F77 = 96
+  EXTERN_C = 97
+  DATA = 98
+  TYPE = 99
+  RECORD = 100
+  PACKED = 101
+  BYTESIN = 102
+  OFFSETOF = 103
+  RESHAPES = 104
+  ASM = 105
+  AT = 106
+  GUY = 107
+  IN = 108
+  INLINE = 109
+  PLACE = 110
+  WORKSPACE = 111
+  VECSPACE = 112
+
+RULE
+
+__START__	: program 		{ TreeRoot = mStart($1.Tree); }
+		.
+
+program         : proc			{ $$ = $1; Message("Not allowed at outermost level of compilation unit",xxError,Posn($1));}
+		| outerspec sep		{ $$.Tree = mNullProcess(Posn($1),mNoSpec()); InsertASpec($$.Tree->Process.SpecList,$1.Tree); }
+                | outerspec sep program { $$.Tree = $3.Tree; InsertASpec($3.Tree->Process.SpecList,$1.Tree); }
+	   	. 	
+
+outerspec	: definition		{ $$ = $1; }
+		| abbreviation		{ $$ = $1; Message("Not allowed at outermost level of compilation unit",xxError,Posn($1));}
+		| declaration		{ $$ = $1; Message("Not allowed at outermost level of compilation unit",xxError,Posn($1));}
+		| HASHH CSTR            { $$ = $1; $$.Tree = mHCode(Posn($1),Val($2).String,CurrentScope()); }
+		.
+
+case		: CASE { $$.Scan = $1.Scan; OpenScope(); }.
+
+proc	 	: action sep		{ $$ = $1; } 
+		| SKIP sep		{ $$.Tree = mSkip(Posn($1),mNoSpec()); } 
+		| STOP sep		{ $$.Tree = mStop(Posn($1),mNoSpec()); }
+		| case selector sep BEGIN selectlist END  { $$.Tree = mCase(Posn($1),mNoSpec(),$2.Tree,ReverseTree($5.Tree)); CloseScope();}
+		| construct		{ $$ = $1; }
+		| instance		{ $$ = $1; }
+		| caseinput		{ $$ = $1; }
+		| casesingle		{ $$ = $1; }
+		| HASHC CSTR sep		{ $$.Tree = mCCode(Posn($1),mNoSpec(),Val($2).String,CurrentScope()); }
+		. 			 
+
+process		: proc		     { $$ = $1; }
+		| specification sep process { $$.Tree = $3.Tree; InsertASpec($3.Tree->Process.SpecList,$1.Tree); }
+		.
+		
+action 		: assignment { $$ = $1; }
+		| input      { $$ = $1; }
+		| after      { $$ = $1; }
+		| output     { $$ = $1; }
+		. 			
+		
+selectlist 	: select  	{  $1.Tree->AChoice.Next= mNoChoice(); CloseScope(); OpenScope(); }
+		| selectlist select     { $$.Scan = $1.Scan; $$.Tree = $2.Tree; $2.Tree->AChoice.Next= $1.Tree; CloseScope(); OpenScope(); }
+		. 			 
+		
+
+select 		: explist sep BEGIN process END  { $$.Tree = mAChoice(mNoSpec(),NoTree,ReverseTree($1.Tree),$4.Tree); }
+		| ELSE sep BEGIN process END  { $$.Tree = mAChoice(mNoSpec(),NoTree,mAnExpr(mNoExpr(),mDefault(Posn($1))),$4.Tree); }
+		| specification sep select { $$.Tree = $3.Tree; InsertASpec($3.Tree->AChoice.SpecList,$1.Tree); }
+		. 			    
+
+selector 	: expr  { $$ = $1; }
+		. 		
+		
+
+construct 	: sequence  	{ $$ = $1; }
+		| parallel  	{ $$ = $1; }
+		| conditional  	{ $$ = $1; }
+		| alternation  	{ $$ = $1; }
+		| loop 		{ $$ = $1; }
+		. 			
+		
+
+instance 	: ID LP explist RP sep  { $$.Tree = CreateProcCall(Posn($1),mNoSpec(), LookupSymbol($1.Scan),ReverseTree($3.Tree),CurrentScope()); } 
+		| ID LP RP sep          { $$.Tree = CreateProcCall(Posn($1),mNoSpec(), LookupSymbol($1.Scan),mNoExpr(),CurrentScope()); } 
+		. 			   
+		
+seq 		: SEQ { OpenScope(); $$=$1; }
+		.
+
+sequence 	: seq sep BEGIN proclist END		{ $$.Tree = mSeq(Posn($1),mNoSpec(),ReverseTree($4.Tree)); CloseScope(); }
+		| seq sep				{ $$.Tree = mSeq(Posn($1),mNoSpec(),mNoProcess()); CloseScope(); }
+		| seq replic sep BEGIN process END	{ $$.Tree = mSeqRep(Posn($1),mNoSpec(),$2.Tree,$5.Tree); CloseScope(); }
+		. 			 
+		
+proclist 	: process  		{ $$.Tree = mAProcess(mNoProcess(),$1.Tree,NoSymbol); CloseScope(); OpenScope(); }
+		| proclist process      { $$.Tree = mAProcess($1.Tree,$2.Tree,NoSymbol); CloseScope(); OpenScope(); }
+		. 			 
+
+par		: PAR { OpenScope(); OpenScope(); $$=$1; }
+		.
+
+parallel	: partype 				{ $$=$1; }
+		| PRI partype				{ $$=$2; ParType($$.Tree) = xxPriPar; }
+                | placedpar                             { $$=$1; }
+		.
+
+partype 	: par sep BEGIN parproclist END		{ $$.Tree = mPar(Posn($1),mNoSpec(),xxPar,ReverseTree($4.Tree)); CloseScope(); CloseScope(); }
+		| par sep				{ $$.Tree = mPar(Posn($1),mNoSpec(),xxPar,mNoProcess()); CloseScope(); CloseScope(); }
+		| parrep sep BEGIN process END  	{ CloseScope(); $$.Tree = mParRep(Posn($1),mNoSpec(),xxPar,$1.Tree,$4.Tree,S=AddSymbol(NoIdent)); CloseScope(); CloseScope();  SymbolKind(S)=$$.Tree; }
+		. 			  
+
+parproclist 	: process		{ CloseScope(); $$.Tree = mAProcess(mNoProcess(),$1.Tree,S=AddSymbol(NoIdent)); CloseScope(); OpenScope(); OpenScope();  SymbolKind(S)=$$.Tree; }
+		| parproclist process	{ CloseScope(); $$.Tree = mAProcess($1.Tree,$2.Tree,S=AddSymbol(NoIdent)); CloseScope(); OpenScope(); OpenScope();  SymbolKind(S)=$$.Tree; }
+		. 			 
+		
+parrep          : par replic 		{ OpenScope(); S=AddSymbol(NoIdent); $$.Tree=$2.Tree; $$.Scan=$1.Scan; }
+		.
+
+
+placedpar 	: PLACED par sep BEGIN placedlist END		{ $$.Tree = mPar(Posn($1),mNoSpec(),xxPlacedPar,ReverseTree($5.Tree)); CloseScope(); CloseScope(); }
+		| PLACED par sep				{ $$.Tree = mPar(Posn($1),mNoSpec(),xxPlacedPar,mNoProcess()); CloseScope(); CloseScope(); }
+		| PLACED parrep sep BEGIN placedpar END  	{ CloseScope(); $$.Tree = mParRep(Posn($1),mNoSpec(),xxPlacedPar,$2.Tree,$5.Tree,S=AddSymbol(NoIdent)); CloseScope(); CloseScope(); SymbolKind(S)=$$.Tree; }
+		| PROCESSOR expr ID sep BEGIN process END	{ $$.Tree = mProcessor(Posn($1),mNoSpec(),$2.Tree,Val($3).Ident,$6.Tree); }
+		. 			  
+
+placedlist 	: placedpar		{ CloseScope(); $$.Tree = mAProcess(mNoProcess(),$1.Tree,S=AddSymbol(NoIdent)); CloseScope(); OpenScope(); OpenScope();  SymbolKind(S)=$$.Tree; }
+		| placedlist placedpar	{ CloseScope(); $$.Tree = mAProcess($1.Tree,$2.Tree,S=AddSymbol(NoIdent)); CloseScope(); OpenScope(); OpenScope();  SymbolKind(S)=$$.Tree; }
+		. 			 
+
+if		: IF { $$.Scan = $1.Scan; OpenScope(); } .
+
+conditional 	: if sep BEGIN choicelist END		{ $$.Tree = mIf(Posn($1),mNoSpec(),ReverseTree($4.Tree)); CloseScope(); }
+		| if replic sep BEGIN choice END	{ $$.Tree = mIfRep(Posn($1),mNoSpec(),$2.Tree,$5.Tree); $5.Tree->AChoice.Next=mNoChoice(); CloseScope(); }
+		| if sep				{ $$.Tree = mIf(Posn($1),mNoSpec(),mNoChoice()); CloseScope(); }
+		. 			 
+		
+alt		: ALT { $$.Scan = $1.Scan; OpenScope(); }
+		.
+
+alternation	: alttype			{ $$ = $1; }
+		| PRI alttype			{ $$ = $2; AltIsPri($$.Tree) = true; }
+		.
+	
+alttype 	: alt sep BEGIN alternativelist END		{ $$.Tree = mAlt(Posn($1),mNoSpec(),false,ReverseTree($4.Tree)); CloseScope(); } 
+		| alt replic sep BEGIN alternative END		{ $$.Tree = mAltRep(Posn($1),mNoSpec(),false,$2.Tree,$5.Tree); $5.Tree->AnAlts.Next = mNoAlt(); CloseScope(); }
+		| alt sep  					{ $$.Tree = mAlt(Posn($1),mNoSpec(),false,mNoAlt()); CloseScope(); }
+		. 			  
+		
+
+loop 		: WHILE expr sep BEGIN process END  { $$.Tree = mWhile(Posn($1),mNoSpec(),$2.Tree, $5.Tree); }
+		. 			     
+		
+
+sep 		: EOL  		    {$$=$1;}	
+		| sep EOL   	    {$$=$1;}
+		. 			 
+
+choicelist 	: choice        { $$.Tree->AChoices.Next = mNoChoice(); CloseScope(); OpenScope();}
+		| choicelist choice     { $$.Scan=$1.Scan; $$.Tree = $2.Tree; $$.Tree->AChoices.Next=$1.Tree; CloseScope(); OpenScope(); }
+		. 			 
+		
+
+alternativelist : alternative  	{  $$.Tree->AnAlts.Next = mNoAlt() ; CloseScope(); OpenScope(); } 
+		| alternativelist alternative   { $$.Scan =$1.Scan; $$.Tree = $2.Tree; $$.Tree->AnAlts.Next = $1.Tree; CloseScope(); OpenScope(); }
+		. 			 
+
+replic 		: ID EQ base FOR count  {  $$.Tree = mReplicator(S=AddSymbol(Val($1).Ident),$3.Tree,$5.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=mInt(); }
+		. 			    
+
+base 		: expr {$$=$1;}
+		. 			
+
+count 		: expr {$$=$1;} 
+		. 
+
+choice 		: boolean sep BEGIN process END { $$.Tree = mAChoice(mNoSpec(),NoTree,mAnExpr(mNoExpr(),$1.Tree),$4.Tree);}
+		| conditional  			{ $$.Tree = mANewIf(mNoSpec(),NoTree,$1.Tree);}
+		| specification sep choice      { $$.Tree = $3.Tree; InsertASpec($3.Tree->AChoice.SpecList,$1.Tree); }
+		. 			
+		
+
+alternative 	: guard       			{ $$.Tree = mAnAlt(mNoSpec(),NoTree,$1.Tree); }
+		| specification sep alternative	{ $$.Tree = $3.Tree; InsertASpec($3.Tree->AnAlt.SpecList,$1.Tree); }
+		| alternation			{ $$.Tree = mANewAlt(mNoSpec(),NoTree,$1.Tree); }
+		. 			
+		
+guard 		: boolean AMPERSAND input sep BEGIN process END 	{ $$.Tree = mAltInput(Posn($1),$1.Tree,$3.Tree,$6.Tree);}
+		| input sep BEGIN process END	 	  		{ $$.Tree = mAltInput(Posn($1),mConst(Posn($1),Vtrue,mBool()),$1.Tree,$4.Tree);}
+ 		| boolean AMPERSAND after sep BEGIN process END 	{ $$.Tree = mAltTimer(Posn($1),$1.Tree,$3.Tree,$6.Tree);}
+		| after sep BEGIN process END	 	  		{ $$.Tree = mAltTimer(Posn($1),mConst(Posn($1),Vtrue,mBool()),$1.Tree,$4.Tree);}
+		| boolean AMPERSAND SKIP sep BEGIN process END		{ $$.Tree = mNoInput(Posn($1),$1.Tree,$6.Tree);}
+		| boolean AMPERSAND caseguard				{ $$.Tree = mAltCaseIn(Posn($1),$1.Tree,$3.Tree);}
+		| caseguard						{ $$.Tree = mAltCaseIn(Posn($1),mConst(Posn($1),Vtrue,mBool()),$1.Tree);}
+		. 			  		
+
+caseguard	: caseinput		{ $$.Tree = $1.Tree; }
+		| casesingleproc	{ $$.Tree = $1.Tree; }
+		.
+
+specification 	: declaration	{ $$ = $1;}
+		| abbreviation  { $$ = $1;}			
+		| definition  	{ $$ = $1;}
+		. 			
+		
+declaration	: primtype namelist COLON { $$.Tree = mDecl(Posn($1),$1.Tree,T=ReverseTree($2.Tree)); TypeDecl($1.Tree,T); }
+		| arrtype namelist COLON  { $$.Tree = mDecl(Posn($1),$1.Tree,T=ReverseTree($2.Tree)); TypeDecl($1.Tree,T); }
+		| PLACE ID AT expr COLON            { $$.Tree = mNullSpec(Posn($1)); Message("Variable placement not allowed",xxWarning,Posn($1)); }
+		| PLACE ID AT WORKSPACE expr COLON  { $$.Tree = mNullSpec(Posn($1)); Message("Ignored variable placement",xxWarning,Posn($1)); }
+		| PLACE ID IN VECSPACE COLON        { $$.Tree = mNullSpec(Posn($1)); Message("Ignored variable placement",xxWarning,Posn($1)); }
+		| PLACE ID IN WORKSPACE COLON       { $$.Tree = mNullSpec(Posn($1)); Message("Ignored variable placement",xxWarning,Posn($1)); }
+		.                 
+
+name		: ID         { $$ = $1; } 
+		| TYPEID     { $$ = $1; }
+		.
+
+namelist	: name                  { if (last_type_was_chan) S=AddChanSymbol(Val($1).Ident); else S=AddSymbol(Val($1).Ident); $$.Tree = mAnId(mNoId(),S); SymbolKind(S)=$$.Tree; }
+		| namelist DECLCOMMA name  { if (last_type_was_chan) S=AddChanSymbol(Val($3).Ident); else S=AddSymbol(Val($3).Ident); $$.Tree = mAnId($1.Tree,S); SymbolKind(S)=$$.Tree; }
+		.
+
+is		: IS { $$.Scan=$1.Scan; colon_ended=false; }
+		.
+
+retypes		: RETYPES { $$.Scan=$1.Scan; colon_ended=false; }
+		.
+
+reshapes	: RESHAPES { $$.Scan=$1.Scan; colon_ended=false; }
+		.
+
+abbreviation 	: primtype ID is elemental COLON
+		{ $$.Scan = $1.Scan; $$.Tree = mIs(Posn($1),$1.Tree,S=AddSymbol(Val($2).Ident),$4.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$1.Tree;}
+		| arrtype ID is elemental COLON  		
+		{ $$.Scan = $1.Scan; $$.Tree = mIs(Posn($1),$1.Tree,S=AddSymbol(Val($2).Ident),$4.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$1.Tree;}
+		| ID is elemental COLON  		      	
+		{ $$.Scan = $1.Scan; $$.Tree = mIs(Posn($1),mUntyped(),S=AddSymbol(Val($1).Ident),$3.Tree); SymbolKind(S)=$$.Tree;}
+		| primtype ID retypes elemental COLON   
+		{ $$.Scan = $1.Scan; $$.Tree = mRetypes(Posn($1),$1.Tree,S=AddSymbol(Val($2).Ident),$4.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$1.Tree; }
+		| arrtype ID retypes elemental COLON   
+		{ $$.Scan = $1.Scan; $$.Tree = mRetypes(Posn($1),$1.Tree,S=AddSymbol(Val($2).Ident),$4.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$1.Tree;}
+		| arrtype ID reshapes elemental COLON   
+		{ $$.Scan = $1.Scan; $$.Tree = mReshapes(Posn($1),$1.Tree,S=AddSymbol(Val($2).Ident),$4.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$1.Tree;}
+		. 			    
+	
+id		: ID { Val($$).Ident = Val($1).Ident; OpenScope(); colon_ended=false; }
+		.
+
+
+pushtok         : { OpenScope(); PushTokenColumn(); }.
+
+definition 	: PROTOCOL ID IS seqproto COLON   
+		{ $$.Scan = $1.Scan; $$.Tree = mDefSeqPro(Posn($1),S=AddSymbol(Val($2).Ident),ReverseTree($4.Tree)); SymbolKind(S)=$$.Tree;}
+		| PROTOCOL ID sep BEGIN CASE sep END COLON  
+		{ $$.Scan = $1.Scan; $$.Tree = mDefTagPro(Posn($1),S=AddSymbol(Val($2).Ident),mNoTagPro()); SymbolKind(S)=$$.Tree;}
+		| PROTOCOL ID sep BEGIN CASE sep BEGIN tagprotolist sep END END COLON 
+		{ $$.Scan = $1.Scan; $$.Tree = mDefTagPro(Posn($1),S=AddSymbol(Val($2).Ident),ReverseTree($8.Tree)); SymbolKind(S)=$$.Tree;}
+		| PROC id LP O_fparmlist RP sep BEGIN process END COLON
+		{ $$.Scan = $1.Scan; CloseScope(); $$.Tree = mDefProc(Posn($1),S=AddSymbol(Val($2).Ident),$4.Tree,$8.Tree); SymbolKind(S)=$$.Tree; TypeFormals($4.Tree);}
+		| typelist FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON  
+		{ $$.Scan = $1.Scan; CloseScope(); $$.Tree = mDefFunc(Posn($1),S=AddSymbol(Val($3).Ident),T=ReverseTree($1.Tree),$5.Tree,$10.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=T; TypeFormals($5.Tree); $10.Tree->Valof.Sym=S; }
+		| typelist FUNCTION id LP O_fparmlist RP IS isexplist COLON
+		{ $$.Scan = $1.Scan; CloseScope(); $$.Tree = mDefIsFunc(Posn($1),S=AddSymbol(Val($3).Ident),T=ReverseTree($1.Tree),$5.Tree,ReverseTree($8.Tree)); SymbolKind(S)=$$.Tree; SymbolType(S)=T; TypeFormals($5.Tree);}
+		| INLINE PROC id LP O_fparmlist RP sep BEGIN process END COLON
+		{ $$.Scan = $1.Scan; CloseScope(); $$.Tree = mInlineDefProc(Posn($1),S=AddSymbol(Val($3).Ident),$5.Tree,$9.Tree); SymbolKind(S)=$$.Tree; TypeFormals($5.Tree);}
+		| typelist INLINE FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON  
+		{ $$.Scan = $1.Scan; CloseScope(); $$.Tree = mInlineDefFunc(Posn($1),S=AddSymbol(Val($4).Ident),T=ReverseTree($1.Tree),$6.Tree,$11.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=T; TypeFormals($6.Tree); $11.Tree->Valof.Sym=S; }
+		| typelist INLINE FUNCTION id LP O_fparmlist RP IS isexplist COLON
+		{ $$.Scan = $1.Scan; CloseScope(); $$.Tree = mInlineDefIsFunc(Posn($1),S=AddSymbol(Val($4).Ident),T=ReverseTree($1.Tree),$6.Tree,ReverseTree($9.Tree)); SymbolKind(S)=$$.Tree; SymbolType(S)=T; TypeFormals($6.Tree);}
+		| VAL ID is expr COLON
+ 		{ $$.Scan = $1.Scan; $$.Tree = mVal(Posn($1),mUntyped(),S=AddSymbol(Val($2).Ident),$4.Tree); SymbolKind(S)=$$.Tree;}
+		| VAL spectype ID is expr COLON
+    		{ $$.Scan = $1.Scan; $$.Tree = mVal(Posn($1),$2.Tree,S=AddSymbol(Val($3).Ident),$5.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$2.Tree;}
+		| VAL spectype ID retypes expr COLON  
+		{ $$.Scan = $1.Scan; $$.Tree = mValRetypes(Posn($1),$2.Tree,S=AddSymbol(Val($3).Ident),$5.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$2.Tree;}
+		| VAL spectype ID reshapes expr COLON  
+		{ $$.Scan = $1.Scan; $$.Tree = mValReshapes(Posn($1),$2.Tree,S=AddSymbol(Val($3).Ident),$5.Tree); SymbolKind(S)=$$.Tree; SymbolType(S)=$2.Tree;}
+                | prototype
+		{ $$.Scan = $1.Scan; CHK_Mode(xxPrototype,Posn($1)); $$.Tree = $1.Tree; } 
+		| userdatatype
+		{ $$.Scan = $1.Scan; CHK_Mode(xxUserDataTypes,Posn($1)); $$.Tree = $1.Tree; }
+ 		. 			     
+
+userdatatype    : DATA TYPE typeid IS datatype COLON
+ 		{ 
+		  CloseScope();
+                  $$.Scan = $1.Scan; 
+                  $$.Tree = mDeclType(Posn($1),TypeUserDataType($5.Tree,S=AddSymbol(Val($3).Ident),Posn($1))); 
+                  SymbolKind(S)=$$.Tree;
+                  SymbolType(S)=$$.Tree->DeclType.Type; 
+                }
+		| DATA TYPE typeid sep BEGIN structuredtype END COLON 
+		{ 
+		  CloseScope();
+                  $$.Scan = $1.Scan; 
+                  $$.Tree = mDeclType(Posn($1),mUserRecord(Posn($1),S=AddSymbol(Val($3).Ident),$6.Tree)); 
+                  SymbolKind(S)=$$.Tree; 
+                  SymbolType(S)=$$.Tree->DeclType.Type; 
+                }
+		| DATA TYPE typeid sep BEGIN PACKED structuredtype END COLON 
+		{ 
+		  CloseScope();
+                  $$.Scan = $1.Scan; 
+                  $$.Tree = mDeclType(Posn($1),mUserPackedRecord(Posn($1),S=AddSymbol(Val($3).Ident),$7.Tree)); 
+                  SymbolKind(S)=$$.Tree; 
+                  SymbolType(S)=$$.Tree->DeclType.Type; 
+                }
+		| CHAN TYPE typeid sep BEGIN structuredtype END COLON
+		{ 
+		  CloseScope();
+		  $$.Scan = $1.Scan;
+                  $$.Tree = mDeclType(Posn($1),mUserChanRecord(Posn($1),S=AddSymbol(Val($3).Ident),$6.Tree)); 
+                  SymbolKind(S)=$$.Tree; 
+                  SymbolType(S)=$$.Tree->DeclType.Type; 
+                }
+		.
+
+structuredtype  : RECORD sep BEGIN fieldlist END
+		{ $$.Scan = $1.Scan; $$.Tree = ReverseTree($4.Tree); }
+		| RECORD sep
+		{ $$.Scan = $1.Scan; $$.Tree = mNoField(); }
+		.
+
+fieldlist	: fielddecl COLON sep 
+		{ $$.Scan = $1.Scan; $$.Tree = $1.Tree; }
+		| fieldlist fielddecl COLON sep 
+                { $$.Scan = $1.Scan; $$.Tree = CatFieldList($2.Tree,$1.Tree); } 
+		.
+
+fielddecl	: spectype name
+		{ $$.Scan = $1.Scan; 
+                  $$.Tree = mAField(mNoField(),S=AddSymbol(Val($2).Ident),$1.Tree); 
+                  SymbolKind(S)=$$.Tree;
+		  SymbolType(S)=$1.Tree;
+                } 
+		| fielddecl DECLCOMMA name
+		{
+		  $$.Scan = $1.Scan;
+		  $$.Tree = mAField($1.Tree,S=AddSymbol(Val($3).Ident),$1.Tree->AField.Type);
+		  SymbolKind(S)=$$.Tree;
+		  SymbolType(S)=$1.Tree->AField.Type;
+		}
+		.
+
+typeid          : ID {$$.Scan = $1.Scan; Val($$).Ident = Val($1).Ident; OpenScope(); }
+		| TYPEID {$$.Scan = $1.Scan; Val($$).Ident = Val($1).Ident; OpenScope(); }
+		.
+
+
+LANG		: EXTERN_OCCAM
+		{ $$.Scan = $1.Scan; Val($$).Number = xxOccam; }
+		| EXTERN_F90
+		{ $$.Scan = $1.Scan; Val($$).Number = xxF90; ADD_Mode(xxCallF90); }
+		| EXTERN_F77
+		{ $$.Scan = $1.Scan; Val($$).Number = xxF77; }
+		| EXTERN_C
+		{ $$.Scan = $1.Scan; Val($$).Number = xxC; }
+		| EXTERN_ATOMIC
+		{ $$.Scan = $1.Scan; Val($$).Number = xxAtomicOccam; }
+		.
+		
+
+prototype	: LANG PROC id LP O_fparmlist RP COLON proto_id
+		{ CloseScope(); $$.Scan=$1.Scan; $$.Tree = mPrototypeProc(Posn($2),S=AddSymbol(Val($3).Ident),$5.Tree,Val($8).Ident,Val($1).Number); SymbolKind(S)=$$.Tree; TypeFormals($5.Tree);}
+		| LANG typelist FUNCTION id LP O_fparmlist RP COLON proto_id
+		{ CloseScope(); $$.Scan=$1.Scan; $$.Tree = mPrototypeFunc(Posn($2),S=AddSymbol(Val($4).Ident),T=ReverseTree($2.Tree),$6.Tree,Val($9).Ident,Val($1).Number); SymbolKind(S)=$$.Tree; SymbolType(S)=T; TypeFormals($6.Tree);}
+		.
+
+proto_id	:
+		{ Val($$).Ident = NoIdent; }
+		| ID
+		{ $$=$1; }
+		.
+
+simpleproto 	: spectype  	 		{  $$.Tree = mSimple(Posn($1),$1.Tree); }
+		| numerictype DCOLON LSB RSB spectype  {  $$.Tree = mCounted(Posn($1),$1.Tree,mArray(mUnBound(Posn($4)),$5.Tree)); }
+		| ANY  				{  $$.Tree = mAny(Posn($1)); }
+		. 			    
+		
+
+seqproto 	: simpleproto  		        {  $$.Tree = mASeqPro(mNoSeqPro(),$1.Tree); }
+		| seqproto SEMICOLON simpleproto        {  $$.Tree = mASeqPro($1.Tree,$3.Tree); }
+		. 			  
+		
+
+tagprotolist 	: tagproto  		 	{  $$.Tree->ATagPro.Next = mNoTagPro(); }
+		| tagprotolist sep tagproto  		{ $$.Scan=$1.Scan; $$.Tree = $3.Tree ; $$.Tree->ATagPro.Next = $1.Tree; }
+		. 			  
+		
+
+tagproto 	: ID  				{  $$.Tree = mATagPro(NoTree,S=AddSymbol(Val($1).Ident),mNoSeqPro()); SymbolKind(S)=$$.Tree; SymbolType(S)=mByte(); }
+		| ID SEMICOLON seqproto  	{  $$.Tree = mATagPro(NoTree,S=AddSymbol(Val($1).Ident),ReverseTree($3.Tree)); SymbolKind(S)=$$.Tree; SymbolType(S)=mByte(); }
+		. 			  
+		
+
+protocol 	: ID   					{ $$.Tree = mNamed(Posn($1),LookupSymbol($1.Scan)); }
+		| simpleproto  				{ $$=$1; }
+		. 			
+		
+
+assignment 	: varlist ASSIGN explist  { $$.Tree = mAssign(Posn($2),mNoSpec(),ReverseTree($1.Tree),ReverseTree($3.Tree)); }
+		. 		   
+		
+
+input 		: element QUERY ilist  		{  $$.Tree = mInput(Posn($2),mNoSpec(),$1.Tree,ReverseTree($3.Tree)); }
+		.
+
+after		: element QUERY AFTER expr      {  $$.Tree = mAfter(Posn($2),mNoSpec(),$1.Tree,$4.Tree); }
+		. 			   
+		
+caseinput 	: element QUERY case sep			{ CloseScope(); $$.Tree = mCaseIn(Posn($1),mNoSpec(), $1.Tree,mNoCase()); }
+		| element QUERY case sep BEGIN variantlist END	{ CloseScope(); $$.Tree = mCaseIn(Posn($1),mNoSpec(), $1.Tree,ReverseTree($6.Tree)); }
+		.
+
+casesingle	: element QUERY case ilist sep			{ CloseScope(); $$.Tree = mCaseIn(Posn($2),mNoSpec(), $1.Tree,mACase(mNoCase(),mNoSpec(),ReverseTree($4.Tree),mSkip(Posn($2),mNoSpec())));}
+		. 			      
+
+casesingleproc	: element QUERY case ilist sep BEGIN process END { CloseScope(); $$.Tree = mCaseIn(Posn($2),mNoSpec(), $1.Tree,mACase(mNoCase(),mNoSpec(),ReverseTree($4.Tree),$7.Tree));}
+		. 			      
+		
+
+variantlist 	: variant  		{ $$.Tree->ACase.Next = mNoCase(); CloseScope(); OpenScope(); }
+		| variantlist variant   { $$.Scan =$1.Scan; $$.Tree = $2.Tree; $$.Tree->ACase.Next = $1.Tree; CloseScope(); OpenScope(); }
+		. 			  
+		
+
+variant 	: ilist sep BEGIN process END     { $$.Tree = mACase(NoTree,mNoSpec(),ReverseTree($1.Tree),$4.Tree); }
+		| specification sep variant      {  $$.Tree = $3.Tree; InsertASpec($3.Tree->ACase.SpecList,$1.Tree);}
+		. 			  
+		
+
+output  	: element PLING olist	{  $$.Tree = mOutput(Posn($2),mNoSpec(),$1.Tree,ReverseTree($3.Tree)); }
+		. 			  
+		
+
+olist  		: oitem                  {  $$.Tree = mAnExpr(mNoExpr(), $1.Tree); }
+		| olist SEMICOLON oitem  {  $$.Tree = mAnExpr($1.Tree, $3.Tree); }
+       		.
+
+oitem  		: expr                    { $$=$1; }
+		| expr DCOLON expr        {  $$.Tree = mCountArray(Posn($1),$1.Tree,$3.Tree); }
+		.
+
+ilist 		: iitem		  {  $$.Tree = mAnExpr(mNoExpr(), $1.Tree); }
+		| ilist SEMICOLON iitem {  $$.Tree = mAnExpr($1.Tree, $3.Tree); }
+		. 			  
+
+iitem   	: element  		  {  $$.Tree = mElementalExpr(Posn($1),$1.Tree); }
+		| element DCOLON element  {  $$.Tree = mCountArray(Posn($1),mElementalExpr(Posn($1),$1.Tree),mElementalExpr(Posn($1),$3.Tree)); } 
+		. 			  
+		
+
+explist 	: expr 		     { $$.Scan = $1.Scan; $$.Tree = mAnExpr(mNoExpr(), $1.Tree); }
+		| explist COMMA expr { $$.Scan = $1.Scan; $$.Tree = mAnExpr($1.Tree, $3.Tree); }
+		. 			  
+
+isexplist 	: expr 		     { $$.Scan = $1.Scan; $$.Tree = mAnExpr(mNoExpr(), $1.Tree); }
+		| isexplist comma expr { $$.Scan = $1.Scan; $$.Tree = mAnExpr($1.Tree, $3.Tree); }
+		. 			  
+		
+
+varlist 	: element       {  $$.Scan = $1.Scan; $$.Tree = mAnExpr(mNoExpr(), mElementalExpr(Posn($1),$1.Tree)); } 
+  		| varlist comma element  {  $$.Scan = $1.Scan; $$.Tree= mAnExpr($1.Tree, mElementalExpr(Posn($1),$3.Tree)); }
+		. 
+		
+
+typelist 	: primtype  		  {  $$.Tree = mAType(mNoType(),$1.Tree); }
+		| arrtype  		  {  $$.Tree = mAType(mNoType(),$1.Tree); }
+		| typelist comma spectype {  $$.Tree = mAType($1.Tree,$3.Tree); }
+		. 			  
+
+O_fparmlist     :
+		{ $$.Tree = mNoFormals(SymSize+1); /* Identify next symbol to be declared  */ }
+		| fparmlist
+		{ $$.Tree = $1.Tree; }
+		.
+
+fparmlist 	: firstparm  	{ $$.Tree=$1.Tree; $$.Tree->AFormal.Next = mNoFormal();}
+		| firstparm comma fparmrest  { $$.Tree=$1.Tree; $$.Tree->AFormal.Next = $3.Tree;}
+		. 			  
+		
+
+fparmrest 	: fparm  	{ $$.Tree=$1.Tree; $$.Tree->AFormal.Next = mNoFormal();}
+		| fparm comma fparmrest { $$.Tree=$1.Tree; $$.Tree->AFormal.Next = $3.Tree;}
+		. 			  
+		
+
+firstparm 	: spectype O_id 	{ $$.Tree=mAFormal(NoTree,Posn($1),mByRef(),$1.Tree,S=Val($2).Symbol); SymbolKind(S)=$$.Tree; }
+		| VAL spectype O_id  	{ $$.Tree=mAFormal(NoTree,Posn($1),mByVal(),$2.Tree,S=Val($3).Symbol); SymbolKind(S)=$$.Tree; }
+		. 			  
+		
+
+fparm 		: spectype O_id  	{ $$.Tree=mAFormal(NoTree,Posn($1),mByRef(),$1.Tree,S=Val($2).Symbol); SymbolKind(S)=$$.Tree;}
+		| VAL spectype O_id 	{ $$.Tree=mAFormal(NoTree,Posn($1),mByVal(),$2.Tree,S=Val($3).Symbol); SymbolKind(S)=$$.Tree;}
+		| ID  			{ $$.Tree=mAFormal(NoTree,Posn($1),mByUndef(),mUntyped(),S=AddSymbol(Val($1).Ident)); SymbolKind(S)=$$.Tree;}
+		. 			
+		
+O_id		:     { CHK_Mode(xxPrototype,Attribute.Position); Val($$).Symbol=NoSymbol; }
+		| ID  { $$.Scan=$1.Scan;  Val($$).Symbol=AddSymbol(Val($1).Ident);}
+		.
+
+element 	: ID  				{ $$.Scan = $1.Scan; $$.Tree = mUnmappedIdentifier(Posn($1), NoSymbol, CurrentScope(), Val($1).Ident); }
+		| element LSB subscript RSB  	{ $$.Scan = $1.Scan; $$.Tree = mSubscript(Posn($3), $1.Tree, $3.Tree); }
+		| LSB element FROM subscript FOR subscript RSB  { $$.Scan = $1.Scan; $$.Tree = mRange(Posn($1), $2.Tree, $4.Tree, $6.Tree); }
+		| LSB element FOR subscript RSB  { 
+			$$.Scan = $1.Scan;
+                        {
+                          tValue tmp; tmp.Number = 0;
+ 			  $$.Tree = mRange(Posn($1), $2.Tree, mConst(Posn($1),tmp,mInt()), $4.Tree); 
+                        }
+			CHK_Mode(xxUserDataTypes,Posn($1)) ; }
+		| LSB element FROM subscript RSB  { 
+			$$.Scan = $1.Scan; 
+			$$.Tree = mRange(Posn($1), $2.Tree, $4.Tree, mBinary(Posn($1),mUnary(Posn($1),mElementalExpr(Posn($1),$2.Tree),mSize()),$4.Tree,mSubtract())); 
+			CHK_Mode(xxUserDataTypes,Posn($1)) ; }
+		.
+
+elemental	: element	{ $$ = $1; }
+		| table_element { $$ = $1; }
+		.
+		
+subscript 	: expr  { $$ = $1; }
+		.
+
+table		: LSB expr COMMA explist RSB	{ $$.Scan = $1.Scan; $$.Tree = mTable(Posn($1),mAnExpr(ReverseTree($4.Tree),$2.Tree),Depth,S=AddSymbol(NoIdent)); SymbolKind(S)=$$.Tree;}
+		| table LSB subscript RSB  	{ $$.Scan = $1.Scan; $$.Tree = mTableSubscript(Posn($3), $1.Tree, $3.Tree); }
+		| funccall LSB subscript RSB  	{ $$.Scan = $1.Scan; $$.Tree = mTableSubscript(Posn($3), TypeTableExpr($1.Tree), $3.Tree); }
+		| LSB table_element FROM subscript FOR subscript RSB  { $$.Scan = $1.Scan; $$.Tree = mTableRange(Posn($1), $2.Tree, $4.Tree, $6.Tree); }
+		.
+
+litrecord       : LSB expr COMMA explist RSB LP TYPEID RP { $$.Scan = $1.Scan; $$.Tree = mElementalExpr(Posn($1),mUserLiteral(Posn($1),mAnExpr(ReverseTree($4.Tree),$2.Tree),Depth,S=AddSymbol(NoIdent),SymbolType(LookupSymbol($7.Scan)))); }
+                | sbexprlist LP TYPEID RP { $$.Scan = $1.Scan; $$.Tree = mElementalExpr(Posn($1),mUserLiteral(Posn($1),$1.Tree,Depth,S=AddSymbol(NoIdent),SymbolType(LookupSymbol($3.Scan)))); }
+                .
+
+
+table_element 	: table		{ $$.Scan = $1.Scan; $$.Tree = $1.Tree; }
+		| sbexprlist	{ $$.Scan = $1.Scan; $$.Tree = mTableElementFromExprList($1.Tree,Posn($1),Depth); }
+		.
+
+string_element	: STR					{ $$.Scan = $1.Scan; $$.Tree = mString(Posn($1),Val($1).String,mUntyped(),Depth,S=AddSymbol(NoIdent)); SymbolKind(S)=$$.Tree;}
+		| STR LP datatype RP 			{ $$.Scan = $1.Scan; $$.Tree = mString(Posn($1),Val($1).String,$3.Tree,Depth,S=AddSymbol(NoIdent)); SymbolKind(S)=$$.Tree; CHK_Mode(xxUserDataTypes,Posn($1)); }
+		| string_element LSB subscript RSB      { $$.Scan = $1.Scan; $$.Tree = mStringSubscript(Posn($3), $1.Tree, $3.Tree); }
+		| LSB string_element FROM subscript FOR subscript RSB   { $$.Scan = $1.Scan; $$.Tree = mStringRange(Posn($1), $2.Tree, $4.Tree, $6.Tree); }
+		.
+
+expr      	: monop operand  	{ $$.Scan = $1.Scan; $$.Tree = mUnary(Posn($1), $2.Tree, $1.Tree); }
+		| SIZE operand          { $$.Scan = $1.Scan; $$.Tree = mUnary(Posn($1), $2.Tree, mSize()); }
+		| SIZE spectype         { $$.Scan = $1.Scan; $$.Tree = mSizeOf(Posn($1),$2.Tree); }
+		| operand dyop operand  { $$.Scan = $1.Scan; $$.Tree = mBinary(Posn($2), $1.Tree, $3.Tree, $2.Tree); }
+		| operand		{ $$ = $1; }
+		| conversion		{ $$ = $1; }		
+		| boolexpr              { $$ = $1; }
+		.
+
+lp		: LP  { OpenScope(); OpenScope(); PushColumn(Posn($1).Column); PushTokenColumn(); }
+		.
+
+boolexpr        : operand boolop operand  {$$.Scan = $1.Scan; $$.Tree = mBinary(Posn($2), $1.Tree, $3.Tree, $2.Tree); }
+		| boolexpr boolop operand {$$.Scan = $1.Scan; $$.Tree = mBinary(Posn($2), $1.Tree, $3.Tree, $2.Tree); }
+		.
+
+funccall	: ID LP explist RP	  { $$.Scan = $1.Scan; $$.Tree = CreateFuncCall(Posn($1), LookupSymbol($1.Scan),ReverseTree($3.Tree),Depth); } 
+		| ID LP RP		  { $$.Scan = $1.Scan; $$.Tree = CreateFuncCall(Posn($1), LookupSymbol($1.Scan),mNoExpr(),Depth); } 
+		.
+
+operand 	: element		  { $$.Scan = $1.Scan; $$.Tree = mElementalExpr(Posn($1),$1.Tree); }
+		| table_element           { $$.Scan = $1.Scan; $$.Tree = mElementalExpr(Posn($1),$1.Tree); }
+		| string_element          { $$ = $1; }
+		| intliteral		  { $$ = $1; }
+		| RNUMBER LP primtype RP  { $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),Val($1),$3.Tree); if (!Tree_IsType($3.Tree,kReal)) Message("Constant of inappropriate type",xxError,Posn($1)); }
+		| RNUMBER                 { $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),Val($1),mUntypedReal()); }
+		| lp expr RP		  { $$.Scan = $1.Scan; $$.Tree = $2.Tree; CloseScope(); CloseScope(); PopColumn(); PopColumn(); }
+		| lp valof RP		  { $$.Scan = $1.Scan; $$.Tree = $2.Tree; CloseScope(); PopColumn(); }
+		| MOSTPOS numerictype	  { $$.Scan = $1.Scan; $$.Tree = mMostPos(Posn($1),$2.Tree); }
+		| MOSTNEG numerictype	  { $$.Scan = $1.Scan; $$.Tree = mMostNeg(Posn($1),$2.Tree); }
+                | litrecord               { CHK_Mode(xxUserDataTypes,Posn($1)); }
+		| BYTESIN LP datatype RP    { $$ = $1; $$.Tree = mBytesInType(Posn($1), $3.Tree);  CHK_Mode(xxUserDataTypes,Posn($1)); }
+		| BYTESIN LP expr RP    { $$ = $1; $$.Tree = mBytesInExpr(Posn($1), $3.Tree);  CHK_Mode(xxUserDataTypes,Posn($1)); }
+		| OFFSETOF LP TYPEID comma ID RP    { $$.Scan = $1.Scan; $$.Tree = mOffsetOf(Posn($1),SymbolType(LookupSymbol($3.Scan)),mUnmappedIdentifier(Posn($5), NoSymbol, CurrentScope(), Val($5).Ident));  CHK_Mode(xxUserDataTypes,Posn($1)); }
+		| funccall { $$ = $1; }
+		. 			  
+
+		
+monop 		: SUBTRACT	{ $$.Scan = $1.Scan; $$.Tree = mSubtract(); }
+		| NOT		{ $$.Scan = $1.Scan; $$.Tree = mNot(); }
+		| BITNOT	{ $$.Scan = $1.Scan; $$.Tree = mBitNot(); }
+		| ADD		{ $$.Scan = $1.Scan; $$.Tree = mAdd(); }
+		| MINUS		{ $$.Scan = $1.Scan; $$.Tree = mMinus(); }
+		| PLUS		{ $$.Scan = $1.Scan; $$.Tree = mPlus(); }
+		.
+
+dyop 		: LT		{ $$.Scan = $1.Scan; $$.Tree = mLess(); }
+		| GT		{ $$.Scan = $1.Scan; $$.Tree = mGreater(); }
+		| LE		{ $$.Scan = $1.Scan; $$.Tree = mLessEqual(); }
+		| GE		{ $$.Scan = $1.Scan; $$.Tree = mGreaterEqual(); }
+		| EQ		{ $$.Scan = $1.Scan; $$.Tree = mEqual(); }
+		| NE		{ $$.Scan = $1.Scan; $$.Tree = mNotEqual(); }
+		| ADD		{ $$.Scan = $1.Scan; $$.Tree = mAdd(); }
+		| SUBTRACT	{ $$.Scan = $1.Scan; $$.Tree = mSubtract(); }
+		| MULTIPLY	{ $$.Scan = $1.Scan; $$.Tree = mMultiply(); }
+		| DIVIDE	{ $$.Scan = $1.Scan; $$.Tree = mDivide(); }
+		| BITAND	{ $$.Scan = $1.Scan; $$.Tree = mBitAnd(); }
+		| BITOR		{ $$.Scan = $1.Scan; $$.Tree = mBitOr(); }
+		| BITEOR	{ $$.Scan = $1.Scan; $$.Tree = mBitEor(); }
+		| LSHIFT	{ $$.Scan = $1.Scan; $$.Tree = mLeftShift(); }
+		| RSHIFT	{ $$.Scan = $1.Scan; $$.Tree = mRightShift(); }
+		| REM		{ $$.Scan = $1.Scan; $$.Tree = mRem(); }
+		| MINUS		{ $$.Scan = $1.Scan; $$.Tree = mMinus(); }
+		| PLUS		{ $$.Scan = $1.Scan; $$.Tree = mPlus(); }
+		| TIMES		{ $$.Scan = $1.Scan; $$.Tree = mTimes(); }
+		| AFTER		{ $$.Scan = $1.Scan; $$.Tree = mAfterOp(); }
+		.
+
+boolop		: AND		{ $$.Scan = $1.Scan; $$.Tree = mAnd(); }
+		| OR		{ $$.Scan = $1.Scan; $$.Tree = mOr(); }
+		.
+
+conversion 	: primtype operand		{ $$.Scan = $1.Scan; $$.Tree = mConvert(Posn($1), $1.Tree, $2.Tree); }
+		| primtype ROUND operand	{ $$.Scan = $1.Scan; $$.Tree = mRound(Posn($1), $1.Tree, $3.Tree); }
+		| primtype TRUNC operand	{ $$.Scan = $1.Scan; $$.Tree = mTrunc(Posn($1), $1.Tree, $3.Tree); }
+		. 			  
+
+intliteral	: NUMBER	                { $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),mUntyped(),Val($1).Number,false),mUntypedInt()); }
+		| HEXNUMBER     	        { $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),mUntyped(),Val($1).Number,true),mUntypedHex()); }
+		| TRUE                  	{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),mBool(),true,false),mBool()); }
+		| FALSE                    	{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),mBool(),false,false),mBool()); }
+		| CHCON				{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),mByte(),Val($1).Char,true),mUntypedByte()); }
+		| NUMBER LP numerictype RP		{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),$3.Tree,Val($1).Number,false),$3.Tree); }
+		| HEXNUMBER LP numerictype RP	{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),$3.Tree,Val($1).Number,true),$3.Tree); }
+		| CHCON LP numerictype RP		{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),$3.Tree,Val($1).Char,true),$3.Tree); }
+		| TRUE LP numerictype RP		{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),$3.Tree,true,false),$3.Tree); }
+		| FALSE LP numerictype RP		{ $$.Scan = $1.Scan; $$.Tree = mConst(Posn($1),CheckConst(Posn($1),$3.Tree,false,false),$3.Tree); }
+		.
+
+valoftok	: VALOF  { $$.Scan = $1.Scan; OpenScope(); }
+		.
+
+result		: RESULT { $$.Scan = $1.Scan; CloseScope(); PopColumn(); }
+		.
+
+valof 		: valoftok sep BEGIN process result explist sep END { CloseScope(); $$.Tree = mValof(Posn($1),mNoSpec(),$4.Tree,ReverseTree($6.Tree),S=AddSymbol(NoIdent),Depth); SymbolKind(S)=$$.Tree; }
+		| specification sep valof { $$.Tree = $3.Tree; InsertASpec($3.Tree->Valof.SpecList,$1.Tree); }
+		.		
+
+spectype 	: primtype  { $$=$1; }
+		| arrtype   { $$=$1; }
+		.
+			
+datatype        : numerictype  { $$=$1; }
+                | arrtype   { $$=$1; }
+                .
+
+primtype 	: CHAN OF protocol	{ $$.Scan = $1.Scan; $$.Tree = mChan($3.Tree); last_type_was_chan=true; }
+		| PORT OF spectype      { $$.Scan = $1.Scan; $$.Tree = mChan(mSimple(Posn($3),$3.Tree)); Message("PORT not supported",xxError,Posn($1)); last_type_was_chan=true; } 
+		| TIMER			{ $$.Scan = $1.Scan; $$.Tree = mTimer(); last_type_was_chan=false; }
+		| numerictype		{ $$ = $1; last_type_was_chan=false;}
+		.
+		
+numerictype	: inttype	{ $$ = $1; }
+		| realtype	{ $$ = $1; }
+		| TYPEID        { $$.Scan = $1.Scan; $$.Tree = SymbolType(LookupSymbol($1.Scan)); CHK_Mode(xxUserDataTypes,Posn($1)); }
+		.
+
+inttype		: BOOL    {  $$.Scan = $1.Scan; $$.Tree = mBool(); }
+		| BYTE    {  $$.Scan = $1.Scan; $$.Tree = mByte(); }
+		| INT  	  {  $$.Scan = $1.Scan; $$.Tree = mInt(); }
+		| INT16   {  $$.Scan = $1.Scan; $$.Tree = mInt16(); }
+		| INT32   {  $$.Scan = $1.Scan; $$.Tree = mInt32(); }
+		| INT64   {  $$.Scan = $1.Scan; if (IS_Mode(xxSupportINT64)) $$.Tree = mInt64(); else { Message("No INT64 support therefore converting to INT32",xxWarning,Posn($1)); $$.Tree = mInt32(); } }
+		.
+
+realtype	: REAL32  {  $$.Scan = $1.Scan; $$.Tree = mReal32(); }
+		| REAL64  {  $$.Scan = $1.Scan; $$.Tree = mReal64(); }
+		.
+
+arrtype		: sbexprlist primtype { $$.Scan = $1.Scan; $$.Tree = mArrayFromExprList(ReverseTree($1.Tree),$2.Tree); }
+		.
+
+sbexpr		: LSB RSB      { $$.Scan = $1.Scan; $$.Tree = mUnBound(Posn($1)); }
+		| LSB expr RSB { $$.Scan = $1.Scan; $$.Tree = $2.Tree ; }
+		.
+
+sbexprlist	: sbexpr		{ $$.Scan = $1.Scan; $$.Tree = mAnExpr(mNoExpr(),$1.Tree) ; }
+		| sbexprlist sbexpr     { $$.Scan = $1.Scan; $$.Tree = mAnExpr($1.Tree,$2.Tree); }
+		.
+
+boolean 	: expr  { $$.Scan = $1.Scan; }
+		. 			
+
+comma           : COMMA | DECLCOMMA .

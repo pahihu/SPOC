@@ -1,0 +1,86 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.core
+PROC sp.core (CHAN OF SP fs, ts, VAL INT32 offset,
+              INT bytes.read, []BYTE data, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To return the contents of the root transputer's memory as
+  --           peeked from the transputer when the server was invoked with
+  --           the analyse option.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       offset - this gives the offset from base of memory
+  --           ( (MOSTNEG INT) ) of the memory segment to be read ( so offset
+  --           should be non-negative ); result will be >= spr.operation.failed
+  --           if offset is larger than the amount of memory that was peeked
+  -- Out:      bytes.read - the number of bytes read, which will be
+  --           [data FROM 0 FOR bytes.read], if result = spr.ok; otherwise
+  --           will be zero
+  -- Out:      data - contains the contents of the memory read; (SIZE data)
+  --           is the amount of memory in bytes that is requested to be read
+  -- Out:      result - equal to spr.ok if the peeked memory was successfully
+  --           returned; otherwise takes on a value indicating what the problem
+  --           was:
+  --             spr.bad.packet.size   data is too large,
+  --                                     (SIZE data) > sp.max.corerequest.size
+  --           >=spr.operation.failed  the operation failed or the transputer
+  --                                   was not analysed when the server was
+  --                                   invoked or offset is greater than the
+  --                                   amount of memory peeked - refer to
+  --                                   hostio.inc or iserver documentation for
+  --                                   further details
+  -- Notes:    If offset + (SIZE data) is larger than the total memory peeked
+  --           then only those bytes from offset up to the end of that memory
+  --           peeked are returned in data.
+  --           If both offset and SIZE data are zero, the routine fails if
+  --           the memory was not peeked, succeeds otherwise.
+  --}}}
+
+  IF
+    (SIZE data) > sp.max.corerequest.size
+      SEQ
+        result := spr.bad.packet.size
+        bytes.read := 0
+    TRUE
+      [sp.max.packet.data.size]BYTE buffer :
+      INT16 temp.INT16 :
+      SEQ
+        --{{{  pack the data into the buffer (7 bytes)
+        buffer [0] := sp.core.tag
+        
+        VAL [4]BYTE b.offset RETYPES offset :
+        [buffer FROM 1 FOR 4] := b.offset
+        
+        temp.INT16 := INT16 (SIZE data)
+        VAL [2]BYTE b.length.required RETYPES temp.INT16 :
+        [buffer FROM 5 FOR 2] := b.length.required
+        --}}}pack the data into the buffer (7 bytes)
+        --{{{  send and receive the buffer
+        ts ! 8 (INT16)  :: buffer  -- 8 is 7 rounded up to be even
+        fs ? temp.INT16 :: buffer
+        --}}}
+        --{{{  unpack the data               (1, or 3 bytes plus data)
+        result := buffer [0]
+        
+        IF
+          result = spr.ok
+            SEQ
+              [2]BYTE b.temp RETYPES temp.INT16 :
+              b.temp := [buffer FROM 1 FOR 2]
+              bytes.read := INT temp.INT16
+        
+              [data FROM 0 FOR bytes.read] := [buffer FROM 3 FOR bytes.read]
+          TRUE
+            bytes.read := 0
+        --}}}unpack the data               (1, or 3 bytes plus data)
+:
+--}}}sp.core
+--{{{  so.core
+PROC so.core (CHAN OF SP fs, ts, VAL INT32 offset,
+              INT bytes.read, []BYTE data, BYTE result)
+
+  sp.core (fs, ts, offset, bytes.read, data, result)
+:
+--}}}so.core

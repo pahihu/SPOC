@@ -1,0 +1,19 @@
+#INCLUDE "farm.inc"
+PROC loopback(CHAN OF farming toLoop,fromLoop)
+  INT EqnType,Samples, Node :
+  REAL64 Power,deltax :
+  BOOL More :
+
+  SEQ
+    More := TRUE
+    WHILE More
+      toLoop?CASE
+        initial.packet; EqnType; Samples; deltax; Power; Node
+          -- Swallow up initialisation packet
+          SKIP
+
+        stop.packet
+          SEQ
+            fromLoop!stop.packet
+            More := FALSE
+:

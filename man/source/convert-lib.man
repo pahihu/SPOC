@@ -1,0 +1,95 @@
+'\" t
+.\"
+.\" Manual page for convert.lib - INMOS occam toolset type conversion library
+.\"
+.\" $Source: /u0/src/local/bin/oc2man/RCS/convert-lib.man,v $
+.\"
+.\" $Id: convert-lib.man,v 1.2 1993/03/10 16:34:29 djb1 Exp $
+.\"
+.\" Copyright (C) 1993 David Beckett, University of Kent at Canterbury
+.\"
+.\" This was derived from convert.lib (the library) using ilist and the
+.\" perl program fixilist.pl which cleaned up the output.
+.\"
+.de tt \" Begin tt definition [.ttype]
+.ft CR
+.nf
+..     \" End tu definition
+.de tu \" Begin tu definition [.tu End ttype]
+.fi
+.ft P
+..     \" End tu definition
+.de ve \" Begin ve definition [.verb]
+.ft CR
+\\$1
+.ft P
+..
+.TH CONVERTLIB 3L "8 March 1993" CONVERTLIB "OCCAM LIBRARIES" CONVERTLIB
+.SH NAME
+convert.lib \- INMOS occam toolset type conversion library
+.SH SYNOPSIS
+.tt
+#USE "convert.lib"
+.tu
+.SH SUMMARY
+The occam toolset library convert.lib provides conversion procedures
+that format data types into strings and parse strings to give the
+data types.
+.LP
+.SH OVERVIEW
+To use the functions in this library do the following:
+.LP
+.tt
+#USE "convert.lib"
+.tu
+.LP
+.SH Procedures
+.LP
+.tt
+PROC BOOLTOSTRING (INT len, []BYTE string, VAL BOOL b)
+PROC HEX16TOSTRING (INT len, []BYTE string, VAL INT16 n)
+PROC HEX32TOSTRING (INT len, []BYTE string, VAL INT32 n)
+PROC HEX64TOSTRING (INT len, []BYTE string, VAL INT64 n)
+PROC HEXTOSTRING (INT len, []BYTE string, VAL INT n)
+PROC INT16TOSTRING (INT len, []BYTE string, VAL INT16 n)
+PROC INT32TOSTRING (INT len, []BYTE string, VAL INT32 n)
+PROC INT64TOSTRING (INT len, []BYTE string, VAL INT64 n)
+PROC INTTOSTRING (INT len, []BYTE string, VAL INT n)
+PROC REAL32TOSTRING (INT len, []BYTE string, VAL REAL32 X,
+                     VAL INT Ip, VAL INT Dp)
+PROC REAL64TOSTRING (INT len, []BYTE string, VAL REAL64 X,
+                     VAL INT Ip, VAL INT Dp)
+.tu
+.IP
+Format the given data type into the \f(CRstring\fP possibly padding
+with spaces to a given field \f(CRwidth\fP or printing \f(CRIp\fP
+integer places and \f(CRDp\fP decimal places for \f(CRREAL32\fP and
+\f(CRREAL64\fP types. Hex numbers are written with leading zeros.
+\f(CRlen\fP is returns the length of the formatted data.
+.LP
+.tt
+PROC STRINGTOBOOL (BOOL Error, BOOL b, VAL []BYTE string)
+PROC STRINGTOHEX (BOOL Error, INT n, VAL []BYTE string)
+PROC STRINGTOHEX16 (BOOL Error, INT16 n, VAL []BYTE string)
+PROC STRINGTOHEX32 (BOOL Error, INT32 n, VAL []BYTE string)
+PROC STRINGTOHEX64 (BOOL Error, INT64 n, VAL []BYTE string)
+PROC STRINGTOINT (BOOL Error, INT n, VAL []BYTE string)
+PROC STRINGTOINT16 (BOOL Error, INT16 n, VAL []BYTE string)
+PROC STRINGTOINT32 (BOOL Error, INT32 n, VAL []BYTE string)
+PROC STRINGTOINT64 (BOOL Error, INT64 n, VAL []BYTE string)
+PROC STRINGTOREAL32 (BOOL Error, REAL32 X, VAL []BYTE string)
+PROC STRINGTOREAL64 (BOOL Error, REAL64 X, VAL []BYTE string)
+.tu
+.IP
+Convert the given string to the data type.  If \f(CRError\fP is
+\f(CRTRUE\fP then the conversion failed.  No '#' or lower case
+letters are allowed for hex numbers.
+.LP
+.SH SEE ALSO
+INMOS  occam 2 toolset user manual - part 2 (occam libraries and
+appendices) INMOS document number 72 TDS 276 02.
+.SH AUTHOR
+This document is Copyright (C) 1993 David Beckett, University of Kent
+at Canterbury.
+.LP
+The library contents are Copyright (C) 1991 INMOS Limited.

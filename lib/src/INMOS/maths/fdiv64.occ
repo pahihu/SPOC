@@ -1,0 +1,169 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE FracDiv64 "FracDiv64%f"
+#endif
+#endif
+#endif
+
+INT64 FUNCTION FracDiv64 (VAL INT64 Divid, Divis)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  INT64 Result :
+  VALOF
+    --{{{  Signed fixed point divide
+    -- Assumes that overflow will not occur
+    INT64 TopHi, Bot :
+    VAL [2]INT Dd RETYPES Divid :
+    VAL [2]INT Ds RETYPES Divis :
+    SEQ
+      --{{{  cater for signs
+      IF
+        Dd[1] < 0
+          TopHi := -Divid  -- can't allow -1 as numerator, so overflow here ok
+        TRUE
+          TopHi := Divid
+      IF
+        Ds[1] < 0
+          Bot := 0(INT64) MINUS Divis
+        TRUE
+          Bot := Divis
+      --}}}
+      INT64 Remains, ResHi :
+      SEQ
+        [2]INT TH RETYPES TopHi :
+        [2]INT TL :
+        PLACE TL IN WORKSPACE :
+        SEQ
+          --{{{  set up TopLo
+          IF
+            (TH [0] /\ 1) = 1
+              TL := [0, MOSTNEG INT]
+            TRUE
+              TL := [0, 0]
+          --}}}
+          TH[1], TH[0] := SHIFTRIGHT (TH[1], TH[0], 1)
+          --{{{  LONGDIV64
+          PROC PartDivide( INT Q, Num2, NumR1, NumR0, VAL [2]INT Denom)
+            --{{{  
+            INT qhat, rem :
+            SEQ
+              --{{{  estimate quotient
+              IF
+                Denom[1] = Num2
+                  SEQ
+                    qhat := ~0  -- MaxUnsignedInt
+                    rem  := Num2 PLUS NumR1
+                TRUE
+                  qhat,  rem := LONGDIV ( Num2,  NumR1,  Denom[1])
+              --}}}
+              IF
+                qhat <> 0
+                  --{{{  ensure not too big
+                  INT c, s :
+                  [3]INT W :
+                  PLACE W IN WORKSPACE :
+                  SEQ
+                    --{{{  first check for 2 too big
+                    -- compare qhat*Denom[0] with remainder (carry) and third digit
+                    W[1],  W[0] := LONGPROD ( qhat,  Denom[0],  0)
+                    c,  s := LONGDIFF ( W[0],  NumR0,  0)
+                    c,  s := LONGDIFF ( W[1],  rem,  c)
+                    IF
+                      c = 0
+                        qhat := qhat MINUS 1
+                      TRUE
+                        SKIP
+                    --}}}
+                    --{{{  multiply and subtract
+                    W[2], W[1]  := LONGPROD ( qhat,  Denom[1],  W[1])
+                    c,    NumR0 := LONGDIFF ( NumR0, W[0],  0)
+                    c,    NumR1 := LONGDIFF ( NumR1, W[1],  c)
+                    c,    Num2  := LONGDIFF ( Num2,  W[2],  c)
+                    --}}}
+                    IF
+                      c <> 0
+                        --{{{  too big, add back
+                        SEQ
+                          qhat := qhat MINUS 1
+                          c,  NumR0 := LONGSUM ( NumR0, Denom[0],  0)
+                          c,  NumR1 := LONGSUM ( NumR1, Denom[1],  c)
+                          c,  Num2  := LONGSUM ( Num2,  0,  c)
+                        --}}}
+                      TRUE
+                        SKIP
+                  --}}}
+                TRUE
+                  SKIP
+              Q := qhat
+            --}}}
+          :
+          
+          VAL num.hi IS TH :
+          VAL num.lo IS TL :  -- num.lo[0] = 0
+          VAL [2]INT divis  RETYPES Bot :
+          [2]INT quot RETYPES ResHi :
+          [2]INT rem  RETYPES Remains :
+          IF
+            divis[1] = 0
+              --{{{  short divisor
+              INT r :
+              SEQ
+                quot[1],  r      := LONGDIV (num.hi[0], num.lo[1], divis[0])
+                quot[0],  rem[0] := LONGDIV (r,  0,  divis[0])
+                rem[1] := 0
+              --}}}
+            TRUE
+              --{{{  long divisor
+              [2]INT hi :
+              PLACE hi IN WORKSPACE :
+              [2]INT div :
+              PLACE div IN WORKSPACE :
+              INT places, lo0, lo1 :
+              SEQ
+                places, div[1], div[0] := NORMALISE (divis[1], divis[0])
+                INT carry :
+                hi[1], carry := SHIFTLEFT (num.hi[1], num.hi[0], places)
+                hi[0], lo1 := SHIFTLEFT (num.hi[0], num.lo[1], places)
+                lo0 := 0
+                PartDivide( quot[1], hi[1], hi[0], lo1, div)
+                PartDivide( quot[0], hi[0], lo1, lo0, div)
+                rem[1], rem[0] := SHIFTRIGHT (lo1, lo0, places)
+              --}}}
+          --}}}
+        Remains := Remains << 1    -- To compare 2*Rem against Divis
+        --{{{  round according to remainder
+        IF
+          -- Round up (case Divis close to MaxInt)
+          [2] INT Rem RETYPES Remains :
+          (Rem[1] < 0)
+            ResHi := ResHi + 1(INT64)
+          [2] INT RH RETYPES ResHi :
+          (Remains > Bot) OR
+             ((Remains = Bot) AND ((RH[0] /\ 1) = 1))  -- Round up to even
+            INT64 ResHi RETYPES RH :
+            ResHi := ResHi + 1(INT64)
+          TRUE
+            SKIP
+        --}}}
+        --{{{  fixup sign
+        IF
+          ((Dd[1] >< Ds[1]) < 0)
+            Result := 0(INT64) MINUS ResHi  -- ResHi could be -1
+          TRUE
+            Result := ResHi
+        --}}}
+    --}}}
+    RESULT Result
+:

@@ -1,0 +1,1892 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : type checking trafo functions
+||@(#)   System : occam 2 c
+||@(#) Filename : typechk.trafo
+||@(#)  Version : 1.28
+||@(#)     Date : 9/16/93
+\*@(#)====================================================*/
+/*}}}*/
+
+TRAFO TypeChk TREE occam
+
+/*{{{  PUBLIC */
+PUBLIC 
+   GetTagProtocol LookupProtocolTag SameBaseType SameUnderlyingType
+   CountExprs CreateFuncCall CreateProcCall
+   DefaultType TransformUserLiterals
+   SynthDefType SynthDefTableType SynthDefSubscriptType
+   InheritFromFormals InheritFromProtocol
+   InheritFromTable InheritFromType InheritLhsType
+   CheckValidUserType
+   GetFieldList LookupField
+   TypeUserDataType
+   IsUserDataType
+   TypeFormals TypeDecl TypeAbbrev	 
+   TypeSubscript TypeRange
+   TypeBinary TypeUnary
+   TypeExprList TypeTable TypeTableExpr TypeString
+   StripTypeList
+   TypeCheckAssign TypeCheckResults TypeCheckParameters
+   TypeCheckIfList TypeCheckTimerInput
+   TypeCheckInputProtocol TypeCheckOutputProtocol
+   TypeCheckCaseInputs TypeCheckCaseList TypeCheckRetypes
+   CheckWritable CheckWritableExprList CheckForVals CheckValofScope
+   IsChanOrTimerType IsTimerType IsChanType IsArrayType IsScalarType IsComputableType CalcTypeSize CalcOffset
+   CheckEvalBiOp CheckEvalUniOp EvalBiExpr EvalUniExpr
+   ReduceElement ReduceElemental
+   CheckConstConvert EvalConstConvert CheckConst
+   CheckConstRoundTrunc EvalConstRound EvalConstTrunc
+   CheckConstId EvalConstId MakeConstInt
+   CheckValidDeclType CheckFuncType
+   EvalConstSubscript
+   EvalMostPos EvalMostNeg
+   TestIntOVF SignExtendInt
+   UpdateElementalUsage
+   ConstArrayFromString
+   ConstArrayFromExprList
+   ConstArrayFromDecl
+   SubscriptConstArray
+   RangeConstArray
+
+   ReadConstArray WriteConstArray
+   ArrayPrimType
+   MarkNonAtomicIf
+/*}}}*/
+/*{{{  GLOBAL*/
+GLOBAL
+{
+
+  #include "Positions.h"
+  #include <stdlib.h>
+  #include <math.h>
+
+  #undef MAX
+  #define MAX(a,b) ((a > b) ? a : b)
+  /*{{{  void RetypeConst(int ss,tConstArray src, int ds, tConstArray dest)*/
+  /* Retype a ConstArray section -
+  
+     ConstArray values are stored in compiler-endianness, to allow direct
+     casting for constant folding/output
+  
+     To retype, is the endianness of the compiler/target architectures differ,
+     we must perform two stages.
+  
+     1. Copy source to temporary, performing source type endianness swap
+	This leaves temporary in target machine endianness
+     2. Copy temporary to destination, performing destination type endianness swap
+	This converts temporary into correct types, in compiler endianness
+  */
+  
+  void RetypeConst(int ss,tConstArray src, int ds, tConstArray dest)
+  {
+    int sz = (ds > ss) ? ds : ss;
+    int i;
+    int val = 1;
+    bool Compiler_is_LittleEndian = (((char *)&val)[0]) == 1;
+    unsigned char tmp[8];
+  
+    if ((!IS_Mode(xxLittleEndian) && Compiler_is_LittleEndian)
+	||(IS_Mode(xxLittleEndian) && !Compiler_is_LittleEndian))
+    {
+      for(i = 0; i < sz; ++i) tmp[i] = src[i ^ (ss-1)]; 
+      for(i = 0; i < sz; ++i) dest[i] = tmp[i ^ (ds-1)]; 
+    }
+    else
+    {
+      for(i = 0; i < sz; ++i) dest[i] = src[i];
+    }
+  }
+  
+  /*}}}*/
+  tSymbol FirstFormal,FirstActual,FunctionInlining;
+}
+/*}}}*/
+/*{{{  EXPORT*/
+EXPORT
+{
+  #define MOSTPOSINT32 ((tInt)((long)0x7FFFFFFFL))
+  #define MOSTNEGINT32 (~MOSTPOSINT32)
+  #define INT32MASK    ((tInt)((tUInt)0xFFFFFFFFUL))
+
+  #define MOSTPOSINT16 ((tInt)((short)0x7FFFUL))
+  #define MOSTNEGINT16 ((tInt)((short)0x8000UL))
+  #define INT16MASK    ((tInt)((tUInt)0xFFFFUL))
+
+  #define MOSTPOSINT   (IS_Mode(xx16bitINT) ? MOSTPOSINT16 : MOSTPOSINT32)
+  #define MOSTNEGINT   (IS_Mode(xx16bitINT) ? MOSTNEGINT16 : MOSTNEGINT32)
+  #define INTMASK      (IS_Mode(xx16bitINT) ? INT16MASK : INT32MASK)
+
+  #define MOSTPOSBYTE  ((tInt)0xff)
+  #define MOSTNEGBYTE  ((tInt)0)
+  #define BYTEMASK     ((tInt)0xff)
+  #define BOOLMASK     ((tInt)0x01)
+
+#ifdef SUPPORT_INT64
+  #define MOSTPOSINT64 ((tInt)0x7FFFFFFFFFFFFFFFLL)
+  #define MOSTNEGINT64 (~MOSTPOSINT64) 
+  #define INT64MASK    ((tInt)~0LL)
+  #define RNGCHKINT32(v) (((v)>=MOSTNEGINT) && (v <= MOSTPOSINT))
+#else
+  #define MOSTPOSINT64 MOSTPOSINT32
+  #define MOSTNEGINT64 MOSTNEGINT32
+  #define RNGCHKINT32(v) (true)
+#endif
+
+  #define USER_ALIGNMENT 8
+  
+  void RetypeConst(int ss,tConstArray src, int ds, tConstArray dest);
+}
+/*}}}*/
+
+/*{{{  entyping operations*/
+/*{{{  FUNCTION TypeUserDataType(Type,tSymbol,tPosition) Type*/
+FUNCTION TypeUserDataType(Type,tSymbol,tPosition) Type
+  Array(E,T), S, P RETURN UserArray(E,T,P,S) ?.
+  Int(), S, P RETURN UserInt(P,S) ?.
+  Int16(), S, P RETURN UserInt16(P,S) ?.
+  Int32(), S, P RETURN UserInt32(P,S) ?.
+  Int64(), S, P RETURN UserInt64(P,S) ?.
+  Real32(), S, P RETURN UserReal32(P,S) ?.
+  Real64(), S, P RETURN UserReal64(P,S) ?.
+  Byte(), S, P RETURN UserByte(P,S) ?.
+  Bool(), S, P RETURN UserBool(P,S) ?.
+  T,_, P RETURN T ? Message("Not a valid user data type",xxError,P); .
+
+/*}}}*/
+/*{{{  PROCEDURE TypeFormals(Formals)*/
+PROCEDURE TypeFormals(Formals)
+  LOCAL { static tTree by=NULL; static tTree type=NULL; }
+  NoFormal() ?.
+  AFormal(Next,_,BY:ByUndef(),T:Untyped(),S) ? BY := by; T := type; SymbolType(S):=type; TypeFormals(Next);.
+  AFormal(Next,_,B,T,S) ? by := B; type := T; SymbolType(S) := T; TypeFormals(Next);.
+/*}}}*/
+/*{{{  PROCEDURE TypeDecl(Type,IdList)*/
+PROCEDURE TypeDecl(Type,IdList)
+  T,NoId() ?.
+  T,AnId(Next,S) ? SymbolType(S) := T; TypeDecl(T,Next);.
+/*}}}*/
+/*{{{  FUNCTION TypeAbbrev(Type,Type,tPosition) Type*/
+FUNCTION TypeAbbrev(Type,Type,tPosition) Type
+  Untyped(),T,P RETURN T ?.
+  T1,T2,P RETURN T1 ? (IsUserDataType(T1)) ; (IsUserDataType(T2)); (WhichUserDataType(T1)==WhichUserDataType(T2));.
+  T1,T2,P RETURN T1 ? (IsUserDataType(T2)) ; (IsUserDataType(T2)); Message("User type mismatch in abbreviation",xxError,P);.
+  T1:Primitive(),T2:Primitive(),P RETURN T1 ? (SameType(T1,T2));.
+  T:Timer(),Timer(),P RETURN T ?.
+  T:Chan(P1), Chan(P2), P RETURN T ? SameProtocol(P1,P2);.
+  T:Array(UnBound(_),T1), Array(UnBound(_),T2), P RETURN T ? T1:= TypeAbbrev(T1,T2,P);. 
+  T:Array(E1,T1), Array(E2,T2), P RETURN T ? (Tree_IsType(E1,kUnBound)); E1:=E2; T1:=TypeAbbrev(T1,T2,P);.
+  T:Array(E1,T1), Array(E2,T2), P RETURN T ? (IsConstInt(E1)); (IsConstInt(E2)); (ValConstInt(E1)==ValConstInt(E2)); T1:= TypeAbbrev(T1,T2,P);.
+  T:Array(E1,T1), Array(E2,T2), P RETURN T ? (IsConstInt(E1)); (IsConstInt(E2)); Message("Array size mismatch in abbreviation",xxError,P); T1:= TypeAbbrev(T1,T2,P);.
+  T:Array(E1,T1), Array(E2,T2), P RETURN T ? T1:=TypeAbbrev(T1,T2,P);.
+  T1,T2,P RETURN T1 ? Message("Type mismatch in abbreviation",xxError,P);.
+
+/*}}}*/
+/*{{{  FUNCTION TypeSubscript(Expr,Type,FieldList,tPosition) Type*/
+FUNCTION TypeSubscript(Expr,Type,FieldList,tPosition) Type
+  E, Array(S,T), NIL, P RETURN T ? (!Tree_IsType(ExprType(E),kInt)); 
+    Message("Subscript not of type INT",xxError,P);  
+  .
+  E, Array(S,T), NIL, P RETURN T ? RangeCheckSubscript(E,S);.
+  _, T:UserStructTypes(..), NIL, P RETURN T ? Message("Expected field name not an expression",xxError,P);.
+  _, T, NIL, P RETURN T ? Message("Subscripted non-array type",xxError,P);.
+  E, T, NoField(), P RETURN T ? Message("Invalid field name for this user type",xxError,P);.
+  E, _, AField(_,_,T), P RETURN T ?. 
+/*}}}*/
+/*{{{  FUNCTION TypeRange(Expr,Expr,Type,tPosition) Type*/
+FUNCTION TypeRange(Expr,Expr,Type,tPosition) Type
+  From, For, Array(S,T), P RETURN Array(For,T) ? RangeCheckSlice(From,For,S);.
+  _, _, T, P RETURN T ? Message("Took slice of non-array type",xxError,P);.
+/*}}}*/
+/*{{{  FUNCTION TypeBinary(Type,Op,Type,tPosition) Type*/
+FUNCTION TypeBinary(Type,Op,Type,tPosition) Type
+  T1:Bool(), LogOp(), T2:Bool(), P RETURN T1 ? SameType(T1,T2);.
+  T1:Bool(), RelOp(), T2:Bool(), P RETURN T1 ? SameType(T1,T2);.
+  T1:Byte(), RelOp(), T2:Byte(), P RETURN Bool() ? SameType(T1,T2);.
+  T1:Real(), MathsOp(), T2:Real(), P RETURN T1 ? SameType(T1,T2);.
+  T1, AfterOp(), T2, P RETURN Bool() ? IsComputableType(T1); SameType(T1,T2);.
+  T1:Numeric(), RelOp(), T2:Numeric(), P RETURN Bool() ? SameType(T1,T2);.
+  T1, MathsOp(), T2, P RETURN T1 ? IsComputableType(T1); SameType(T1,T2);.
+  T1, BitOp(), T2, P RETURN T1 ? IsComputableType(T1); SameType(T1,T2);.
+  T1, ClockOp(), T2, P RETURN T1 ? IsComputableType(T1); SameType(T1,T2);.
+  T1, ShiftOp(), Int(), P RETURN T1 ? IsComputableType(T1);.
+
+  T1,_,_,P RETURN T1 ? Message("Type mismatch in binary operation",xxError,P);.
+/*}}}*/
+/*{{{  FUNCTION TypeUnary(Op,Type,tPosition) Type*/
+FUNCTION TypeUnary(Op,Type,tPosition) Type
+  Subtract(), T:Numeric(), P RETURN T ? .
+  Minus(), T, P RETURN T ? IsComputableType(T);.
+  Add(), T:Numeric(), P RETURN T ? .
+  Plus(), T, P RETURN T ? IsComputableType(T);.
+  Not(), T:Bool(), P RETURN T ?.
+  Size(), T:Array(..), P RETURN Int() ?.
+  BitNot(), T, P RETURN T ? IsComputableType(T);.
+
+  _, T, P RETURN T ? Message("Type mismatch in unary operation",xxError,P);.
+/*}}}*/
+/*{{{  FUNCTION TypeExprSubList(ExprList) TypeList*/
+FUNCTION TypeExprSubList(ExprList) TypeList
+  NoExpr()    RETURN NoType() ?.
+  AnExpr(N,E) RETURN AType(TypeExprSubList(N),ExprType(E)) ? .
+/*}}}*/
+/*{{{  FUNCTION TypeExprList(ExprList) Type*/
+FUNCTION TypeExprList(ExprList) Type
+  NoExpr()           RETURN NoType() ?.
+  AnExpr(NoExpr(),E) RETURN ExprType(E) ? .
+  AnExpr(N,E)        RETURN AType(TypeExprSubList(N),ExprType(E)) ? .
+/*}}}*/
+/*{{{  FUNCTION TypeTable(ExprList,Type,Type) Type*/
+FUNCTION TypeTable(ExprList,Type,Type) Type
+  AnExpr( N, Expr(P)), ST, NIL RETURN Array(MakeConstInt(CountList(N,ST),P),ST) ?
+  . 
+  AnExpr( N, Expr(P)), ST, UA:UserArray(E,T,..) RETURN UA ? 
+    (IsConstInt(E));
+    (ValConstInt(E) == CountList(N,T)); 
+  .
+  AnExpr( N, Expr(P)), ST, IT RETURN Array(MakeConstInt(CountList(N,ST),P),ST) ?
+  . 
+/*}}}*/
+/*{{{  FUNCTION TypeTableExpr(Expr) TableElement*/
+FUNCTION TypeTableExpr(Expr) TableElement
+  ElementalExpr(_,T:TableExpr(..)) RETURN T ? .  
+  E:Expr(P) RETURN TableExpr(P,E,AddSymbol(NoIdent)) ? .
+/*}}}*/
+/*{{{  FUNCTION TypeString(int,Type,tPosition) Type*/
+FUNCTION TypeString(int,Type,tPosition) Type
+  COUNT, UA:UserArray(E,Byte(),..),P RETURN UA ? 
+    (IsConstInt(E));
+    (COUNT==ValConstInt(E));
+  . 
+  COUNT, IT, P RETURN Array(MakeConstInt(COUNT,P),mByte()) ?
+  . 
+/*}}}*/
+/*{{{  FUNCTION StripTypeList(Type) Type*/
+FUNCTION StripTypeList(Type) Type
+  AType(NoType(),T) RETURN T ?.
+  T RETURN T ?.
+/*}}}*/
+  
+/*}}}*/
+/*{{{  synthesis of default types for implicitly typed literals*/
+/*{{{  FUNCTION SynthDefType(Type,Type) Type*/
+FUNCTION SynthDefType(Type,Type,Op) Type
+  T,_,ShiftOp() RETURN T ? .
+  NIL, T,_ RETURN T ? .
+  T, NIL,_ RETURN T ? .
+  Untyped(), T,_ RETURN T ?.
+  T,Untyped(),_ RETURN T ?.
+  LT,RT,_ RETURN LT ?. 
+/*}}}*/
+/*{{{  FUNCTION SynthDefTableType(Type) Type*/
+FUNCTION SynthDefTableType(Type) Type
+  T:NIL RETURN T ? .
+  T:Untyped() RETURN T ? .
+  T RETURN Array(UnBound(NoPosition),T) ? .
+/*}}}*/
+/*{{{  FUNCTION SynthDefSubscriptType(Type,FieldList) Type*/
+FUNCTION SynthDefSubscriptType(Type,FieldList) Type
+  T:NIL,_ RETURN T ? .
+  T:Untyped(),_ RETURN T ? .
+  Array(_,T),_ RETURN T ? .
+  T, NIL RETURN T ? .
+  _, AField(_,_,T) RETURN T ?.   
+  _, _ RETURN NIL ?.
+/*}}}*/
+/*{{{  FUNCTION DefaultType(Expr) Type*/
+FUNCTION DefaultType(Expr) Type
+  E RETURN Int() ? (!IS_Mode(xxUserDataTypes)); .
+  E RETURN Int() ? (E->Expr.DefType==NoTree);.
+  E RETURN Int() ? (Tree_IsType(E->Expr.DefType,kUntyped));.
+  E RETURN E->Expr.DefType ?.
+/*}}}*/
+/*}}}*/
+/*{{{  type inheritance operations*/
+/*{{{  FUNCTION InheritLhsType(Type,Type) Type*/
+FUNCTION InheritLhsType(Type,Type) Type
+  NIL, T RETURN T ? (IS_Mode(xxUserDataTypes));.
+  Untyped(), T RETURN T ? (IS_Mode(xxUserDataTypes));.
+  NIL, T RETURN Int() ? ;.
+  UntypedByte(), T RETURN Byte() ? ;.
+  Untyped(), T RETURN Int() ? ;.
+  T, _ RETURN T ? . 
+/*}}}*/
+/*{{{  PROCEDURE InheritFromFormals(Tree,ExprList)*/
+PROCEDURE InheritFromFormals(Tree,ExprList)
+  DefAProc(_,_,F),EL ? InheritFromFormals(F,EL);.
+  DefAFunc(_,_,_,F),EL ? InheritFromFormals(F,EL);.
+  NoFormal(),NoExpr() ? ;.
+  Formals(),NoExpr() ? ;.
+  AFormal(NF,_,_,T,_),AnExpr(NE,E) ?  E->Expr.InhType := T; InheritFromFormals(NF,NE);.
+  F:NoFormal(), AnExpr(NE,E) ? E->Expr.InhType := NoTree; InheritFromFormals(F,NE);.
+/*}}}*/
+/*{{{  PROCEDURE InheritFromSimpleProtocol(Protocol,Expr)*/
+PROCEDURE InheritFromSimpleProtocol(Protocol,Expr)
+  Simple(_,T), E ? E->Expr.InhType := T;.
+  Counted(_,LT,AT), C:CountArray(_,LE,AE) ? 
+    C->CountArray.InhType := AT;
+    C->CountArray.Length->Expr.InhType := LT;
+  . 
+  Counted(_,LT,AT), E ? 
+    E->Expr.InhType := AT;
+  .  
+/*}}}*/
+/*{{{  PROCEDURE InheritFromProtocol(Tree,ExprList)*/
+PROCEDURE InheritFromProtocol(Tree,ExprList)
+  _, NoExpr() ? .
+  Chan(PTCL), EL ? InheritFromProtocol(PTCL,EL);.
+  Named(_,S), EL ? (Tree_IsType(SymbolKind(S),kDefSeqPro));
+    InheritFromProtocol(SymbolKind(S)->DefSeqPro.SeqProList,EL);    
+  .
+  Named(_,S), EL ? (Tree_IsType(SymbolKind(S),kDefTagPro));
+    InheritFromProtocol(SymbolKind(S)->DefTagPro.TagProList,EL);
+  .
+  TPL:ATagPro(..), AnExpr(NE,E:ElementalExpr(_,Identifier(_,S))) ? (CheckValidTag(TPL,S));
+    E->Expr.InhType := mInt();
+    InheritFromProtocol(SymbolKind(S)->ATagPro.SeqProList,NE);
+  .
+  ASeqPro(NP,PR), AnExpr(NE,E) ?
+    InheritFromSimpleProtocol(PR,E) ;
+    InheritFromProtocol(NP,NE) ;
+  .
+  S:Simple(..), AnExpr(NE,E) ? 
+    InheritFromSimpleProtocol(S,E);
+    InheritFromProtocol(S,NE);
+  .
+  C:Counted(..), AnExpr(NE,E) ? 
+    InheritFromSimpleProtocol(C,E) ;
+    InheritFromProtocol(C,NE);
+  .
+  ANY, AnExpr(NE,E) ? 
+    E->Expr.InhType := mInt(); 
+    InheritFromProtocol(ANY,NE);
+  .  
+/*}}}*/
+/*{{{  PROCEDURE InheritFromFieldList(FieldList,ExprList)  */
+PROCEDURE InheritFromFieldList(FieldList,ExprList)
+  AField(NFL,_,T), AnExpr(NE,E) ?  E->Expr.InhType := T; InheritFromFieldList(NFL,NE);.
+  FL:NoField(), AnExpr(NE,E) ? E->Expr.InhType := NoTree; InheritFromFieldList(FL,NE);.
+  _, _ ? .
+/*}}}*/
+/*{{{  PROCEDURE InheritFromTable(Type,ExprList)*/
+PROCEDURE InheritFromTable(Type,ExprList)
+  Array(_,T),EL ? InheritFromType(T,EL);.
+  UserDataTypes(_,_,FL), EL ? InheritFromFieldList(FL,EL);.
+  T,EL ? InheritFromType(T,EL);. /* RECOVER */
+/*}}}*/
+/*{{{  PROCEDURE InheritFromType(Type,ExprList)*/
+PROCEDURE InheritFromType(Type,ExprList)
+  T, NoExpr() ? .
+  NIL, AnExpr(NE,E) ? E->Expr.InhType := NIL; InheritFromType(NIL,NE);.
+  T:AType(TL,_),  AnExpr(NE,E:Valof(..)) ?  E->Expr.InhType := T;.
+  AType(TL,T),  AnExpr(NE,E) ?  E->Expr.InhType := T; InheritFromType(TL,NE);.
+  TL:NoType(),  AnExpr(NE,E) ?  E->Expr.InhType := NoTree; InheritFromType(TL,NE);.
+  T, AnExpr(NE,E) ? E->Expr.InhType := T; InheritFromType(T,NE);.
+/*}}}*/
+/*{{{  PROCEDURE InheritAttributes(Tree,Tree)*/
+PROCEDURE InheritAttributes(Tree,Tree)
+  LOCAL { Tree_tKind K; }
+  FROM, TO ? (Tree_IsType(TO,FROM->Kind)); 
+    K := TO->Kind; 
+    memcpy(TO,FROM,Tree_NodeSize[FROM->Kind]); 
+    TO->Kind := K;
+    .  
+  _,_ ? Message("Attempt to inherit attributes from non-parental node",xxError,NoPosition);.
+/*}}}*/
+/*{{{  FUNCTION TransformUserLiterals(Type,Table) Table*/
+FUNCTION TransformUserLiterals(Type,Elemental) Elemental
+  LOCAL { tTree NEW; }
+  T:UserDataTypes(_,_,_), TAB:Table(..) RETURN NEW ? InheritAttributes(TAB,NEW=MakeTree(kUserLiteral)); NEW->UserLiteral.Type := CopyTree(T); .
+  _,E RETURN E ?.
+/*}}}*/
+
+/*}}}*/
+  
+/*{{{  type checking operations*/
+/*{{{  PROCEDURE TypeCheckAssign(ExprList, ExprList, tPosition)*/
+PROCEDURE TypeCheckAssign(ExprList, ExprList, tPosition)
+  L:AnExpr(_,ElementalExpr(P,EL)), AnExpr(NRE,E), _ ? (Tree_IsType(ExprType(E),kAType)); 
+     TypeCheckAssignFn(L,ExprType(E),P);.
+  REL,LEL,P ? TypeCheckAssignList(REL,LEL,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckAssignList(ExprList, ExprList, tPosition)*/
+PROCEDURE TypeCheckAssignList(ExprList, ExprList, tPosition)
+  NoExpr(), NoExpr(), _ ?.
+  NoExpr(), _, P ? Message("Too many expressions on assignment RHS",xxError,P); .
+  _, NoExpr(), P ? Message("Too few expressions on assignment RHS",xxError,P); .
+  AnExpr(NLE, LE:ElementalExpr(P,E)), AnExpr(NRE, RE),_ ? (IsChanOrTimerType(ElementType(LE)));
+     Message("Cannot assign to channel or timer",xxError,P); 
+     TypeCheckAssignList(NLE,NRE,P);.
+  AnExpr(NLE, LE:ElementalExpr(P,E)), AnExpr(NRE, RE),_ ? (Writable(E)); (SameType(ExprType(LE),ExprType(RE)));
+     TypeCheckAssignList(NLE,NRE,P);.
+  AnExpr(NLE,ElementalExpr(P,E)),AnExpr(NRE, RE),_ ? (Writable(E)); 
+     Message("Type mismatch during assignment",xxError,P); 
+     TypeCheckAssignList(NLE,NRE,P);.
+  AnExpr(NLE,ElementalExpr(P,E)),AnExpr(NRE, RE),_ ? 
+     Message("Cannot make assignment to variable",xxError,P); 
+     TypeCheckAssignList(NLE,NRE,P);.
+  AnExpr(NLE,_),AnExpr(NRE,_),P ? 
+     Message("LHS must be an assignable variable",xxError,P); 
+     TypeCheckAssignList(NLE,NRE,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckAssignFn(ExprList, TypeList, tPosition)*/
+PROCEDURE TypeCheckAssignFn(ExprList, TypeList, tPosition)
+  NoExpr(), NoType(),P ?.
+  NoExpr(),_,P ? Message("Too few variables to assign to from function",xxError,P); .
+  _,NoType(),P ? Message("Too many variables to assign to from function",xxError,P); .
+  AnExpr(NLE, LE:ElementalExpr(P,E)), AType(NT,RT), _ ? (Writable(E)); SameType(ExprType(LE),RT); 
+     TypeCheckAssignFn(NLE,NT,P);.
+  AnExpr(NLE, LE:ElementalExpr(P,E)), AType(NT,RT), _ ? (Writable(E)); 
+     Message("Type mismatch during function assignment",xxError,P); 
+     TypeCheckAssignFn(NLE,NT,P);.
+  AnExpr(NLE, LE:ElementalExpr(P,_)), AType(NT,RT), _ ? 
+     Message("Cannot make assignment to variable",xxError,P);
+     TypeCheckAssignFn(NLE,NT,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckResults(TypeList,ExprList,tPosition)*/
+PROCEDURE TypeCheckResults(TypeList,ExprList,tPosition)
+  NoType(), NoExpr(), P ? .
+  NoType(), _, P ? Message("Too many expressions in result list",xxError,P);.
+  _, NoExpr(), P ? Message("Too few expressions in result list",xxError,P);.
+  AType(NT,T),AnExpr(NE,E:Expr(P)),_ ? (SameType(T,ExprType(E))); TypeCheckResults(NT,NE,P);.
+  AType(NT,T),AnExpr(NE,E:Expr(P)),_ ? Message("Type mismatch in result list",xxError,P); TypeCheckResults(NT,NE,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckParameters(Formals,ExprList,tPosition,int)*/
+PROCEDURE TypeCheckParameters(Formals,ExprList,tPosition,int)
+  NoFormal(), NoExpr(),_,_ ? .
+  NoFormal(),_, P,_ ? Message("Too many parameters",xxError,P);.
+  _, NoExpr(), P,_ ? Message("Too few parameters",xxError,P);.
+  AF:AFormal(NF,_,ByRef(),T,F), AnExpr(NP,A:ElementalExpr(_,E:Table(..))),P,V ? (Writable(E)); SameType(T,ExprType(A));
+    UpdateElementalUsage(E,AF->AFormal.U);	
+    TypeCheckParameters(NF,NP,P,V);
+  .
+  AF:AFormal(NF,_,ByRef(),T,F), AnExpr(NP,A:ElementalExpr(_,E:Element(..))),P,V ? (Writable(E)); SameType(T,ExprType(A));
+    { if (!CheckValofScope(E,V)) Message("Attempted to pass free variable by reference within VALOF",xxError,P); } ;
+    UpdateElementalUsage(E,AF->AFormal.U);
+    TypeCheckParameters(NF,NP,P,V);
+  .
+  AFormal(NF,_,ByVal(),T,F), AnExpr(NP,E),P,V ? SameType(T,ExprType(E)); 
+    TypeCheckParameters(NF,NP,P,V); 
+  .
+  AFormal(NF,_,ByRef(),T,F), AnExpr(NP,E),P,V ? SameType(T,ExprType(E)); 
+    Message("Actual parameter cannot be passed by reference",xxError,P); 
+    TypeCheckParameters(NF,NP,P,V); 
+  .
+  AFormal(NF,..), AnExpr(NP,Expr(P)),PP,V ? 
+    Message("Actual parameter does not match formal description",xxError,P); 
+    TypeCheckParameters(NF,NP,PP,V);
+  .
+/*}}}*/
+/*{{{  PROCEDURE UpdateElementalUsage([Elemental,ExprList],tUsage)*/
+PROCEDURE UpdateElementalUsage([Elemental,ExprList],tUsage)
+  LOCAL { tUsage tmp; }
+  I:Identifier(P,S),EU ? (Tree_IsType(SymbolKind(S),kAFormal)); 
+    I->Identifier.U := EU;
+    SymbolKind(S)->AFormal.U:=UpdateUsage(SymbolKind(S)->AFormal.U,EU);
+    { if (SymbolKind(S)->AFormal.U==xxInOut) Message("Passed channel used for both input and output",xxError,P); };
+  .
+  I:Identifier(P,S),EU ? (Tree_IsType(SymbolKind(S),kIs)); 
+    I->Identifier.U := EU;
+    SymbolKind(S)->Is.U:=UpdateUsage(SymbolKind(S)->Is.U,EU);
+    tmp := SymbolKind(S)->Is.U;
+    { if (tmp==xxInput||tmp==xxOutput||tmp==xxInOut) UpdateElementalUsage(SymbolKind(S)->Is.Elemental,EU);};
+    { if (SymbolKind(S)->Is.U==xxInOut) Message("Abbreviated channel used for both input and output",(IS_Mode(xxUsageWarnings))?xxWarning\:xxError,P); };
+  .
+  I:Identifier(P,S),EU ? (Tree_IsType(SymbolKind(S),kAnId)); 
+    I->Identifier.U := EU;
+    SymbolKind(S)->AnId.U:=UpdateUsage(SymbolKind(S)->AnId.U,EU);
+  .
+  R:Range(_,N,_,_),EU ? R->Range.U:=EU; UpdateElementalUsage(N,EU);.
+  S:Subscript(_,N,_),EU ? S->Subscript.U:=EU; UpdateElementalUsage(N,EU);.
+  R:TableRange(_,N,_,_),EU ? R->TableRange.U:=EU; UpdateElementalUsage(N,EU);.
+  S:TableSubscript(_,N,_),EU ? S->TableSubscript.U:=EU; UpdateElementalUsage(N,EU);.
+  T:Table(_,EL),EU ? T->Table.U:=EU;  UpdateElementalUsage(EL,EU);.
+  AnExpr(EL,ElementalExpr(_,E)),EU ?  UpdateElementalUsage(E,EU); UpdateElementalUsage(EL,EU);.
+  AnExpr(EL,_),EU ?  UpdateElementalUsage(EL,EU);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckIfList(ChoiceList)*/
+PROCEDURE TypeCheckIfList(ChoiceList)
+  NoChoice() ?.
+  AChoice(_,N,AnExpr(NoExpr(),E),PR) ? (Tree_IsType(ExprType(E),kBool)); TypeCheckIfList(N);.
+  AChoice(_,N,AnExpr(NoExpr(),E:Expr(P)),PR) ? Message("Conditional not of type BOOL",xxError,P); TypeCheckIfList(N);.
+  ANewIf(_,N,If(_,_,CL)) ? TypeCheckIfList(CL); TypeCheckIfList(N);.
+  ANewIf(_,N,IfRep(_,_,_,CL)) ? TypeCheckIfList(CL); TypeCheckIfList(N);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckTimerInput(ExprList,tPosition)*/
+PROCEDURE TypeCheckTimerInput(ExprList,tPosition)
+  AnExpr(NoExpr(),E:ElementalExpr(_,V)),_ ? (Writable(V)); (Tree_IsType(ExprType(E),kInt));.
+  AnExpr(NoExpr(),E:Expr(P)),_ ? Message("Timer input not to writable INT variable",xxError,P);.
+  AnExpr(_,_), P ? Message("Only single input allowed from TIMER",xxError,P);.
+  NoExpr(), P ? Message("Missing variable for timer input",xxError,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckInputProtocol(Protocol,ExprList,tPosition)*/
+PROCEDURE TypeCheckInputProtocol(Protocol,ExprList,tPosition)
+  A:Any(_), AnExpr(NoExpr(),ElementalExpr(P,E)),_ ? (Writable(E));.
+  A:Any(_), AnExpr(N,ElementalExpr(P,E)),_ ? (Writable(E)); TypeCheckInputProtocol(A,N,P);.
+  A:Any(_), AnExpr(NoExpr(),E:CountArray(P,ElementalExpr(_,LE),ElementalExpr(_,AE))),_ ? 
+     (Writable(LE)); (Writable(AE)); (Tree_IsType(AE->Element.SynType,kArray));.
+  A:Any(_), AnExpr(N,E:CountArray(P,ElementalExpr(_,LE),ElementalExpr(_,AE))),_ ? 
+     (Writable(LE)); (Writable(AE)); (Tree_IsType(AE->Element.SynType,kArray)); TypeCheckInputProtocol(A,N,P);.
+  A:Any(_), AnExpr(NoExpr(),Expr(P)),_ ? Message("Input variable not writable",xxError,P);.
+  A:Any(_), AnExpr(N,Expr(P)),_ ? Message("Input variable not writable",xxError,P); TypeCheckInputProtocol(A,N,P);.
+
+  _, NoExpr(), P ? Message("No expression list present for channel input",xxError,P);.
+
+  Named(_,S), EL, P ? (Tree_IsType(SymbolKind(S),kDefSeqPro)); TypeCheckInputSeqProtocol(SymbolKind(S)->DefSeqPro.SeqProList,EL,P);.
+  Named(_,S), EL, P ? Message("Invalid form of variant protocol input",xxError,P);.
+  PR, AnExpr(NoExpr(),E:ElementalExpr(_,V)),_ ? (Writable(V)); TypeCheckSimpleProtocol(PR,E);.
+  PR, AnExpr(NoExpr(),E:CountArray(P,ElementalExpr(_,LE),ElementalExpr(_,AE))),_ ? (Writable(LE));(Writable(AE));TypeCheckSimpleProtocol(PR,E);.
+  PR, AnExpr(NoExpr(),Expr(P)),_ ? Message("Input item not assignable",xxError,P);.
+  _, AnExpr(_,Expr(P)),_ ? Message("Too many inputs for a channel with a simple protocol",xxError,P);.
+
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckSimpleProtocol(Protocol,Expr)*/
+PROCEDURE TypeCheckSimpleProtocol(Protocol,Expr)
+  Simple(_,T), CountArray(P,LE,AE) ? Message("Protocol does not expect a counted array",xxError,P);.
+  Simple(_,T), E ? SameType(T,ExprType(E));.
+  Simple(_,T), Expr(P) ? Message("Variable is not of correct type for protocol",xxError,P);.
+  Counted(_,LT,AT), CountArray(P,LE,AE) ? (SameType(LT,ExprType(LE))); (SameType(AT,ExprType(AE)));.
+  Counted(_,LT,AT), CountArray(P,LE,AE) ? Message("Counted array expression types do not match protocol",xxError,P);.
+  Counted(_,LT,AT), E           ? (SameType(AT,ExprType(E))); .
+  Counted(_,LT,AT), Expr(P)     ? Message("Output expression does not match protocol",xxError,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckCountedProtocol(Protocol,Expr,Type)*/
+/*}}}*/
+
+/*{{{  PROCEDURE TypeCheckOutputProtocol(Protocol,ExprList,tPosition)*/
+PROCEDURE TypeCheckOutputProtocol(Protocol,ExprList,tPosition)
+  A:Any(_), AnExpr(NoExpr(),Expr(P)),_ ?.
+  A:Any(_), AnExpr(N,Expr(P)),_ ? 
+    TypeCheckOutputProtocol(A,N,P);
+  .
+  _, NoExpr(), P ? 
+    Message("No expression list present for channel output",xxError,P);
+  .
+  Named(_,S), EL, P ? (Tree_IsType(SymbolKind(S),kDefSeqPro)); 
+    TypeCheckOutputSeqProtocol(SymbolKind(S)->DefSeqPro.SeqProList,EL,P);
+  .
+  Named(_,S), EL, P ? (Tree_IsType(SymbolKind(S),kDefTagPro)); 
+    TypeCheckCaseOutput(SymbolKind(S)->DefTagPro.TagProList,EL,P);
+  .
+  Named(_,S), EL, P ? 
+    Message("Not a valid named",xxError,P);
+  .
+  PR, AnExpr(NoExpr(),E),_ ? 
+    TypeCheckSimpleProtocol(PR,E);
+  .
+  _, AnExpr(_,Expr(P)),_ ? 
+    Message("Too many outputs for a channel with a simple protocol",xxError,P);
+  .
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckCaseInputs(TagProList,CaseList,tPosition)*/
+PROCEDURE TypeCheckCaseInputs(TagProList,CaseList,tPosition)
+  _,NoCase(),PP ?. 
+  TPL, ACase(NC,_,AnExpr(NE,ElementalExpr(_,Identifier(_,S))),_),PP ? (CheckValidTag(TPL,S)); TypeCheckInputSeqProtocol(SymbolKind(S)->ATagPro.SeqProList,NE,PP); TypeCheckCaseInputs(TPL,NC,PP); .
+  TPL, ACase(NC,_,AnExpr(NE,Expr(P)),_),PP ? Message("Variant tag is not valid for this protocol",xxError,P); TypeCheckCaseInputs(TPL,NC,PP); .
+  TPL, ACase(NC,_,NoExpr(),_), PP ? Message("Cased input missing variant protocol",xxError,PP); TypeCheckCaseInputs(TPL,NC,PP); .
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckCaseOutput(TagProList,ExprList,tPosition)*/
+PROCEDURE TypeCheckCaseOutput(TagProList,ExprList,tPosition)
+  TPL, AnExpr(NE,ElementalExpr(_,Identifier(_,S))),PP ? (CheckValidTag(TPL,S)); 
+    TypeCheckOutputSeqProtocol(SymbolKind(S)->ATagPro.SeqProList,NE,PP); 
+  .
+  TPL, AnExpr(NE,Expr(P)),PP ? 
+    Message("Variant tag is not valid for this protocol",xxError,P); 
+  .
+  TPL, NoExpr(), PP ? 
+    Message("Cased output missing variant protocol",xxError,PP);
+  .
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckInputSeqProtocol(SeqProList,ExprList,tPosition)*/
+PROCEDURE TypeCheckInputSeqProtocol(SeqProList,ExprList,tPosition)
+  NoSeqPro(),NoExpr(),_ ? .
+  NoSeqPro(),AnExpr(_,Expr(P)),_ ? Message("Too many input expressions for channel protocol",xxError,P);.
+  _,NoExpr(),P ? Message("Too few input expressions for channel protocol",xxError,P);.
+  ASeqPro(NP,PR),AnExpr(NE,E:ElementalExpr(P,V)), _ ? (Writable(V)); TypeCheckSimpleProtocol(PR,E); TypeCheckInputSeqProtocol(NP,NE,P);.
+  ASeqPro(NP,PR),AnExpr(NE,E:CountArray(P,LE,AE)),_ ? TypeCheckSimpleProtocol(PR,E); TypeCheckInputSeqProtocol(NP,NE,P);.
+  ASeqPro(NP,_),AnExpr(NE,E:Expr(P)), _ ? Message("Not an assignable expression",xxError,P); TypeCheckInputSeqProtocol(NP,NE,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckOutputSeqProtocol(SeqProList,ExprList,tPosition)*/
+PROCEDURE TypeCheckOutputSeqProtocol(SeqProList,ExprList,tPosition)
+  NoSeqPro(),NoExpr(),_ ? .
+  NoSeqPro(),AnExpr(_,Expr(P)),_ ? Message("Too many output expressions for channel protocol",xxError,P);.
+  _,NoExpr(),P ? Message("Too few output expressions for channel protocol",xxError,P);.
+  ASeqPro(NP,PR),AnExpr(NE,E:Expr(P)),_ ? TypeCheckSimpleProtocol(PR,E); TypeCheckOutputSeqProtocol(NP,NE,P);.
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckCaseList(Type,ChoiceList)*/
+PROCEDURE TypeCheckCaseList(Type,ChoiceList,bool)
+  T, NoChoice(),_ ?.
+  T, AChoice(_,N,AnExpr(NoExpr(),Default(_)),PR),{false} ? TypeCheckCaseList(T,N,true);.
+  T, AChoice(_,N,AnExpr(NoExpr(),Default(P)),PR),_ ? Message("Multiple ELSE options in selection",xxError,P);.
+  T, AChoice(_,N,EL:AnExpr(_,Expr(P)),PR),B ? 
+    { CountList(EL,T);} ; 
+    TypeCheckCaseList(T,N,B);
+    { if (!ConstFlag(EL->ExprList))
+	Message("CASE options must be constant",xxError,P);
+      if (!(Tree_IsType(ExprListType(EL),kInteger)||Tree_IsType(ExprListType(EL),kByte)||Tree_IsType(ExprListType(EL),kBool)))
+	Message("CASE options must be integer or BYTE (or BOOL)",xxError,P);
+      else 
+	if (!CheckChoicesDiffer(EL,N)) Message("CASE options must be distinct",xxError,P);}; .
+/*}}}*/
+/*{{{  PROCEDURE TypeCheckRetypes(Type,Type,tPosition) */
+PROCEDURE TypeCheckRetypes(Retypes,Type,Type,tPosition) 
+  LOCAL { int LS,RS; }
+  Reshapes(..),LT, RT, P ? 
+    LS:=SizeType(LT,P,true=>LUB); 
+    RS:=SizeType(RT,P,false=>RUB);
+    (LS>=0);
+    DoTypeCheckRetypes(LS,LUB,RS,RUB,P);.
+  Reshapes(..),LT, RT, P ? .
+  
+  _,LT, RT, P ? 
+    LS:=SizeType(LT,P,true=>LUB); 
+    RS:=SizeType(RT,P,false=>RUB); 
+    DoTypeCheckRetypes(LS,LUB,RS,RUB,P);.
+
+PROCEDURE DoTypeCheckRetypes(int,Type,int,Type,tPosition)
+  _,_,-1,_,P ? .
+  _,_,_,RUB,P ? (RUB!=NoTree);.
+  LS,NIL,RS,NIL,P ? (LS==RS);.
+  LS,NIL,RS,NIL,P ? Message("Size of retype does not match expression size",xxError,P);.
+  LS,LUB,RS,NIL,P ? ((RS%LS) == 0); LUB->Array.Expr := MakeConstInt(RS/LS,P); .
+  LS,LUB,RS,NIL,P ? Message("Size of retype cannot match expression size",xxError,P);.
+  
+/*}}}*/
+/*}}}*/
+/*{{{  checking predicates*/
+/*{{{  PREDICATE IsUserDataType(Type)*/
+PREDICATE IsUserDataType(Type)
+  NIL ? FAIL;.
+  UserStructTypes(..) ?.
+  UserArray(..) ? .
+  UserInt(..) ? .
+  UserInt16(..) ? .
+  UserInt32(..) ? .
+  UserInt64(..) ? .
+  UserReal32(..) ? .
+  UserReal64(..) ? .
+  UserByte(..) ? .
+  UserBool(..) ?.
+/*}}}*/
+/*{{{  FUNCTION WhichUserDataType(Type) tSymbol*/
+FUNCTION WhichUserDataType(Type) tSymbol
+  NIL RETURN NoSymbol ? .
+  UserStructTypes(_,S,_) RETURN S ?.
+  UserArray(_,_,_,S) RETURN S ? .
+  UserInt(_,S) RETURN S ? .
+  UserInt16(_,S) RETURN S ? .
+  UserInt32(_,S) RETURN S ? .
+  UserInt64(_,S) RETURN S ? .
+  UserReal32(_,S) RETURN S ? .
+  UserReal64(_,S) RETURN S ? .
+  UserByte(_,S) RETURN S ? .
+  UserBool(_,S) RETURN S ? .
+  _ RETURN NoSymbol ? .
+/*}}}*/
+/*{{{  PREDICATE IsComputableType(Type)  */
+PREDICATE IsComputableType(Type)
+  Integer() ? .
+  Byte() ? (IS_Mode(xxUserDataTypes));.
+/*}}}*/
+/*{{{  PREDICATE SameBaseType(Type,Type)*/
+PREDICATE SameBaseType(Type,Type)
+  Array(_,T1) , T2 ? SameBaseType(T1,T2) ;.
+  T1 , Array(_,T2) ? SameBaseType(T1,T2) ;.
+  T1, T2 ? SameType(T1,T2) ;.
+/*}}}*/
+/*{{{  PREDICATE SameUnderlyingType(Type,Type)*/
+PREDICATE SameUnderlyingType(Type,Type)
+  Int16(), Int16() ? . 
+  Int32(), Int32() ? .
+  Int64(), Int64() ? .
+  Int(),   Int() ? .
+  Bool(),  Bool() ? .
+  Real32(), Real32() ?.
+  Real64(), Real64() ?.
+  Byte(), Byte() ?.
+  Timer(),Timer() ?.
+  Chan(P1), Chan(P2) ? SameProtocol(P1,P2);.
+  Array(UnBound(_),T1), Array(E2,T2) ? SameType(T1,T2);.
+  Array(UnBound(_),T1), Array(E2,T2) ? FAIL;.
+  Array(E1,T1), Array(E2,T2) ? (IsConstInt(E1)); (IsConstInt(E2)); (ValConstInt(E1)==ValConstInt(E2)); SameType(T1,T2);.
+  Array(E1,T1), Array(E2:Expr(P),T2) ? (!IsConstInt(E2)); SameType(T1,T2); .
+  Array(E1:Expr(P),T1), Array(E2,T2) ? (!IsConstInt(E1)); SameType(T1,T2); .
+/*}}}*/
+/*{{{  PREDICATE SameType(Type,Type)*/
+PREDICATE SameType(Type,Type)
+  LOCAL { tSymbol S1=NoSymbol,S2=NoSymbol; }
+  T1,T2 ? ((S1=WhichUserDataType(T1))!=NoSymbol); ((S2=WhichUserDataType(T2))!=NoSymbol); (S1==S2); .
+  T1,T2 ? (S1!=NoSymbol); FAIL;.
+  T1,T2 ? (S2!=NoSymbol); FAIL;.
+  T1,T2 ? SameUnderlyingType(T1,T2);.
+/*}}}*/
+/*{{{  PREDICATE CheckValidTag(TagProList,tSymbol)*/
+PREDICATE CheckValidTag(TagProList,tSymbol)
+  ATagPro(_,S1,_), S2 ? (S1==S2);.
+  ATagPro(N,_,_), S2 ? CheckValidTag(N,S2);.
+/*}}}*/
+/*{{{  PREDICATE SameProtocol(Protocol, Protocol)*/
+PREDICATE SameProtocol(Protocol, Protocol)
+  Any(_), _ ?.
+  _, Any(_) ?.
+  Named(_,S1), Named(_,S2) ? (S1==S2);.
+  Simple(_,T1), Simple(_,T2) ? SameType(T1,T2);.
+  Counted(_,L1,T1), Counted(_,L2,T2) ? SameType(L1,L2); SameType(T1,T2);.
+/*}}}*/
+/*{{{  PREDICATE CheckWritable(Tree)*/
+PREDICATE CheckWritable(Tree)
+  AnId(_,S) ? .
+  AFormal(_,_,ByRef(),_,_) ? .
+  Is(..) ? .
+  Retypes(..) ?.
+/*}}}*/
+/*{{{  PREDICATE CheckWritableExprList(ExprList)*/
+FUNCTION  CheckWritableExprList(ExprList) bool
+
+  NoExpr() RETURN true ? .
+  AnExpr(Next,ElementalExpr(_,EL)) RETURN CheckWritableExprList(Next) && Writable(EL) ? .
+  AnExpr(_,_) RETURN false ? .
+/*}}}*/
+/*{{{  PREDICATE CheckForVals(Formals)*/
+PREDICATE CheckForVals(Formals)
+  NoFormal() ?.
+  AFormal(Next,_,ByVal(),..) ? CheckForVals(Next);.
+/*}}}*/
+/*{{{  PREDICATE CheckValofScope(Tree,int)*/
+PREDICATE CheckValofScope(Tree,int)
+  NoExpr(),V ?.
+  AnExpr(N,ElementalExpr(_,E)),V ? CheckValofScope(E,V);CheckValofScope(N,V);.
+  AnExpr(N,ElementalExpr(_,E)),V ? FAIL;.
+  AnExpr(N,CountArray(_,ElementalExpr(_,L),ElementalExpr(_,E))),V ? CheckValofScope(E,V);CheckValofScope(N,V);.
+  AnExpr(N,CountArray(_,ElementalExpr(_,L),ElementalExpr(_,E))),V ? FAIL;.
+  AnExpr(N,_), V ? CheckValofScope(N,V);. 
+  Range(_,E,_,_),V ? CheckValofScope(E,V);.
+  Subscript(_,E,_),V ? CheckValofScope(E,V);.
+  Identifier(_,S),V ? (Symbol(S).Depth>=V);.
+/*}}}*/
+/*{{{  PREDICATE IsChanOrTimerType(Type)*/
+PREDICATE IsChanOrTimerType(Type)
+  Array(_,T) ? (IsChanOrTimerType(T));. 
+  UserChanRecord(..) ? .
+  Chan(..)  ? .
+  Timer(..) ? .
+/*}}}*/
+/*{{{  PREDICATE IsDataType(Type)*/
+PREDICATE IsDataType(Type)
+  Array(_,T) ? (IsDataType(T));.
+  Primitive() ? .
+  UserDataTypes(..) ? .
+/*}}}*/
+/*{{{  PREDICATE IsChanType(Type)*/
+PREDICATE IsChanType(Type)
+  Array(_,T) ? (IsChanType(T));. 
+  UserChanRecord(..) ? .
+  Chan(..)  ? .
+/*}}}*/
+/*{{{  PREDICATE IsTimerType(Type)*/
+PREDICATE IsTimerType(Type)
+  Array(_,T) ? (IsTimerType(T));. 
+
+  Timer(..)  ? .
+
+
+/*}}}*/
+/*{{{  PREDICATE IsArrayType(Type)*/
+PREDICATE IsArrayType(Type)
+  Array(..) ? .
+
+/*}}}*/
+/*{{{  FUNCTION  IsScalarType(Type) bool*/
+FUNCTION  IsScalarType(Type) bool
+  Array(..) RETURN false ? ; .
+  UserStructTypes(..) RETURN false ? ; .
+  _         RETURN true ? ; .
+/*}}}*/
+/*{{{  PREDICATE CheckChoicesDiffer(ExprList,ChoiceList)*/
+PREDICATE CheckChoicesDiffer(ExprList,ChoiceList)
+  NoExpr(),_ ? .
+  AnExpr(NE,E),CL ? CheckExprDiffers(E,NE,CL); CheckChoicesDiffer(NE,CL);.
+/*}}}*/
+/*{{{  PREDICATE CheckExprDiffers(Expr,ExprList,ChoiceList)*/
+PREDICATE CheckExprDiffers(Expr,ExprList,ChoiceList)
+  TE,NoExpr(),NoChoice() ?.
+  TE,NoExpr(),AChoice(_,NC,NEL,_) ? CheckExprDiffers(TE,NEL,NC);.
+  TE,AnExpr(NE,E),C ? (!IsConstInt(TE)); .
+  TE,AnExpr(NE,E),C ? (!IsConstInt(E)); CheckExprDiffers(TE,NE,C);. 
+  TE,AnExpr(NE,E),C ? (ValConstInt(TE)!=ValConstInt(E)); CheckExprDiffers(TE,NE,C);. 
+/*}}}*/
+/*{{{  PREDICATE CheckValidDeclType(Type)*/
+PREDICATE CheckValidDeclType(Type)
+  Array(E,T) ? (IsConstInt(E)); (ValConstInt(E)>0); CheckValidDeclType(T);.
+  Array(..) ? FAIL;.
+  _ ?.
+/*}}}*/
+/*{{{  PREDICATE CheckFuncType(TypeList)*/
+PREDICATE CheckFuncType(TypeList)
+  AType(N,T) ? (IS_Mode(xxUserDataTypes)); 
+	       (CheckValidDeclType(T));
+	       (IsDataType(T));
+	       (CheckFuncType(N));
+  .
+  AType(N,T:Array(..)) ? (!IS_Mode(xxUserDataTypes));
+    FAIL;                          
+  .
+  AType(N,T) ? .
+  NoType() ? .
+/*}}}*/
+/*}}}*/
+/*{{{  evaluation primitives*/
+/*{{{  PREDICATE CheckEvalBiOp(Op,Type)*/
+PREDICATE CheckEvalBiOp(Op,Type)
+  O,Integer() ? CheckEvalBiIntOp(O); .
+
+  O,Real() ? CheckEvalBiRealOp(O); .
+
+  O,Byte() ? CheckEvalBiIntOp(O);.
+
+  LogOp(),Bool() ? .
+  RelOp(),Bool() ? .
+  AfterOp(),Bool() ? .
+
+PREDICATE CheckEvalBiIntOp(Op)
+  MathsOp() ?.
+  ClockOp() ?.
+  RelOp() ?.
+  BitOp() ?.
+  ShiftOp() ?.    
+  AfterOp() ?.
+
+PREDICATE CheckEvalBiRealOp(Op)
+  MathsOp() ?.
+  RelOp() ?.
+
+ 
+/*}}}*/
+/*{{{  PREDICATE CheckEvalUniOp(Type,Op,Expr)*/
+PREDICATE CheckEvalUniOp(Type,Op,Expr)
+  Integer(),BitNot(),E ? (IsConstExpr(E));.
+  Bool(),Not(),E ? (IsConstExpr(E));.
+  Integer(),Subtract(),E ? (IsConstExpr(E));.
+  Integer(),Minus(),E ? (IsConstExpr(E));.
+  Integer(),Plus(),E ? (IsConstExpr(E));.
+  Integer(),Add(),E ? (IsConstExpr(E));.
+  Real(),Subtract(),E ? (IsConstExpr(E));.
+  Real(),Add(),E ? (IsConstExpr(E));.
+  Array(AE,T),Size(),E ? (IsConstExpr(AE));.
+/*}}}*/
+
+/*{{{  FUNCTION EvalBiExpr(tPosition,Type,tValue,Op,tValue) tValue*/
+FUNCTION EvalBiExpr(tPosition,Type,tValue,Op,tValue) tValue
+  LOCAL { tValue Res; }
+
+  P,T:Integer(),LV,Op,RV         RETURN Res ? Res.Number := EvalBiIntOp(P,T,LV.Number,Op,RV.Number); .
+  P,T:Byte(),LV,Op,RV            RETURN Res ? Res.Number := EvalBiIntOp(P,T,LV.Number,Op,RV.Number); .
+  P,T:Bool(),LV,Op,RV            RETURN Res ? Res.Number := EvalBiBoolOp(P,T,LV.Number,Op,RV.Number); .
+  P,T:Real(),LV,Op:MathsOp(),RV  RETURN Res ? Res.RNumber.n := EvalBiRealMathsOp(P,T,LV.RNumber.n,Op,RV.RNumber.n); Res.RNumber.p := MAX(LV.RNumber.p,RV.RNumber.p); .
+  P,T:Real(),LV,Op:RelOp(),RV    RETURN Res ? Res.Number := EvalBiRealRelOp(P,T,LV.RNumber.n,Op,RV.RNumber.n); .
+
+/*{{{  FUNCTION EvalBiIntOp(tPosition,Type,tInt,Op,tInt) tInt*/
+FUNCTION EvalBiIntOp(tPosition,Type,tInt,Op,tInt) tInt
+  LOCAL { tInt res; }
+
+  P,T,LE,Add(),RE           RETURN TestIntOVF(P,T,LE+RE) ?.
+  P,T,LE,Subtract(),RE      RETURN TestIntOVF(P,T,LE-RE) ?.
+  P,T,LE,Multiply(),RE      RETURN TestIntOVF(P,T,LE*RE) ?.
+
+  P,T,LE,Divide(),RE        RETURN TestIntOVF(P,T,LE/RE) ? (RE != 0); .
+  P,T,LE,Divide(),RE        RETURN TestIntOVF(P,mUntyped(),1) ?.          /* Cause Constant Overflow Error */
+  P,T,LE,Rem(),RE           RETURN TestIntOVF(P,T,LE%RE) ? (RE != 0); .
+  P,T,LE,Rem(),RE           RETURN TestIntOVF(P,mUntyped(),1) ?.          /* Cause Constant Overflow Error */
+  
+  P,T,LE,Equal(),RE         RETURN LE==RE ?.
+  P,T,LE,NotEqual(),RE      RETURN LE!=RE ?.
+  P,T,LE,Less(),RE          RETURN LE<RE ?.
+  P,T,LE,Greater(),RE       RETURN LE>RE ?.
+  P,T,LE,LessEqual(),RE     RETURN LE<=RE ?.
+  P,T,LE,GreaterEqual(),RE  RETURN LE>=RE ?.
+
+  P,T,LE,BitAnd(),RE        RETURN LE&RE ?.
+  P,T,LE,BitOr(),RE         RETURN LE|RE ?.
+  P,T,LE,BitEor(),RE        RETURN res ? { res = LE^RE;}; .
+
+  P,T,LE,ShiftOp(),RE       RETURN LE ? (RE==0);.
+  P,T,LE,ShiftOp(),RE       RETURN 0  ? (RE>EvalIntBits(T)); Message("Shift by invalid value for Integer size. Result is always zero",xxWarning,P);.
+  P,T,LE,ShiftOp(),RE       RETURN 0  ? (RE<0); Message("Shift by invalid (negative) value",xxError,P);.
+
+  P,T,LE,LeftShift(),RE     RETURN res ? { res = SignExtendInt(T,LE<<RE); }; .
+  P,T,LE,RightShift(),RE    RETURN res ? { res = SignExtendInt(T,(tInt)(((tUInt)(EvalIntMask(T)&LE)) >> RE)); };.
+
+  P,T,LE,Plus(),RE          RETURN SignExtendInt(T,LE+RE) ?.
+  P,T,LE,Minus(),RE         RETURN SignExtendInt(T,LE-RE) ?.
+  P,T,LE,Times(),RE         RETURN SignExtendInt(T,LE*RE) ?.
+
+  P,T,LE,AfterOp(),RE       RETURN res ? { res = ((tUInt)LE > (tUInt)RE); }; .
+
+
+/*}}}*/
+/*{{{  FUNCTION EvalBiBoolOp(tPosition,Type,tInt,Op,tInt) int*/
+FUNCTION EvalBiBoolOp(tPosition,Type,tInt,Op,tInt) int
+
+  P,T,LE,Equal(),RE         RETURN LE==RE ?.
+  P,T,LE,NotEqual(),RE      RETURN LE!=RE ?.
+  P,T,LE,Less(),RE          RETURN LE<RE ?.
+  P,T,LE,Greater(),RE       RETURN LE>RE ?.
+  P,T,LE,LessEqual(),RE     RETURN LE<=RE ?.
+  P,T,LE,GreaterEqual(),RE  RETURN LE>=RE ?.
+
+  P,T,LE,And(),RE           RETURN LE&&RE ?.
+  P,T,LE,Or(),RE            RETURN LE||RE ?.
+
+/*}}}*/
+/*{{{  FUNCTION EvalBiRealMathsOp(tPosition,Type,double,Op,double) double*/
+FUNCTION EvalBiRealMathsOp(tPosition,Type,double,Op,double) double
+  LOCAL { double Res = 0; }
+
+  P,T,LV,Add(),RV      RETURN LV+RV ?.
+  P,T,LV,Subtract(),RV RETURN LV-RV ?.
+  P,T,LV,Multiply(),RV RETURN LV*RV ?.
+  P,T,LV,Divide(),RV   RETURN LV/RV ? (RV != 0); .
+  P,T,LV,Divide(),RV   RETURN Res ?  { TestIntOVF(P,mUntyped(),1); };.          /* Cause Constant Overflow */
+  P,T,LV,Rem(),RV      RETURN Res ?  (RV != 0); { Res = LV-(RV*(int)(LV/RV)); }; .
+  P,T,LV,Rem(),RV      RETURN Res ?  { TestIntOVF(P,mUntyped(),1); };.          /* Cause Constant Overflow */
+
+/*}}}*/
+/*{{{  FUNCTION EvalBiRealRelOp(tPosition,Type,double,Op,double) int*/
+FUNCTION EvalBiRealRelOp(tPosition,Type,double,Op,double) int
+
+  P,T,LE,Equal(),RE         RETURN LE==RE ?.
+  P,T,LE,NotEqual(),RE      RETURN LE!=RE ?.
+  P,T,LE,Less(),RE          RETURN LE<RE ?.
+  P,T,LE,Greater(),RE       RETURN LE>RE ?.
+  P,T,LE,LessEqual(),RE     RETURN LE<=RE ?.
+  P,T,LE,GreaterEqual(),RE  RETURN LE>=RE ?.
+
+/*}}}*/
+
+/*}}}*/
+/*{{{  FUNCTION EvalUniExpr(Type,Op,Expr) tValue*/
+FUNCTION EvalUniExpr(Type,Op,Expr) tValue
+  LOCAL { tValue Res; }
+
+  Integer(),BitNot(),E   RETURN Res ? Res.Number := ~ValConstInt(E); .
+  Integer(),Subtract(),E RETURN Res ? Res.Number := -ValConstInt(E); .
+  Integer(),Minus(),E    RETURN Res ? Res.Number := -ValConstInt(E); .
+  Integer(),Plus(),E     RETURN Res ? Res.Number := ValConstInt(E); .
+  Integer(),Add(),E      RETURN Res ? Res.Number := ValConstInt(E); .
+
+  Bool(),Not(),E         RETURN Res ? Res.Number  := !(ValConstInt(E)); .
+  Real(),Subtract(),E    RETURN Res ? Res.RNumber.n := -ValConstExpr(E).RNumber.n; Res.RNumber.p := ValConstExpr(E).RNumber.p; .
+  Real(),Add(),E         RETURN Res ? Res.RNumber.n := -ValConstExpr(E).RNumber.n; Res.RNumber.p := ValConstExpr(E).RNumber.p; .
+
+  Array(AE,T),Size(),E   RETURN Res ? Res.Number := ValConstInt(AE); .
+
+/*}}}*/
+
+/*{{{  PREDICATE CheckConstConvert(Type)*/
+PREDICATE CheckConstConvert(Type)
+  Integer() ?.
+  Bool () ?.
+  Byte() ?.
+/*}}}*/
+/*{{{  FUNCTION EvalConstConvert(tPosition,Type,Expr) tValue*/
+FUNCTION EvalConstConvert(tPosition,Type,Expr) tValue
+  LOCAL { tValue Res; }
+
+  P,T,E RETURN Res ? Res.Number := TestIntOVF(P,T,ValConstInt(E));.
+/*}}}*/
+/*{{{  FUNCTION CheckConst(tPosition,Type,tInt,bool) tValue*/
+FUNCTION CheckConst(tPosition,Type,tInt,bool) tValue
+  LOCAL { tValue Res; }
+  P,Untyped(),I,B  RETURN Res ? { Res.Number = I; };.
+  P,T,I,B   RETURN Res ? (B == false); { Res.Number = TestIntOVF(P,T,I); };.
+  P,T,I,B   RETURN Res ? { Res.Number = SignExtendInt(T,I); };.
+
+/*}}}*/
+
+/*{{{  PREDICATE CheckConstRoundTrunc(Type,Type)*/
+PREDICATE CheckConstRoundTrunc(Type,Type)
+  Real(),_ ?.
+  _,Real() ?.
+/*}}}*/
+
+/*{{{  FUNCTION EvalConstTrunc(tPosition,Type,Type,tValue) tValue*/
+FUNCTION EvalConstTrunc(tPosition,Type,Type,tValue) tValue
+/*
+   Purpose   : To evaluate constant TRUNC expressions
+
+   tPosition : Position of Expression
+   Type      : Result Type
+   Type      : Type of Expression
+   tValue    : Constant value
+   RESULT    : Truncated Value
+
+   Bugs:     : No OVF detection for REAL64->REAL32 or REAL->INT64 (or REAL->INT32 when compiler doesn't support INT64)
+	   
+   Created   : smw 14-9-93
+*/ 
+
+  LOCAL { tValue Res; }
+
+  P,Real(),Real(),V       RETURN Res ? { Res.RNumber.n = floor(V.RNumber.n); Res.RNumber.p = 1.0+log10(fabs(Res.RNumber.n)); }; .  
+  P,T:Integer(),Real(),V  RETURN Res ? { Res.Number = TestIntOVF(P,T,(tInt)V.RNumber.n); }; .
+  P,T:Byte(),Real(),V  RETURN Res ? { Res.Number = TestIntOVF(P,T,(tInt)V.RNumber.n); }; .
+  P,Real(),Integer(),V    RETURN Res ? { Res.RNumber.n = (double)V.Number; Res.RNumber.p = 1.0+log10(fabs(Res.RNumber.n)); }; .
+  P,Real(),Byte(),V    RETURN Res ? { Res.RNumber.n = (double)V.Number; Res.RNumber.p = 1.0+log10(fabs(Res.RNumber.n)); }; .
+
+
+/*}}}*/
+/*{{{  FUNCTION EvalConstRound(tPosition,Type,Type,tValue) tValue*/
+FUNCTION EvalConstRound(tPosition,Type,Type,tValue) tValue
+/*
+   Purpose   : To evaluate constant ROUND expressions
+
+   tPosition : Position of Expression
+   Type      : Result Type
+   Type      : Type of Expression
+   tValue    : Constant value
+   RESULT    : Rounded Value
+
+   Bugs:     : No OVF detection for REAL64->REAL32 or REAL->INT64 (or REAL->INT32 when compiler doesn't support INT64)
+	   
+   Created   : smw 14-9-93
+*/ 
+
+  LOCAL { tValue Res; }
+
+  P,Real(),Real(),V     RETURN Res ? { Res.RNumber.n = floor(V.RNumber.n + 0.5); Res.RNumber.p = 1.0+log10(fabs(Res.RNumber.n));; }; .
+  P,T:Integer(),Real(),V  RETURN Res ? { Res.Number = TestIntOVF(P,T,(tInt)(V.RNumber.n + 0.5)); }; .
+  P,T:Byte(),Real(),V  RETURN Res ? { Res.Number = TestIntOVF(P,T,(tInt)(V.RNumber.n + 0.5)); }; .
+  P,Real(),Integer(),V  RETURN Res ? { Res.RNumber.n = (double)V.Number; Res.RNumber.p = 1.0+log10(fabs(Res.RNumber.n));; }; .
+  P,Real(),Byte(),V  RETURN Res ? { Res.RNumber.n = (double)V.Number; Res.RNumber.p = 1.0+log10(fabs(Res.RNumber.n));; }; .
+
+
+/*}}}*/
+  
+/*{{{  PREDICATE CheckConstId(Tree) */
+PREDICATE CheckConstId(Tree) 
+  NIL ? FAIL;.
+  AVal(_,_,_,E) ? (IsConstExpr(E));.
+  ATagPro(..) ?.
+  AField(..) ?.
+/*}}}*/
+/*{{{  FUNCTION EvalConstId(Tree) tValue*/
+FUNCTION EvalConstId(Tree) tValue
+  LOCAL { tValue Res; }
+  Val(_,_,_,EX)        RETURN ValConstExpr(EX) ? .
+
+  ValRetypes(_,T,_,EX) RETURN ValConstExpr(EX) ? (IsArrayType(T));.
+
+  ValRetypes(_,T,_,EX) RETURN Res ? (IsArrayType(ExprType(EX)));
+  { 
+    unsigned char tmp[8];
+    tConstArray D = (tConstArray)tmp;
+    int SS = CalcTypeSize(ArrayPrimType(ExprType(EX)));
+    int DS = CalcTypeSize(T);
+
+    RetypeConst(SS,GetConstArray(EX),DS,D);
+    Res = ReadConstArray(T,D);
+  };.
+
+  ValRetypes(_,T,_,EX) RETURN Res ?
+  { 
+    unsigned char tmp1[8],tmp2[8];
+    tConstArray D = (tConstArray)tmp1;
+    tConstArray S = (tConstArray)tmp2;
+    int SS = CalcTypeSize(ArrayPrimType(ExprType(EX)));
+    int DS = CalcTypeSize(T);
+
+    WriteConstArray(ExprType(EX),ValConstExpr(EX),S);
+    RetypeConst(SS,S,DS,D);
+    Res = ReadConstArray(T,D);
+  };.
+
+   
+  ATagPro(_,S,_) RETURN Res ? Res.Number := CountTags(S);.  
+
+  /* these numbers are just used to provide unique field identifiers 
+   * during usage checking */ 
+  AField(_,S,_) RETURN Res ? Res.Number := CountFields(S);.
+
+
+/*}}}*/
+
+/*{{{  FUNCTION TestIntOVF(tPosition,Type,tInt) tInt*/
+FUNCTION TestIntOVF(tPosition,Type,tInt) tInt
+
+  P,Int64(),V       RETURN V ? . /* Cannot Test INT64 Overflow */
+  P,Int(),V         RETURN V ? (V >= MOSTNEGINT   && V <= MOSTPOSINT);.
+  P,Int32(),V       RETURN V ? (V >= MOSTNEGINT32 && V <= MOSTPOSINT32);.
+  P,Int16(),V       RETURN V ? (V >= MOSTNEGINT16 && V <= MOSTPOSINT16); .
+  P,Byte(),V        RETURN V ? (V & (~BYTEMASK)) == 0;.
+  P,Bool(),V        RETURN V ? (V & (~BOOLMASK)) == 0;.
+
+  P,T,V             RETURN V ? V := 0; Message("Overflow when evaluating constant expression",xxError,P);.
+/*}}}*/
+/*{{{  FUNCTION SignExtendInt(Type,tInt) tInt*/
+FUNCTION SignExtendInt(Type,tInt) tInt
+
+  Int64(),V        RETURN V ? .
+  Int(),V          RETURN V ? (IS_Mode(xx16bitINT)); { V = (tInt)((short)V); }; .
+  Int(),V          RETURN V ? { V = ((int)V); }; .
+  Int32(),V        RETURN V ? { V = ((int)V); }; .
+  Int16(),V        RETURN V ? { V = ((short)V); }; .
+  Byte(),V         RETURN V ? ;.
+  Bool(),V         RETURN V ? ;.
+
+  T,V              RETURN V ? .
+/*}}}*/
+
+/*{{{  FUNCTION CountTags(tSymbol) int*/
+FUNCTION CountTags(tSymbol) int
+  S RETURN 0 ? (!Tree_IsType(SymbolKind(S-1),kATagPro));.
+  S RETURN 1+CountTags(S-1) ? . 
+/*}}}*/
+/*{{{  FUNCTION CountFields(tSymbol) int*/
+FUNCTION CountFields(tSymbol) int
+  S RETURN 0 ? (!Tree_IsType(SymbolKind(S-1),kAField));.
+  S RETURN 1+CountFields(S-1) ? . 
+/*}}}*/
+
+/*{{{  FUNCTION EvalIntBits(Type) tInt*/
+FUNCTION EvalIntBits(Type) tInt
+  Int()   RETURN 32 ?.
+  Byte()  RETURN 8 ?.
+  Int16() RETURN 16 ?.
+  Int32() RETURN 32 ?.
+  Int64() RETURN 64 ?.
+/*}}}*/
+/*{{{  FUNCTION EvalMostPos(Type) tInt*/
+FUNCTION EvalMostPos(Type) tInt
+  Byte()  RETURN MOSTPOSBYTE ?.
+  Int()   RETURN MOSTPOSINT ?.
+  Int16() RETURN MOSTPOSINT16 ?.
+  Int32() RETURN MOSTPOSINT32 ?.
+  Int64() RETURN MOSTPOSINT64 ?.
+/*}}}*/
+/*{{{  FUNCTION EvalMostNeg(Type) tInt*/
+FUNCTION EvalMostNeg(Type) tInt
+  Byte()  RETURN MOSTNEGBYTE ?.
+  Int() RETURN MOSTNEGINT ?.
+  Int16() RETURN MOSTNEGINT16 ?.
+  Int32() RETURN MOSTNEGINT32 ?.
+  Int64() RETURN MOSTNEGINT64 ?.
+/*}}}*/
+/*{{{  FUNCTION EvalIntMask(Type) tInt*/
+FUNCTION EvalIntMask(Type) tInt
+  Byte()   RETURN BYTEMASK ?.
+  Int()   RETURN INTMASK ?.
+  Int16() RETURN INT16MASK ?.
+  Int32() RETURN INT32MASK ?.
+  Int64() RETURN INT64MASK ?.
+/*}}}*/
+
+/*{{{  FUNCTION EvalConstSubscript(Tree,int) tValue*/
+FUNCTION EvalConstSubscript(Type,int,tConstArray) tValue
+  LOCAL { tValue Res; tTree E; }
+
+  T:Real32(),sub,CA RETURN Res ? Res.RNumber.n := { ((float *)CA)[sub] }; Res.RNumber.p := 0; .
+  T:Real64(),sub,CA RETURN Res ? Res.RNumber.n := { ((double *)CA)[sub] }; Res.RNumber.p := 0; .
+  T:Primitive(),sub,CA RETURN Res ? 
+    {
+      switch(CalcTypeSize(T))
+      {
+	case 1:  Res.Number = ((unsigned char *)CA)[sub]; break;
+	case 2:  Res.Number = ((short *)CA)[sub]; break;
+	case 4:  Res.Number = ((int *)CA)[sub]; break;
+	case 8:  Res.Number = ((tInt *)CA)[sub]; break;
+      }
+    };
+    .
+/*}}}*/
+
+/*{{{  FUNCTION  ConstArrayFromString(Type,tStringRef) tConstArray*/
+FUNCTION  ConstArrayFromString(Type,tStringRef) tConstArray
+  LOCAL { tConstArray CA; }
+
+  T,S RETURN CA ?  CA := NewConstArray(LengthSt(S));
+		   { StGetString(S,CA); };  .
+/*}}}*/
+/*{{{  FUNCTION  ConstArrayFromExprList(Type,ExprList) tConstArray*/
+FUNCTION  ConstArrayFromExprList(Type,ExprList) tConstArray
+  LOCAL { tConstArray CA; }
+  A:Array(E,T),EL RETURN CA ? CA := NewConstArray(CalcTypeSize(A)); FillConstArray(T,EL,CA); .
+  A:UserDataTypes(_,_,FL),EL RETURN CA ? CA := NewConstArray(CalcTypeSize(A)); FillConstFields(A,FL,EL,CA); .
+  
+/*}}}*/
+/*{{{  FUNCTION  ConstArrayFromDecl(Type,Tree) tConstArray*/
+FUNCTION  ConstArrayFromDecl(Type,Tree) tConstArray
+  LOCAL { tConstArray CA; }
+  T,AField(..) RETURN NoConstArray ?.
+  T,Val(_,_,_,EL:ElementalExpr(_,E)) RETURN { E->Elemental.CA }     ? (!IsScalarType(ExprType(EL))); .
+  T,Val(_,_,_,ST:StringElement(..)) RETURN { ST->StringElement.CA } ? (IsArrayType(ExprType(ST))); .
+  T,Val(_,_,_,V:Valof(..)) RETURN ConstArrayFromDecl(T,V) ? (!IsScalarType(ExprType(V))); .
+  T,Valof(_,_,_,AnExpr(_,V:Valof(..))) RETURN ConstArrayFromDecl(T,V) ? (!IsScalarType(ExprType(V))); .
+  T,Valof(_,_,_,AnExpr(_,EL:ElementalExpr(_,E))) RETURN { E->Elemental.CA }     ? (!IsScalarType(ExprType(EL))); .
+  T,Valof(_,_,_,AnExpr(_,ST:StringElement(..))) RETURN { ST->StringElement.CA } ? (!IsScalarType(ExprType(ST))); .
+
+  A:Array(_,T),ValRetypes(_,_,_,EX:ElementalExpr(_,E))  RETURN CA ? (IsArrayType(ExprType(EX)));
+    {
+      { tConstArray S,D;
+	int SS = CalcTypeSize(ArrayPrimType(ExprType(EX)));
+	int DS = CalcTypeSize(ArrayPrimType(A));
+	int sz = CalcTypeSize(A);
+	int psz = CalcTypeSize(ArrayPrimType(A));
+	int count = sz/psz;
+
+	CA = NewConstArray(sz);
+	S = GetConstArray(EX);
+	D = CA;
+
+	while(count-- > 0)
+	{
+	  RetypeConst(SS,S,DS,D);
+	  D += DS; S += DS;
+	}
+      }
+    };
+    .
+
+  A:Array(_,T),ValRetypes(_,_,_,EX)             RETURN CA ?
+    {
+      { tConstArray S,D;
+	int SS = CalcTypeSize(ExprType(EX));
+	int DS = CalcTypeSize(ArrayPrimType(A));
+
+	CA = NewConstArray(CalcTypeSize(A));
+	S = CA; D = CA;
+	WriteConstArray(ExprType(EX),ValConstExpr(EX),CA);
+	RetypeConst(SS,S,DS,D);
+      }
+    };
+    .
+
+  T,Spec(P) RETURN NoConstArray ? Message("Implementation restriction: Construct Not Supported",xxError,P);.
+  _,S RETURN NoConstArray ? "ConstArrayFromDecl-"; WriteTreeNode(yyf,S); .  
+/*}}}*/
+  
+/*{{{  PROCEDURE FillConstArray(Type,ExprList,tConstArray)*/
+PROCEDURE FillConstArray(Type,ExprList,tConstArray)
+  T:UserDataTypes(..),AnExpr(N,ElementalExpr(_,EL)),CAr ?
+    {
+      int sz=CalcTypeSize(T);
+      memcpy(CAr,EL->Elemental.CA,sz);
+      FillConstArray(T,N,CAr+sz);
+    };
+    .
+  T:Array(..),AnExpr(N,ElementalExpr(_,EL)),CAr ?
+    {
+      int sz=CalcTypeSize(T);
+      memcpy(CAr,EL->Elemental.CA,sz);
+      FillConstArray(T,N,CAr+sz);
+    };
+    .
+  T:Array(..),AnExpr(N,ST:StringElement(..)),CAr ?
+    {
+      int sz=CalcTypeSize(T);
+      memcpy(CAr,ST->StringElement.CA,sz);
+      FillConstArray(T,N,CAr+sz);
+    };
+    .
+  
+  T:Primitive(),AnExpr(N,EX:Expr(..)),CA ?
+    {
+      WriteConstArray(T,ValConstExpr(EX),CA);
+      FillConstArray(T,N,CA+CalcTypeSize(T));
+    };
+    .     
+/*}}}*/
+/*{{{  PROCEDURE FillConstFields(Type,FieldList,ExprList,tConstArray)*/
+PROCEDURE FillConstFields(Type,FieldList,ExprList,tConstArray)
+  UDT,FL:AField(NF,_,T:UserDataTypes(..)),AnExpr(N,ElementalExpr(_,EL)),CAr ?
+    {
+      memcpy(CAr+CalcOffset(UDT,FL),EL->Elemental.CA,CalcTypeSize(T));
+      FillConstFields(UDT,NF,N,CAr);
+    };
+    .
+  UDT,FL:AField(NF,_,T:Array(..)),AnExpr(N,ElementalExpr(_,EL)),CAr ?
+    {
+      memcpy(CAr+CalcOffset(UDT,FL),EL->Elemental.CA,CalcTypeSize(T));
+      FillConstFields(UDT,NF,N,CAr);
+    };
+    .
+  UDT,FL:AField(NF,_,T:Array(..)),AnExpr(N,ST:StringElement(..)),CAr ?
+    {
+      memcpy(CAr+CalcOffset(UDT,FL),ST->StringElement.CA,CalcTypeSize(T));
+      FillConstFields(UDT,NF,N,CAr);
+    };
+    .
+  
+  UDT,FL:AField(NF,_,T:Primitive()),AnExpr(N,EX:Expr(..)),CA ?
+    {
+      WriteConstArray(T,ValConstExpr(EX),CA+CalcOffset(UDT,FL));
+      FillConstFields(UDT,NF,N,CA);
+    };
+    .     
+/*}}}*/
+
+
+/*{{{  FUNCTION  RangeConstArray(Type,tConstArray,int) tConstArray*/
+FUNCTION  RangeConstArray(Type,tConstArray,int) tConstArray
+  A:Array(E,T),CA,From RETURN CA ? CA := CA + { (From*CalcTypeSize(T))};
+    {
+/*      { int i; printf("Range:"); for(i = 0; i < CalcTypeSize(A); ++i) printf("%02x",CA[i]); printf("\n"); };*/
+    };
+    . 
+
+/*}}}*/
+/*{{{  FUNCTION  SubscriptConstArray(Type,tConstArray,Expr,Type) tConstArray*/
+FUNCTION  SubscriptConstArray(Type,tConstArray,Expr,Type) tConstArray
+  T,CA,E,UDT:UserDataTypes(..) RETURN CA ? 
+    CA := CA + CalcOffset(UDT,ExprFieldList(E));
+    .
+  T,CA,E,_ RETURN CA ? 
+    CA := CA + (ValConstInt(E)*CalcTypeSize(T));
+    {
+     /* { int i; printf("Subsc:"); for(i = 0; i < CalcTypeSize(T); ++i) printf("%02x",CA[i]); printf("\n"); }; */
+    };
+    .
+/*}}}*/
+
+/*{{{  FUNCTION  GetConstArray(EX:Expr) tConstArray*/
+FUNCTION  GetConstArray(EX:Expr) tConstArray
+  ElementalExpr(_,E) RETURN E->Elemental.CA      ? (IsArrayType(ExprType(EX))); .
+  StringElement(..)  RETURN EX->StringElement.CA ? (IsArrayType(ExprType(EX))); .
+  Expr(P)            RETURN {(tConstArray)NULL}  ? Message("Error in ExprConstArray()",xxFatal,P); .
+/*}}}*/
+/*{{{  FUNCTION  ReadConstArray(Type,tConstArray) tValue*/
+FUNCTION  ReadConstArray(Type,tConstArray) tValue
+  LOCAL { tValue V; }
+
+  Byte(),CA   RETURN V ? {V.Number = *((unsigned char *)CA); };.
+  Bool(),CA   RETURN V ? {V.Number = *((unsigned char *)CA); };.
+
+  Int(),CA    RETURN V ? (IS_Mode(xx16bitINT)); 
+    {short v; memcpy(&v,CA,2); V.Number = v; };.
+  Int16(),CA  RETURN V ? 
+    {short v; memcpy(&v,CA,2); V.Number = v; };.
+
+  Int(),CA    RETURN V ? 
+    {int v; memcpy(&v,CA,4); V.Number = v; };.
+  Int32(),CA  RETURN V ? 
+    {int v; memcpy(&v,CA,4); V.Number = v; };.
+  Real32(),CA RETURN V ? 
+    {float v; memcpy(&v,CA,4); V.RNumber.n = v; V.RNumber.p = 7; };.
+
+  Int64(),CA  RETURN V ? 
+    {tInt v; memcpy(&v,CA,8); V.Number = v; };.
+  Real64(),CA RETURN V ?
+    {double v; memcpy(&v,CA,8); V.RNumber.n = v; V.RNumber.p = 14; };.
+
+/*}}}*/
+/*{{{  PROCEDURE WriteConstArray(Type,tValue,tConstArray)*/
+PROCEDURE WriteConstArray(Type,tValue,tConstArray)
+  Byte(),V,CA   ? {*((char *)CA) = V.Number; };.
+  Bool(),V,CA   ? {*((char *)CA) = V.Number; };.
+
+  Int(),V,CA    ? (IS_Mode(xx16bitINT)); 
+    {short v = V.Number; memcpy(CA,&v,2); };.
+  Int16(),V,CA  ? 
+    {short v = V.Number; memcpy(CA,&v,2); };.
+
+  Int(),V,CA    ? 
+    {int v = V.Number; memcpy(CA,&v,4); };.
+  Int32(),V,CA  ? 
+    {int v = V.Number; memcpy(CA,&v,4); };.
+  Real32(),V,CA ? 
+    {float v = V.RNumber.n; memcpy(CA,&v,4); };.
+
+  Int64(),V,CA  ? 
+    {tInt v = V.Number; memcpy(CA,&v,8); };.
+  Real64(),V,CA ? 
+    {double v = V.RNumber.n; memcpy(CA,&v,8); };.  
+/*}}}*/
+/*{{{  FUNCTION  NewConstArray(int) tConstArray*/
+FUNCTION  NewConstArray(int) tConstArray
+  LOCAL { tConstArray CA; }
+
+  V RETURN CA ? 
+  {
+    if (!(CA = (tConstArray)malloc((V==0)?1:V))) Message("Out of heap allocating array",xxError,NoPosition);
+  };.
+/*}}}*/
+/*}}}*/
+/*{{{  rangechecking*/
+/*{{{  PROCEDURE RangeCheckSubscript(Expr,Expr)*/
+PROCEDURE RangeCheckSubscript(Expr,Expr)
+  SB,SZ ? (IsConstInt(SB)); (IsConstInt(SZ)); (ValConstInt(SB)>=0); (ValConstInt(SB)<ValConstInt(SZ));.
+  SB:Expr(P),SZ ? (IsConstInt(SB)); (IsConstInt(SZ)); Message("Subscript out of range",xxError,P);.
+  SB,SZ ? (IsConstInt(SB)); (ValConstInt(SB)>=0);.
+  SB:Expr(P),SZ ? (IsConstInt(SB)); Message("Subscript out of range",xxError,P);.
+  SB,SZ ? .
+/*}}}*/
+/*{{{  PROCEDURE RangeCheckSlice(Expr,Expr,Expr)*/
+PROCEDURE RangeCheckSlice(Expr,Expr,Expr)
+  FROM,FOR,SIZE ? (IsConstInt(FROM));(IsConstInt(FOR));(IsConstInt(SIZE));
+		  (ValConstInt(FROM)>=0); (ValConstInt(FOR)>=0); ((ValConstInt(FROM)+ValConstInt(FOR))<=ValConstInt(SIZE));.
+  FROM:Expr(P),FOR,SIZE ? (IsConstInt(FROM));(IsConstInt(FOR));(IsConstInt(SIZE));
+		  Message("Array slice exceeds array bounds",xxError,P);.
+  FROM,FOR,SIZE ? RangeCheckSubscript(FROM,SIZE);.
+/*}}}*/
+/*}}}*/
+/*{{{  node constructors*/
+FUNCTION MakeConstInt(int,tPosition) Expr
+  LOCAL { tTree T; tValue TMP; }
+  V, P RETURN T ? TMP.Number:=V;T:=mConst(P,TMP,mInt()); ExprType(T):=mInt(); ConstFlag(T->Expr):=true; ValConstInt(T):=V;.
+
+FUNCTION MakeAddExpr(Expr,Expr) Expr
+  LOCAL { tTree T; }
+  E1:Expr(P), E2:Expr(_) RETURN T ? (IsConstInt(E1)) ; (IsConstInt(E2)) ; T:=mBinary(P,E1,E2,mAdd()); ExprType(T):=ExprType(E1); ConstFlag(T->Expr):=true; ValConstInt(T):=ValConstInt(E1)+ValConstInt(E2);.
+  E1:Expr(P), E2:Expr(_) RETURN T ? T:=mBinary(P,E1,E2,mAdd()); ExprType(T):=ExprType(E1); ConstFlag(T->Expr):=false;.
+/*}}}*/
+/*{{{  sizing functions*/
+/*{{{  FUNCTION CountList(ExprList, Type) int*/
+FUNCTION CountList(ExprList, Type) int
+  AnExpr(N,E), T RETURN CountList(N,T)+1 ? SameType(T,ExprType(E));.
+  NoExpr(), _  RETURN 1 ? .
+  AnExpr(N,Expr(P)), T RETURN CountList(N,T)+1 ? Message("Type mismatch in expression list",xxError,P);. 
+/*}}}*/
+/*{{{  FUNCTION CountExprs(ExprList) int*/
+FUNCTION CountExprs(ExprList) int
+  AnExpr(N,E) RETURN CountExprs(N)+1 ? ;.
+  NoExpr() RETURN 0 ? .
+/*}}}*/
+/*{{{  FUNCTION SizeType(Type,tPosition,bool => Expr) int*/
+FUNCTION SizeType(Type,tPosition,bool => Type) int
+  LOCAL { int V; }
+  A:Array(UnBound(_),T),P,{true} => A RETURN V ? 
+    V := SizeType(T,P,true=>UB); 
+    { if (UB!=NoTree) Message("Too many unspecified dimensions to retype",xxError,P); };
+  .
+  Array(E,T),P,LHS => UB RETURN -1 ? (!IsConstInt(E)); SizeType(T,P,LHS=>UB);. 
+  Array(E,T),P,LHS => UB RETURN {(V<0)?V:V*ValConstInt(E)} ? V:= SizeType(T,P,LHS=>UB);.
+  Int(),P,_ => NIL RETURN {IS_Mode(xx16bitINT) ? 2 : 4 } ?.
+  Int16(),P,_ => NIL RETURN 2 ? .
+  Int32(),P,_ => NIL RETURN 4 ? .
+  Int64(),P,_ => NIL RETURN 8 ? .
+  Real32(),P,_ => NIL RETURN 4 ? .
+  Real64(),P,_ => NIL RETURN 8 ? .
+  Bool(),P,_ => NIL RETURN 1 ? .
+  Byte(),P,_ => NIL RETURN 1 ?.
+  Chan(_),P,_ => NIL RETURN {sizeof(void*)} ?.
+  UserRecord(_,_,F),P,_ => NIL RETURN CalcRecordSize(F,0) ? .
+  _,P,_ => NIL RETURN -1 ? Message("Cannot perform retype involving this base type",xxError,P);.
+/*}}}*/
+/*{{{  FUNCTION AlignToNext(int,int) int*/
+FUNCTION AlignToNext(int,int) int
+  X, Y RETURN ((X+(Y-1))/Y)*Y ? .
+/*}}}*/
+/*{{{  FUNCTION CalcRecordSize(FieldList,int) int*/
+FUNCTION CalcRecordSize(FieldList,int) int
+  LOCAL { int BTS; }
+  NoField(),V RETURN AlignToNext(V,USER_ALIGNMENT) ? .
+  AField(FL,_,T:Primitive()),V RETURN CalcRecordSize(FL,AlignToNext(V,BTS)+BTS) ? BTS := CalcTypeSize(T); .
+  AField(FL,_,T),V RETURN CalcRecordSize(FL,AlignToNext(V,USER_ALIGNMENT)+CalcTypeSize(T)) ? .
+/*}}}*/
+/*{{{  FUNCTION CalcPackedRecordSize(FieldList,int) int*/
+FUNCTION CalcPackedRecordSize(FieldList,int) int
+  LOCAL { int BTS; }
+  NoField(),V RETURN V ? .
+  AField(FL,_,T),V RETURN CalcPackedRecordSize(FL,V+CalcTypeSize(T)) ?; .
+/*}}}*/
+/*{{{  FUNCTION CalcRecordOffset(FieldList,FieldList,int) int*/
+FUNCTION CalcRecordOffset(FieldList,FieldList,int) int
+  LOCAL { int BTS; }
+  AField(NFL,S1,T:Primitive()), AField(_,S2,_), V RETURN AlignToNext(V,CalcTypeSize(T)) ? (S1==S2); .
+  AField(NFL,S1,T), AField(_,S2,_), V RETURN AlignToNext(V,USER_ALIGNMENT) ? (S1==S2); .
+  AField(NFL,_,T:Primitive()), FL2, V RETURN CalcRecordOffset(NFL,FL2,AlignToNext(V,BTS)+BTS) ? BTS := CalcTypeSize(T);.
+  AField(NFL,_,T),FL2,V RETURN CalcRecordOffset(NFL,FL2,AlignToNext(V,USER_ALIGNMENT)+CalcTypeSize(T)) ?.
+/*}}}*/
+/*{{{  FUNCTION CalcPackedRecordOffset(FieldList,FieldList,int) int*/
+FUNCTION CalcPackedRecordOffset(FieldList,FieldList,int) int
+  LOCAL { int BTS; }
+  AField(NFL,S1,T), AField(_,S2,_), V RETURN V ? (S1==S2); .
+  AField(NFL,_,T), FL2, V RETURN CalcPackedRecordOffset(NFL,FL2,V+CalcTypeSize(T)) ? ;.
+/*}}}*/
+/*{{{  FUNCTION CalcOffset(Type,FieldList) int*/
+FUNCTION CalcOffset(Type,FieldList) int
+  UserRecord(_,_,FL),ENTRY RETURN CalcRecordOffset(FL,ENTRY,0)?;.
+  UserPackedRecord(_,_,FL),ENTRY RETURN CalcPackedRecordOffset(FL,ENTRY,0)?;.
+/*}}}*/
+/*{{{  FUNCTION CalcTypeSize(Type) int*/
+FUNCTION CalcTypeSize(Type) int  
+  Array(E,T) RETURN { ValConstInt(E) * CalcTypeSize(T) } ? (IsConstExpr(E)); .
+  UserRecord(P,_,F) RETURN CalcRecordSize(F,0) ? .
+  UserPackedRecord(P,_,F) RETURN CalcPackedRecordSize(F,0) ? .
+  Int()      RETURN {IS_Mode(xx16bitINT) ? 2 : 4 } ?.
+  Int16()    RETURN 2 ? .
+  Int32()    RETURN 4 ? .
+  Int64()    RETURN 8 ? .
+  Real32()   RETURN 4 ? .
+  Real64()   RETURN 8 ? .
+  Bool()     RETURN 1 ? .
+  Byte()     RETURN 1 ?.
+  _          RETURN -1 ? Message("Internal Error - ConstArray Evaluation",xxError,NoPosition);.
+  
+
+/*}}}*/
+/*}}}*/
+/*{{{  transformations*/
+/*{{{  FUNCTION ReduceElement(Element,Element) Element*/
+FUNCTION ReduceElement(Element,Element) Element
+  I:Identifier(..),_ RETURN I ?.
+  R:Range(_,N,_,_),NIL RETURN R ? N := ReduceElement(N,R);.
+  Range(_,N,F1,FOR1),R:Range(_,_,F2,FOR2) RETURN ReduceElement(N,R) ? F2 := MakeAddExpr(F2,F1);.
+  R:Range(_,N,F,FOR),S:Subscript(_,_,E) RETURN ReduceElement(N,S) ? E := MakeAddExpr(E,F);.
+  S:Subscript(_,N,E),_ RETURN S ? N := ReduceElement(N,S);.
+/*}}}*/
+/*{{{  FUNCTION ReduceElemental(Elemental,Element) Elemental*/
+FUNCTION ReduceElemental(Elemental) Elemental
+
+  EL1:Element(..) RETURN ReduceElement(EL1,NoTree) ? .
+
+  TE:TableElement(..) RETURN TE ? .
+/*}}}*/
+/*{{{  FUNCTION SplatSymbolTableFormals(tPosition,ExprList,tSymbol,int,SpecList) SpecList*/
+FUNCTION SplatSymbolTableFormals(tPosition,ExprList,tSymbol,int,SpecList) SpecList
+  P, AnExpr(NE,E:Expr(EP)), S, D, SL RETURN SplatSymbolTableFormals(P,NE,S+1,D,mASpec(SymbolKind(S),SL)) ? 
+    (D==SymbolDepth(S));
+    (Tree_IsType(SymbolKind(S),kAFormal));
+    (Tree_IsType(SymbolKind(S)->AFormal.By,kByVal));
+    SymbolKind(S) := mVal(EP,CopyTree(SymbolType(S)),S,E);   
+  .
+  P, AnExpr(NE,ElementalExpr(_,E:Elemental(EP))), S, D, SL RETURN SplatSymbolTableFormals(P,NE,S+1,D,mASpec(SymbolKind(S),SL)) ? 
+    (D==SymbolDepth(S));
+    (Tree_IsType(SymbolKind(S),kAFormal));
+    (Tree_IsType(SymbolKind(S)->AFormal.By,kByRef));
+    SymbolKind(S) := mIs(EP,CopyTree(SymbolType(S)),S,E);   
+  .
+  P, AnExpr(NE,E:Expr(EP)), S, D, SL RETURN SL ?
+    (D==SymbolDepth(S));
+    (Tree_IsType(SymbolKind(S),kAFormal));
+    Message("Expected pass by reference argument",xxError,P);
+  .
+  P, AnExpr(NE,E), S,D, SL RETURN SL ? 
+    Message("Too many arguments to inline function",xxError,P);
+  .
+  P, NoExpr(), S, D, SL RETURN SL ? 
+    (D==SymbolDepth(S));
+    (Tree_IsType(SymbolKind(S),kAFormal));
+    Message("Too few arguments to inline function",xxError,P);
+  .
+  P, NoExpr(), _, D, SL RETURN SL ? .
+/*}}}*/
+
+/*{{{  FUNCTION AppendSpecList(SpecList,SpecList) SpecList*/
+FUNCTION AppendSpecList(SpecList,SpecList) SpecList
+  SL:ASpec(S,NS), OSL RETURN SL ? 
+    NS := AppendSpecList(NS,OSL);
+  .
+  NoSpec(), OSL RETURN OSL ? .
+/*}}}*/
+/*{{{  PROCEDURE UpdateFuncSymbol(Tree)*/
+PROCEDURE UpdateFuncSymbol(Tree)
+
+  P:ParRep(..) ? (P->ParRep.Sym>=FirstFormal) ; (P->ParRep.Sym<FunctionInlining);
+    P->ParRep.Sym := P->ParRep.Sym + (FirstActual-FirstFormal);
+    SymbolKind(P->ParRep.Sym) := P;
+    .
+  A:AProcess(..) ? (A->AProcess.Sym>=FirstFormal) ; (A->AProcess.Sym<FunctionInlining);    
+    A->AProcess.Sym := A->AProcess.Sym + (FirstActual-FirstFormal);
+    SymbolKind(A->AProcess.Sym) := A;    
+    .
+  V:Valof(..) ? (V->Valof.Sym>=FirstFormal) ; (V->Valof.Sym<FunctionInlining);
+    V->Valof.Sym := V->Valof.Sym + (FirstActual-FirstFormal);
+    SymbolKind(V->Valof.Sym) := V;
+    .
+  T:Table(..) ? (T->Table.Sym>=FirstFormal) ; (T->Table.Sym<FunctionInlining);
+    T->Table.Sym := T->Table.Sym + (FirstActual-FirstFormal);
+    SymbolKind(T->Table.Sym) := T;
+    .
+  S:String(..) ? (S->String.Sym>=FirstFormal) ; (S->String.Sym<FunctionInlining);
+    S->String.Sym := S->String.Sym + (FirstActual-FirstFormal);
+    SymbolKind(S->String.Sym) := S;
+    .
+  C:CCode(..) ? (C->CCode.Scope>=FirstFormal) ; (C->CCode.Scope<FunctionInlining);
+    C->CCode.Scope := C->CCode.Scope + (FirstActual-FirstFormal);
+    .
+  H:HCode(..) ? (H->HCode.Scope>=FirstFormal) ; (H->HCode.Scope<FunctionInlining);
+    H->HCode.Scope := H->HCode.Scope + (FirstActual-FirstFormal);
+    .
+  I:Identifier(_,S) ? (I->Identifier.Scope>=FirstFormal) ; (I->Identifier.Scope<FunctionInlining);
+    I->Identifier.Scope := I->Identifier.Scope + (FirstActual-FirstFormal);
+    .
+  I:Is(_,T,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining); 
+    S := S + (FirstActual-FirstFormal); 
+    SymbolKind(S) := I;
+    SymbolType(S) := T;
+    .
+  A:AVal(_,T,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := A;
+    SymbolType(S) := T;
+    .
+  R:Retypes(_,T,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := R;
+    SymbolType(S) := T;
+    .
+  D:DefSeqPro(_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := D;
+  .       
+  D:DefTagPro(_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := D;
+  .           
+  D:DefAProc(_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := D;
+  .           
+  D:DefAFunc(_,S,T,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := D;
+    SymbolType(S) := T;
+  .
+  A:AFormal(_,_,_,_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := A;
+  .
+  R:Replicator(S,_,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := R;
+    SymbolType(S) := mInt();
+  .
+  A:ATagPro(_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := A;    
+  .
+  AnId(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserArray(_,_,_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserInt(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserInt16(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserInt32(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserInt64(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserReal32(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserReal64(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserByte(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserBool(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  UserStructTypes(_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  A:AField(_,S,T) ? (S>=FirstFormal) ; (S<FunctionInlining);    
+    S := S + (FirstActual-FirstFormal);
+    SymbolKind(S) := A;
+    SymbolType(S) := T;
+  .
+  Named(_,S) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  FuncCall(_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    S := S + (FirstActual-FirstFormal);
+  .
+  I:Instance(_,_,S,_) ? (S>=FirstFormal) ; (S<FunctionInlining);
+    I->Instance.Scope := I->Instance.Scope + (FirstActual-FirstFormal);
+    S := S + (FirstActual-FirstFormal);
+  .
+  _ ? .
+/*}}}*/
+/*{{{  FUNCTION CopyFuncBody(DefFunc,SpecList) Expr*/
+FUNCTION CopyFuncBody(DefAFunc,SpecList,int,tSymbol) Expr
+  LOCAL { tTree NODE; }
+  InlineDefFunc(_,_,_,_,V), SL, D, SYM RETURN NODE ? 
+    NODE := CopyTree(V); 
+    NODE->Valof.SpecList := AppendSpecList(SL,NODE->Valof.SpecList);
+    NODE->Valof.VS := D;
+    NODE->Valof.Sym := SYM;
+  .
+  DefIsFunc(P,_,_,_,EL), SL, D, SYM RETURN NODE ?
+    NODE := mValof(P,SL,Skip(P,NoSpec()), CopyTree(EL), SYM, D);
+  .
+/*}}}*/
+/*{{{  PREDICATE WithinScope(tSymbol,tSymbol)*/
+PREDICATE WithinScope(tSymbol,tSymbol)
+  S1,S2 ? (S1>S2) ; (SymbolScope(S1)==S2);.
+  S1,S2 ? (S1>S2) ; WithinScope(SymbolScope(S1),S2); .
+/*}}}*/
+/*{{{  FUNCTION CreateFuncCall(tPosition,tSymbol,ExprList,tInt) Expr*/
+FUNCTION CreateFuncCall(tPosition,tSymbol,ExprList,tInt) Expr
+  LOCAL { tTree NODE; tSymbol NS; }
+  
+  P,S,EL,D RETURN NODE ? (IsSTVFunction(SymbolKind(S)));
+    NS := AddSymbol(NoIdent); /* allocate symbol for function result */
+    NODE := mElementalExpr(P, mTableExpr(P, mFuncCall(P,S,EL,D), NS)); 
+    SymbolKind(NS) := NODE;
+  .
+  
+  P,S,EL,D RETURN NODE ? (Tree_IsType(SymbolKind(S),kInlineDefFunc) || Tree_IsType(SymbolKind(S),kDefIsFunc)) ;
+    OpenAtScope(SymbolScope(S));
+    {{
+      int depth = SymbolDepth(S)+1;
+      int i;
+      tTree formals = SymbolKind(S)->InlineDefFunc.Formals;
+      if (Tree_IsType(formals,kNoFormals))         
+	FirstFormal = formals->NoFormals.Sym;
+      else if (Tree_IsType(formals,kNoFormal))
+	Message("Internal failure- couldn't find start of formal list",xxFatal,P);
+      else
+	FirstFormal = formals->AFormal.Sym;
+      FunctionInlining = S;
+      FirstActual = FunctionInlining;
+      i = FirstFormal;
+      while (i<S) 
+      {
+	while (depth<SymbolDepth(i)) { OpenScope(); depth++; }
+	while (depth>SymbolDepth(i)) { CloseScope(); depth--; }
+	{
+	  tSymbol tmp=AddSymbol(Symbol(i).Id);
+	  if (FirstActual==FunctionInlining) FirstActual = tmp;
+	  SymbolType(tmp) = SymbolType(i);
+	  SymbolKind(tmp) = SymbolKind(i);
+	}
+	i++;
+      }
+      while (depth>SymbolDepth(i)) { CloseScope(); depth--; } ;
+      NODE = CopyFuncBody(SymbolKind(S),SplatSymbolTableFormals(P,EL,FirstActual,SymbolDepth(FirstActual),mNoSpec()),D,AddSymbol(NoIdent));
+      NODE->Valof.FuncCall = mFuncCall(P,S,EL,D);
+      SymbolKind(NODE->Valof.Sym) = NODE;
+      TraverseTreeTD(NODE,UpdateFuncSymbol);      
+    }} ;
+  .
+  P,S,EL,D RETURN mFuncCall(P,S,EL,D) ? .
+/*}}}*/
+/*{{{  FUNCTION CreateProcCall(tPosition,tSymbol,ExprList,tSymbol) Expr*/
+FUNCTION CreateProcCall(tPosition,SpecList,tSymbol,ExprList,tSymbol) Expr
+  LOCAL { tTree NODE; }
+  P,SL,S,EL,SCOPE RETURN NODE ? (Tree_IsType(SymbolKind(S),kInlineDefProc)) ;
+    OpenAtScope(SymbolScope(S));
+    {{
+      int depth = SymbolDepth(S)+1;
+      int i;
+      tTree formals = SymbolKind(S)->InlineDefProc.Formals;
+      if (Tree_IsType(formals,kNoFormals))         
+	FirstFormal = formals->NoFormals.Sym;
+      else if (Tree_IsType(formals,kNoFormal))
+	Message("Internal failure- couldn't find start of formal list",xxFatal,P);
+      else 
+	FirstFormal = formals->AFormal.Sym;
+
+      FunctionInlining = S;
+      FirstActual = FunctionInlining;
+      i = FirstFormal;
+      while (i<S) 
+      {
+	while (depth<SymbolDepth(i)) { OpenScope(); depth++; }
+	while (depth>SymbolDepth(i)) { CloseScope(); depth--; }
+	{
+	  tSymbol tmp=AddSymbol(Symbol(i).Id);
+	  if (FirstActual==FunctionInlining) FirstActual = tmp;
+	  SymbolType(tmp) = SymbolType(i);
+	  SymbolKind(tmp) = SymbolKind(i);
+	}
+	i++;
+      }
+      while (depth>SymbolDepth(i)) { CloseScope(); depth--; } ;
+      NODE = CopyTree(SymbolKind(S)->InlineDefProc.Process);
+      NODE->Process.SpecList = AppendSpecList(SplatSymbolTableFormals(P,EL,FirstActual,SymbolDepth(FirstActual),mNoSpec()),NODE->Process.SpecList);
+      TraverseTreeTD(NODE,UpdateFuncSymbol);
+    }} ;
+  .
+  P,SL,S,EL,SCOPE RETURN mInstance(P,SL,S,EL,SCOPE) ? .
+/*}}}*/
+/*}}}*/
+/*{{{  field support*/
+PREDICATE CheckValidUserType(Type)
+  UserDataTypes(_,_,F) ? (!CheckAllDataFields(F)); FAIL;.
+  UserChanRecord(_,_,F) ? (!CheckAllChanFields(F)); FAIL;.
+  _ ? .
+
+PREDICATE CheckAllDataFields(FieldList)
+  NoField() ?.
+  AField(N,_,T) ? IsDataType(T); CheckAllDataFields(N);.
+
+PREDICATE CheckAllChanFields(FieldList)
+  NoField() ?.
+  AField(N,_,T) ? IsChanType(T); CheckAllChanFields(N);.
+
+FUNCTION  GetTagProtocol(Type) TagProList 
+  NIL RETURN NIL ? .
+  Chan(Named(P,S)) RETURN SymbolKind(S)->DefTagPro.TagProList ? (Tree_IsType(SymbolKind(S),kDefTagPro)); .
+  _ RETURN NIL ? .
+  
+PROCEDURE LookupProtocolTag(tIdent,tPosition,TagProList=>tSymbol)
+  I,P,NoTagPro() => NoSymbol ?.
+  I,P,ATagPro(N,S,_) => S ? (I==Symbol(S).Id);.
+  I,P,ATagPro(N,_,_) => S ? LookupProtocolTag(I,P,N=>S);.
+  
+FUNCTION LookupField(tIdent,tPosition,FieldList=>tSymbol) FieldList
+  LOCAL { tTree FL; }
+  I,P, F:NoField() => NoSymbol RETURN F ?.
+  I,P, F:AField(N,S,_) => S RETURN F ? (I==Symbol(S).Id); .
+  I,P, F:AField(N,_,_) => S RETURN FL ? FL := LookupField(I,P,N=>S); .
+
+FUNCTION GetFieldList(Type) FieldList
+  NIL RETURN NoTree ? .
+  UserStructTypes(_,_,FL) RETURN FL ? .
+  T RETURN NoTree ? .
+/*}}}*/
+/*{{{  misc.*/
+/*{{{  FUNCTION  ArrayPrimType(Type) Type*/
+FUNCTION  ArrayPrimType(Type) Type
+  Array(E,T)    RETURN ArrayPrimType(T) ?.
+  T:Primitive() RETURN T ?.
+/*}}}*/
+/*{{{  PROCEDURE MarkNonAtomicIf(Process)*/
+PROCEDURE MarkNonAtomicIf(IF:Process)
+/* If any members of an If are non-ATOMIC , ALL members must be
+   non-ATOMIC, specifically IfRep members, to ensure that the replicator
+   is declared non-locally */
+   
+  If(Pos,SL,CL) ?
+    {IF->If.ATOMIC = false; };
+    MarkNonAtomicIfList(CL);
+    .
+
+  IfRep(Pos,SL,Replicator(S,FR,FO),CL) ?
+    {IF->IfRep.ATOMIC = false; };
+    MarkNonAtomicIfList(CL);
+    .
+
+PROCEDURE MarkNonAtomicIfList(IF:ChoiceList)
+
+  AChoice(_,Next,..) ?
+    {IF->AChoice.ATOMIC = false; };
+    MarkNonAtomicIfList(Next);
+    .
+
+  ANewIf(_,Next,P) ?
+    {IF->ANewIf.ATOMIC = false; };
+    MarkNonAtomicIf(P);
+    MarkNonAtomicIfList(Next);
+    .
+
+  NoChoice() ?.
+
+
+/*}}}*/
+/*}}}*/
+  

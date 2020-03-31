@@ -1,0 +1,48 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#USE "ioconv.lib"
+--{{{  history
+-- V1.0, 1-Jul-88
+-- Added V to the OPTIONs; V1.1, 22-Mar-90 SRH
+--}}}
+--{{{  STRINGTOHEX16 TA
+PROC STRINGTOHEX16 (BOOL Error, INT16 n, VAL []BYTE string)
+
+  VAL Signbit IS #8000 :
+  VAL Bits IS #FFFF :
+  INT m :
+  SEQ
+    STRINGTOHEX (Error, m, string)
+    IF
+      (m /\ Signbit) <> 0
+        n := INT16 (m \/ (~Bits))
+      TRUE
+        n := INT16 (m /\ Bits)
+    Error := Error OR ((m /\ (~Bits)) <> 0)
+:
+--}}}
+--{{{  HEX16TOSTRING TA
+PROC HEX16TOSTRING (INT len, []BYTE string, VAL INT16 n)
+
+  VAL INT nibbles.per.word IS 4:
+  INT W, C:
+  --{{{  hex.digit
+  PROC hex.digit (BYTE byte, VAL INT digit)
+    SEQ
+      IF
+        digit < 10
+          byte := (BYTE (digit + (INT '0')))
+        digit < 16
+          byte := (BYTE (digit + ((INT 'A') - 10)))
+  :
+  --}}}
+  SEQ
+    W := (INT n) << 16                 -- get n into to word
+    SEQ i = 0 FOR nibbles.per.word
+      SEQ
+        C, W := SHIFTLEFT (0, W, 4)
+        hex.digit (string [i], C)
+    len := nibbles.per.word
+:
+--}}}

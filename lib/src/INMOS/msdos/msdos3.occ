@@ -1,0 +1,48 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "MSDOS library V1.0"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "hostio.inc"
+#INCLUDE "msdos.inc"
+
+PROC dos.read.regs (CHAN OF SP fs, ts,
+                    [dos.read.regs.size]BYTE registers,
+                    BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To read the current values of some of the PC's
+  --           registers.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      registers - a block of bytes containing the values
+  --           of the registers read
+  -- Out:      result - spr.ok if the registers were read
+  --           successfully; otherwise >= spr.operation.failed
+  -- Notes:    Each register value occupies 4 bytes:
+  --                register      start position in block
+  --                            ( least significant byte )
+  --                   ax                   0
+  --                   bx                   4
+  --                   cx                   8
+  --                   dx                  12
+  --}}}
+  --{{{  more information
+  -- On a 16-bit IBM PC the 2 most significant bytes of each 4 byte
+  -- register value in a block are ignored.
+  --}}}
+
+  [dos.read.regs.size + 2]BYTE buffer :
+  INT16 temp.INT16 :
+  SEQ
+    --{{{  pack up the data into the buffer (2 bytes)
+    buffer [0] := sp.DOS.tag
+    buffer [1] := dos.read.regs.tag
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    fs ? temp.INT16 :: buffer
+    --}}}
+    --{{{  unpack the data                  (1 bytes plus registers)
+    result    := buffer [0]
+    registers := [buffer FROM 1 FOR dos.read.regs.size]
+    --}}}
+:

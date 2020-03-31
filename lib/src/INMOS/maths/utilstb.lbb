@@ -1,0 +1,22 @@
+--  fixed point maths utils library build file, ie for utilstb.lib
+--
+fdiv.tbh
+fdiv.tbx
+incexp.tbh
+incexp.tbx
+fix.tbh
+fix.tbx
+reflot.tbh
+reflot.tbx
+normal64.tbh
+normal64.tbx
+fmul64.tbh
+fmul64.tbx
+fdiv64.tbh
+fdiv64.tbx
+incexp64.tbh
+incexp64.tbx
+fixshf64.tbh
+fixshf64.tbx
+reflot64.tbh
+reflot64.tbx

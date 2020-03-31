@@ -1,0 +1,57 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+PROC INT64TOSTRING (INT len, []BYTE string, VAL INT64 n)
+
+  --{{{  history
+  -- V1.0, 1-Jul-88
+  -- Added V to OPTIONs; V1.1, 22-Mar-90 SRH
+  --}}}
+
+  VAL [2]INT n RETYPES n:
+  [2]INT W:
+  INT L, R, carry:
+  BYTE b:
+  BOOL Neg:
+  SEQ
+    IF
+      n[1] < 0
+        SEQ
+          carry, W[0] := LONGDIFF (0, n[0], 0)
+          carry, W[1] := LONGDIFF (0, n[1], carry)
+          Neg := TRUE
+          len := 0
+      (n[1] \/ n[0]) = 0
+        SEQ
+          W := n
+          Neg := FALSE
+          len := 1
+          string[0] := '0'
+      TRUE
+        SEQ
+          W := n
+          Neg := FALSE
+          len := 0
+    WHILE (W[1] \/ W[0]) <> 0
+      SEQ
+        W[1], R := LONGDIV (0, W[1], 10)
+        W[0], R := LONGDIV (R, W[0], 10)
+        string[len] := (BYTE (R + (INT '0')))
+        len := len + 1
+    IF
+      Neg
+        SEQ
+          string[len] := '-'
+          len := len + 1
+      TRUE
+        SKIP
+    L := 0
+    R := (len - 1)
+    WHILE (L < R)
+      SEQ
+        b := string[L]
+        string[L] := string[R]
+        string[R] := b
+        L := L + 1
+        R := R - 1
+:

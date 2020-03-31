@@ -1,0 +1,21 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+PROC BOOLTOSTRING (INT len, []BYTE string, VAL BOOL b)
+
+  --{{{  history
+  -- Beta-2 (27feb87)
+  -- V1.0, 1-Jul-88
+  -- Added V to the OPTIONs; V1.1, 22-Mar-90 SRH
+  --}}}
+
+  IF
+    b
+      SEQ
+        [string FROM 0 FOR 4] := "TRUE"
+        len := 4
+    TRUE
+      SEQ
+        [string FROM 0 FOR 5] := "FALSE"
+        len := 5
+:

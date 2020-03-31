@@ -1,0 +1,103 @@
+#############################################################################
+#
+#                Make file for occam2 toolset library crc.lib
+#
+#                              25-Oct-90 SRH
+#
+#                 This makefile is presently set up for UNIX
+#
+#############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line
+OCCEXTRAS=
+
+# tools and global options
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(OCCEXTRAS)
+
+
+# T2 class modules
+CRCT2=crcmsb.t2h crcmsb.t2x crclsb.t2h crclsb.t2x
+
+# TA class modules
+CRCTA=	crcmsb.tah crcmsb.tax crclsb.tah crclsb.tax \
+	crcmsbop.t5h crcmsbop.t5x crclsbop.t5h crclsbop.t5x
+
+# T8 class modules
+CRCT8=crcmsbop.t8h crcmsbop.t8x crclsbop.t8h crclsbop.t8x
+
+
+#
+############################## target and rules ##############################
+#
+all: crc.lib
+
+crc.lib:	crc.t2 crc.t8 crc.ta
+	$(LIBRARIAN) crc.t2 crc.t8 crc.ta $(SWITCH)o crc.lib $(LIBOPT)
+
+crc.t2:	$(CRCT2)
+	$(CONCATENATE) $(CRCT2) $(INTO) crc.t2
+
+crc.ta:	$(CRCTA)
+	$(CONCATENATE) $(CRCTA) $(INTO) crc.ta
+
+crc.t8:	$(CRCT8)
+	$(CONCATENATE) $(CRCT8) $(INTO) crc.t8
+
+
+crcmsb.t2h:	crcmsb.occ
+	$(OCCAM) crcmsb $(SWITCH)t2 $(SWITCH)h $(SWITCH)o crcmsb.t2h $(OCCOPT)
+
+crcmsb.t2x:	crcmsb.occ 
+	$(OCCAM) crcmsb $(SWITCH)t2 $(SWITCH)x $(SWITCH)o crcmsb.t2x $(OCCOPT)
+
+crcmsb.tah:	crcmsb.occ
+	$(OCCAM) crcmsb $(SWITCH)ta $(SWITCH)h $(SWITCH)o crcmsb.tah $(OCCOPT)
+
+crcmsb.tax:	crcmsb.occ
+	$(OCCAM) crcmsb $(SWITCH)ta $(SWITCH)x $(SWITCH)o crcmsb.tax $(OCCOPT)
+
+crclsb.t2h:	crclsb.occ
+	$(OCCAM) crclsb $(SWITCH)t2 $(SWITCH)h $(SWITCH)o crclsb.t2h $(OCCOPT)
+
+crclsb.t2x:	crclsb.occ
+	$(OCCAM) crclsb $(SWITCH)t2 $(SWITCH)x $(SWITCH)o crclsb.t2x $(OCCOPT)
+
+crclsb.tah:	crclsb.occ
+	$(OCCAM) crclsb $(SWITCH)ta $(SWITCH)h $(SWITCH)o crclsb.tah $(OCCOPT)
+
+crclsb.tax:	crclsb.occ
+	$(OCCAM) crclsb $(SWITCH)ta $(SWITCH)x $(SWITCH)o crclsb.tax $(OCCOPT)
+
+crcmsbop.t5h:	crcmsbop.occ
+	$(OCCAM) crcmsbop $(SWITCH)t5 $(SWITCH)h $(SWITCH)o crcmsbop.t5h $(SWITCH)e $(OCCOPT)
+
+crcmsbop.t5x:	crcmsbop.occ
+	$(OCCAM) crcmsbop $(SWITCH)t5 $(SWITCH)x $(SWITCH)o crcmsbop.t5x $(SWITCH)e $(OCCOPT)
+
+crcmsbop.t8h:	crcmsbop.occ
+	$(OCCAM) crcmsbop $(SWITCH)t8 $(SWITCH)h $(SWITCH)o crcmsbop.t8h $(SWITCH)e $(OCCOPT)
+
+crcmsbop.t8x:	crcmsbop.occ
+	$(OCCAM) crcmsbop $(SWITCH)t8 $(SWITCH)x $(SWITCH)o crcmsbop.t8x $(SWITCH)e $(OCCOPT)
+
+crclsbop.t5h:	crclsbop.occ
+	$(OCCAM) crclsbop $(SWITCH)t5 $(SWITCH)h $(SWITCH)o crclsbop.t5h $(SWITCH)e $(OCCOPT)
+
+crclsbop.t5x:	crclsbop.occ
+	$(OCCAM) crclsbop $(SWITCH)t5 $(SWITCH)x $(SWITCH)o crclsbop.t5x $(SWITCH)e $(OCCOPT)
+
+crclsbop.t8h:	crclsbop.occ
+	$(OCCAM) crclsbop $(SWITCH)t8 $(SWITCH)h $(SWITCH)o crclsbop.t8h $(SWITCH)e $(OCCOPT)
+
+crclsbop.t8x:	crclsbop.occ
+	$(OCCAM) crclsbop $(SWITCH)t8 $(SWITCH)x $(SWITCH)o crclsbop.t8x $(SWITCH)e $(OCCOPT)

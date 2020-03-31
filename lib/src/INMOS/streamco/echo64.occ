@@ -1,0 +1,284 @@
+#OPTION "E"  -- no compiler libraries
+#COMMENT "TDS/TOOLSET conversion library V1.1 08/01/90"
+#COMMENT "Copyright INMOS Limited 1989"
+#USE "string.lib"
+#USE "convert.lib"
+#INCLUDE "hostio.inc"
+#INCLUDE "streamio.inc"
+#USE "streamio.lib"
+
+-- Bug 114 cured 4.5.89 by not calling is.in.range
+-- 08-JAN-90 SRH channel retyping introduced
+
+VAL backspace      IS 8 :
+VAL delete         IS 127 :
+
+--{{{  read.echo.int64
+PROC read.echo.int64 (CHAN OF INT source,
+                      CHAN OF ANY echo,
+                      INT64 number, INT char)
+  -- skips input up to a digit, #, + or -, then reads a
+  -- sequence of digits to the first non-digit, returned as char
+  -- converts the digits to an integer in number.
+  -- If the first significant char was a '#' then reads hexadecimal integer.
+  -- char is returned as ft.number.error if the integer overflows.
+  --{{{  body rewritten 19.4.88
+  CHAN OF KS source RETYPES source :
+  VAL max.number.width IS 40:
+  [max.number.width] BYTE digits:
+  INT j:         -- index for digits
+  INT ch:        -- character as read
+  BOOL is.hex:   -- what number base
+  SEQ
+    ch := char
+    j := 0
+    INT can.del:   -- counts deletable chars on screen
+    BOOL first:    -- to suppress echo of initial value of char
+    BOOL going:    -- found an error or terminated number
+    SEQ
+      can.del := 0
+      first := TRUE
+      going := TRUE
+      WHILE going
+        SEQ
+          --{{{  analyse ch
+          IF
+            ch >= 256
+              SKIP
+            ch < 0
+              going := FALSE
+            (ch = delete) OR (ch = backspace)
+              SEQ
+                --{{{  delete if possible
+                IF
+                  can.del > 0
+                    SEQ
+                      --{{{  terminal type independent del char left
+                      ss.write.char(echo, BYTE backspace)
+                      ss.write.char(echo, ' ')
+                      ss.write.char(echo, BYTE backspace)
+                      --}}}
+                      can.del := can.del - 1
+                  TRUE
+                    SKIP
+                --}}}
+                --{{{  remove buffered digit if any
+                IF
+                  j > 0
+                    j := j - 1
+                  TRUE
+                    SKIP
+                --}}}
+            --{{{  number not started
+            j = 0  -- a number has not yet started
+              SEQ
+                --{{{  see if it is a starter
+                IF
+                  (ch = (INT '+')) OR (ch = (INT '-'))
+                    SEQ
+                      digits[0] := BYTE ch
+                      j := 1
+                      is.hex := FALSE
+                  ch = (INT '#')
+                    SEQ
+                      digits[0] := BYTE ch
+                      j := 1
+                      is.hex := TRUE
+                  is.digit (BYTE ch)
+                    SEQ
+                      digits[0] := BYTE ch
+                      j := 1
+                      is.hex := FALSE
+                  TRUE
+                    SKIP
+                --}}}
+                can.del := can.del + 1
+            --}}}
+            --{{{  number started
+            TRUE
+              IF
+                (is.hex AND is.hex.digit (BYTE ch)) OR is.digit (BYTE ch)
+                  SEQ
+                    IF
+                      ch >= (INT 'a')
+                        ch := ch + ((INT'A') - (INT 'a'))
+                      TRUE
+                        SKIP
+                    IF
+                      j >= max.number.width
+                        SEQ
+                          ch := 0
+                          ss.beep(echo)
+                      TRUE
+                        SEQ
+                          digits[j] := BYTE ch
+                          j := j + 1
+                          can.del := can.del + 1
+                TRUE
+                  going := FALSE
+            --}}}
+          --}}}
+          --{{{  echo if not first
+          IF
+            first
+              SKIP
+            ch = (INT '*c')
+              SEQ
+                ss.write.char(echo, '*C')
+                ss.write.char(echo, '*N')
+                can.del := 0
+            (ch >= (INT ' ')) AND (ch <= (INT '~'))
+              ss.write.char(echo, BYTE ch)
+            TRUE
+              SKIP
+          first := FALSE
+          --}}}
+          --{{{  if going read another ch
+          IF
+            going
+              ks.read.char(source, ch)
+            TRUE
+              SKIP
+          --}}}
+    BOOL error:
+    SEQ
+      --{{{  turn the string into a number
+      IF
+        j = 0
+          error := TRUE
+        is.hex
+          STRINGTOHEX64 (error, number, [digits FROM 1 FOR j-1])
+        TRUE
+          STRINGTOINT64 (error, number, [digits FROM 0 FOR j])
+      --}}}
+      --{{{  set the terminator char
+      IF
+        char < 0
+          SKIP
+        error
+          char := ft.number.error
+        TRUE
+          char := ch
+      --}}}
+  --}}}
+:
+--}}}
+--{{{  read.echo.hex.int64
+PROC read.echo.hex.int64 (CHAN OF INT source, CHAN OF ANY echo,
+                          INT64 number, INT char)
+  -- skips input up to a valid hexadecimal digit, then reads a
+  -- sequence of hex digits to the first non-digit, returned as char
+  -- converts the digits to an integer in number.
+  -- If the first significant char was a '#' then reads hexadecimal integer.
+  --{{{  version using STRINGTOHEX64
+  CHAN OF KS source RETYPES source :
+  VAL max.number.width IS 40:
+  [max.number.width] BYTE digits:
+  INT ch:
+  INT j:
+  INT pos:
+  BOOL first, error:
+  --{{{  delete.char
+  PROC delete.char ()
+    --{{{  
+    IF
+      pos = 0
+        SKIP
+      TRUE
+        SEQ
+          pos := pos - 1
+          j := j - 1
+          --{{{  terminal type independent del char left
+          ss.write.char(echo, BYTE backspace)
+          ss.write.char(echo, ' ')
+          ss.write.char(echo, BYTE backspace)
+          --}}}
+    --}}}
+  :
+  --}}}
+  --{{{  echo.if.not.first
+  PROC echo.if.not.first()
+    IF
+      first
+        SEQ
+          first := FALSE
+          pos := 1
+      ch < 0
+        ss.beep(echo)
+      TRUE
+        SEQ
+          ss.write.char(echo, BYTE ch)
+          --{{{  extra *n if *c
+          IF
+            ch = (INT'*c')
+              SEQ
+                pos := 0
+                ss.write.char(echo, '*N')
+            TRUE
+              pos := pos + 1
+          --}}}
+  :
+  --}}}
+  SEQ
+    first := TRUE
+    pos := 0
+    ch := char
+    --{{{  skip leading rubbish
+    WHILE (ch >= 256) OR ((ch >= 0) AND (NOT is.hex.digit (BYTE ch)) )
+      SEQ
+        IF
+          (ch = delete) OR (ch = backspace)
+            delete.char ()
+          TRUE
+            echo.if.not.first()
+        ks.read.char(source, ch)
+    --}}}
+    IF
+      ch < 0
+        error := FALSE -- input error (not number error)
+      TRUE
+        SEQ
+          j := 0
+          WHILE is.hex.digit (BYTE ch) OR
+                (ch = delete) OR (ch = backspace)
+            --{{{  build up digit string
+            SEQ
+              IF
+                (ch = delete) OR (ch = backspace)
+                  delete.char ()
+                j < max.number.width
+                  SEQ
+                    IF
+                      ch >= (INT 'a')
+                        ch := ch /\ #5F  -- force to upper case
+                      TRUE
+                        SKIP
+                    echo.if.not.first()
+                    digits[j] := BYTE ch
+                    j := j + 1
+              --{{{  get next ch
+              ks.read.char(source, ch)
+              IF
+                (ch < 0) OR (ch >= 256)
+                  SEQ
+                    char := ch
+                    ch := 0
+                TRUE
+                  SKIP
+              --}}}
+            --}}}
+          STRINGTOHEX64 (error, number, [digits FROM 0 FOR j])
+    IF
+      error
+        char := ft.number.error
+      TRUE
+        SEQ
+          echo.if.not.first ()
+          IF
+            ch = 0
+              SKIP
+            TRUE
+              char := ch
+  --}}}
+:
+--}}}

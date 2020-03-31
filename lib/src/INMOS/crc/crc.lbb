@@ -1,0 +1,18 @@
+-- library build file for crc.lib
+--
+crcmsb.t2h
+crcmsb.t2x
+crcmsb.tah
+crcmsb.tax
+crclsb.t2h
+crclsb.t2x
+crclsb.tah
+crclsb.tax
+crcmsbop.t5h
+crcmsbop.t5x
+crcmsbop.t8h
+crcmsbop.t8x
+crclsbop.t5h
+crclsbop.t5x
+crclsbop.t8h
+crclsbop.t8x

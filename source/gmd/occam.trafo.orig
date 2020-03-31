@@ -1,0 +1,567 @@
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill, Denis Nicole and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Occam tree viewer
+||@(#)   System : occam 2 c
+||@(#) Filename : occam.trafo
+||@(#)  Version : 1.35
+||@(#)     Date : 3/3/97
+\*@(#)====================================================*/
+/*}}}*/
+
+TRAFO OccamOut TREE occam
+
+PUBLIC CodeType Code
+
+/*{{{  EXPORT*/
+EXPORT
+{
+  extern void WriteStrRef(tStringRef r) ;
+  extern void OutputOccam(char *, tTree);
+}
+/*}}}*/
+
+/*{{{  GLOBAL*/
+GLOBAL
+{
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <TypeChk.h>
+
+  /*{{{  statics*/
+  static indent = 0;
+  static col = 0;   
+  static bool NL = false;  
+  extern FILE* yyf;
+  static void yyAbort(char *);
+  
+  /*}}}*/
+  /*{{{  defines*/
+  #undef yyWrite
+  
+  static void Indent()     { if (!NL) fputc('\n',yyf); NL=true; indent+=2; }
+  static void Outdent()    { if (!NL) fputc('\n',yyf); NL=true; indent-=2; }
+  static void NewLine()    { if (!NL) fputc('\n',yyf); NL=true;}
+  static void DoNL()       { if (NL==true) { int i; NL = false; for(i=0;i<indent;i++) fputc(' ',yyf); col=indent;} }
+  
+  #define WriteInt(a)  {DoNL(); col+=fprintf(yyf,"%d",(int)a);}
+  #define WriteReal(a) {DoNL(); col+=fprintf(yyf,"%*G",a.RNumber.p,a.RNumber.n);}
+  #define WriteByte(a) {DoNL(); col+=fprintf(yyf,"\'*#%02X\'",(unsigned)a);}
+  #define WriteBool(a) {DoNL(); col+=fprintf(yyf,"%s",(a)?"TRUE":"FALSE");}
+  #define WriteStr(a)  {DoNL(); col+=fprintf(yyf,"%s",a);}
+  #define WriteChar(a)  {DoNL(); col+=1; fputc(a,yyf);}
+  #define WriteId(a)   { DoNL(); WriteIdent(yyf,a); }
+  
+  #define SetIndent(a)   (a=indent,indent=col)
+  #define ClearIndent(a) (indent=a)
+  #define COND_Write(b,s) { if (b) yyWrite(s); }
+  
+  #define SizeInt      sizeof(int)
+  
+  #define yyWrite(s)   {DoNL(); col+=fprintf(yyf,"%s",s);}
+  
+  static void WriteSym(tSymbol s)   
+  {
+    DoNL(); 
+    if (Symbol(s).Id==NoIdent) 
+      col+=fprintf(yyf,"tmp.%d",s); 
+    else 
+    { 
+      tStringRef id; 
+      id=GetStringRef(Symbol(s).Id); 
+      col+=LengthSt(id);
+      WriteIdent(yyf,Symbol(s).Id);
+    }
+  }  
+  
+  #define WarnNotImp(P,S)    ErrorMessageI(xxNotImplemented,xxWarning,P,xxString,S)
+  
+  #define IsPrintable(c) (((c)>=' ') && ((c)<='~'))
+  
+  /*}}}*/
+  /*{{{  functions*/
+  /*{{{  static void WriteOccStr(char *str,int len)*/
+  static void WriteOccStr(char *str,int len)
+  {
+    int i;
+  
+    for (i=0;i<len;i++)
+    {
+      char c = str[i] ;
+    
+      if (c == '*' || c == '"' || c == '\'')
+      {
+        fprintf(yyf,"*%c",c) ;
+        col+=2;
+      }
+      else if (IsPrintable(c))
+      {
+        fputc(c,yyf) ;
+        col++ ;
+      }
+      else if (c == 13)
+      {
+        fprintf(yyf,"*c") ;
+        col+=2;
+      }
+      else if (c == 10)
+      {
+        fprintf(yyf,"*n") ;
+        col+=2;
+      }
+      else if (c == '\t')
+      {
+        fprintf(yyf,"*t") ;
+        col+=2;
+      }
+      else
+      {
+        fprintf(yyf,"*#%02x",c) ;
+        col+=4;
+      }
+    }
+  }
+  
+  /*}}}*/
+  /*{{{  void WriteStrRef(tStringRef r)*/
+  void WriteStrRef(tStringRef r)
+  {
+    char *temp ;
+    int len = LengthSt(r) ;
+  
+    DoNL() ;
+  
+    if ((temp = malloc((len==0)?1:len)) == NULL)
+      yyAbort("Out of heap") ;
+    else
+      {
+        int i;
+        
+        StGetString (r,temp) ;
+        WriteOccStr(temp,len);
+        free(temp) ;
+      }
+  }
+  /*}}}*/
+  /*{{{  void WritetInt(tInt val,bool int64)*/
+  static void WritetInt(tInt val,bool int64)
+  {
+    char str[20];
+    int len=0;
+    bool neg=(val < 0);
+    tInt value=(neg)?-val:val;
+    bool hex=(val > 1000000) || (val < -1000000);
+  
+    DoNL() ;
+  
+    if (hex)
+    {
+      int digits = (int64) ? 16 : 8;
+      char hexdigits[] = "0123456789ABCDEF";
+  
+      while(len < digits) { str[len++] = hexdigits[val & 15]; val = val >> 4; }
+      while(len>1 && str[len-1]=='0') --len;
+  
+      fprintf(yyf,"#");
+    }
+    else
+    {
+      while(len==0 || value > 0) { str[len++]='0'+(value % 10); value = value / 10; }
+      if (neg) fputc('-',yyf);
+    }
+  
+    {
+      int i = 0;
+      int j=len-1;
+      char c;
+  
+      while(i < j) { c = str[i]; str[i++] = str[j]; str[j--] = c; }
+    }
+    
+    str[len] = 0;
+    fprintf(yyf,"%s",str);
+  }
+    
+    
+  
+  /*}}}*/
+  /*{{{  void OutputOccam(char *name, tTree Root)*/
+  void OutputOccam(char *name, tTree Root)
+  {
+    FILE *savef = yyf;
+  
+    yyf = stdout;
+    if (strcmp(name,"-") != 0)
+      if ((yyf=fopen(name,"w"))==NULL) MessageI("Cannot open file ",xxFatal,NoPosition,xxString,name);
+  
+    Code(Root);
+    if(ferror(yyf))  
+      Message("Error writing output file",xxFatal, NoPosition);  
+    if (yyf != stdout)
+      if(fclose(yyf))  
+        Message("Error writing output file",xxFatal, NoPosition);  
+  
+  
+    yyf = savef;
+  }
+  /*}}}*/
+  /*}}}*/
+  /*{{{  field support*/
+  #define MAX_FIELD_DEPTH 100
+  static tSymbol Fields[MAX_FIELD_DEPTH] ;
+  static int Field_Depth=0;
+  static void WriteFields()
+  {
+    int i;
+    for (i=0;i<Field_Depth;i++) { WriteStr(".."); WriteSym(Fields[i]); }
+  }
+  #define PushField(S) Fields[Field_Depth++]=S
+  #define PopField()  Field_Depth--
+  /*}}}*/
+
+}
+/*}}}*/
+  
+/*{{{  PROCEDURE Code (Tree)           General occam graph writing procedure*/
+PROCEDURE Code (Tree)
+
+  ASpec(Spec,Next) ? Code(Spec); Code(Next);.
+  NoSpec() ?.
+
+  AB:Is (_, Type, S, Element) ? CodeAbbrev(AB,Type); .
+  AB:Val (_, Type, S, Expr) ? CodeAbbrev(AB,Type); . 
+
+  Retypes(_, Type, S, Element) ? CodeType(Type); WriteSym(S); " RETYPES "; CodeElemental(Element); " :"; NewLine();.
+  ValRetypes( _, Type, S, Expr) ? "VAL "; CodeType(Type); WriteSym(S); " RETYPES "; CodeExpr(Expr); " :"; NewLine();.
+
+  DefProc (_, S, Formals, Process) ? "PROC "; WriteSym(S); "("; CodeFormals(Formals); ")"; Indent(); Code(Process); Outdent(); ":"; NewLine(); . 
+
+  DeclType(_,T:UserDataTypes(_,S,F)) ? "PROTOCOL "; WriteSym(S); " IS "; CodeUserType(T,';'); ":"; NewLine(); .
+  DeclType(_,_) ?.
+  Decl (_, Type, IdList) ? CodeDeclList(IdList); .
+  DefSeqPro (_, S, SeqProList) ? "PROTOCOL "; WriteSym(S); " IS "; Code(SeqProList); ":"; NewLine();  .
+  DefTagPro (_, S, TagProList) ? "PROTOCOL "; WriteSym(S); Indent(); "CASE "; Indent(); Code(TagProList); Outdent(); Outdent(); ":"; NewLine();  .
+
+  DefFunc (_, S, TypeList, Formals, Valof(_,SL,P,EL)) ? CodeUserType(TypeList,','); "FUNCTION "; WriteSym(S); "("; CodeFormals(Formals); ")"; Indent(); 
+           Code(SL); "VALOF"; Indent(); Code(P); "RESULT "; Code(EL); Outdent(); ; Outdent(); ":"; NewLine();  .
+  DefIsFunc (_, S, TypeList, Formals,ExprList) ? CodeUserType(TypeList,','); "FUNCTION "; WriteSym(S); "("; CodeFormals(Formals); ")"; " IS "; Code(ExprList); ":"; NewLine();  .
+
+  Replicator (S, From, For) ? WriteSym(S); " = "; CodeExpr(From); " FOR "; CodeExpr(For);.
+
+  NoTagPro()			? .
+  ATagPro (Next,S,NoSeqPro()) 	? WriteSym(S); NewLine(); Code(Next);.
+  ATagPro (Next,S,SeqProList) 	? WriteSym(S); "; "; Code(SeqProList); NewLine(); Code(Next);.
+  
+  Start(Process) ? Code(Process); NewLine(); yyWrite("");.
+ 
+  Any(_)			? "ANY ";.
+  Named(_,S)		? WriteSym(S); " ";.
+  Simple(_,Type)		? CodeUserType(Type,';');.
+  P:Counted(_,Length,Type)	? CodeUserProtocol(P,Type);.
+
+  ASeqPro(NoSeqPro(),Protocol)	? Code(Protocol);.
+  ASeqPro(Next,Protocol)	? Code(Protocol); "; "; Code(Next); .
+
+  AnExpr(NoExpr(),Expr)		? CodeComplexExpr(Expr,ExprType(Expr),',');.
+  AnExpr(Next,Expr)		? CodeComplexExpr(Expr,ExprType(Expr),','); ", "; Code(Next);.
+
+  NoCase()			?.
+  ACase(Next,SpecList,ExprList,Process)	? Code(SpecList); SemiSep(ExprList); Indent(); Code(Process); Outdent(); Code(Next); .
+  
+  Assign(_,SpecList,Lval,Rval)  ? Code(SpecList); Code(Lval); " := " ; Code(Rval); NewLine(); .
+
+  Alt(_,SpecList,Pri,AltList)	? Code(SpecList); COND_Write(Pri,"PRI "); "ALT"; Indent(); Code(AltList); Outdent(); .
+  AltRep(_,SpecList,Pri,Replicator,AltList)	? Code(SpecList); COND_Write(Pri,"PRI "); "ALT"; Code(Replicator); Indent(); Code(AltList); Outdent(); .
+
+  Input(_,SpecList,Element,ExprList) ? Code(SpecList); CodeElemental(Element); " ? "; SemiSep(ExprList); NewLine(); .
+  Output(_,SpecList,Element,ExprList) ? Code(SpecList); CodeElemental(Element); " ! "; SemiSep(ExprList); NewLine(); .
+  CaseIn(_,SpecList,Element,CaseList) ? Code(SpecList); CodeElemental(Element); " ? "; "CASE"; Indent(); Code(CaseList); Outdent(); .
+  After(_,SpecList,Element,Expr) ? Code(SpecList); CodeElemental(Element); " ? "; "AFTER "; CodeExpr(Expr); NewLine(); .
+  Seq(_,SpecList,ProcList)	? Code(SpecList); "SEQ"; Indent(); Code(ProcList); Outdent(); .
+  SeqRep(_,SpecList,Replicator,Process) ? Code(SpecList); "SEQ "; Code(Replicator); Indent(); Code(Process); Outdent(); .
+
+  Par(_,SpecList,PType,ProcList)	? Code(SpecList); COND_Write(PType==xxPriPar,"PRI "); COND_Write(PType==xxPlacedPar,"PLACED "); "PAR"; Indent(); Code(ProcList); Outdent(); .
+  ParRep(_,SpecList,PType,Replicator,Process) ? Code(SpecList); COND_Write(PType==xxPriPar,"PRI "); COND_Write(PType==xxPlacedPar,"PLACED "); "PAR "; Code(Replicator); Indent(); Code(Process); Outdent(); .
+
+  Processor(_,SpecList,EX,ID,Process) ? Code(SpecList); "PROCESSOR "; CodeExpr(EX); " "; WriteId(ID); NewLine(); Indent(); Code(Process); Outdent(); . 
+
+  If(_,SpecList,ChoiceList)	? Code(SpecList); "IF"; Indent(); Code(ChoiceList); Outdent(); .
+  IfRep(_,SpecList,Replicator,ChoiceList)? Code(SpecList); "IF "; Code(Replicator); Indent(); Code(ChoiceList); Outdent(); .
+  Case(_,SpecList,Selector,ChoiceList)   ? Code(SpecList); "CASE "; Code(Selector); Indent(); Code(ChoiceList); Outdent(); .
+  While(_,SpecList,Expr,Process) ? Code(SpecList); "WHILE "; CodeExpr(Expr); Indent(); Code(Process); Outdent(); .
+  Skip(_,SpecList) 		? Code(SpecList); "SKIP"; NewLine();.
+  Stop(_,SpecList) 		? Code(SpecList); "STOP"; NewLine();.
+  CCode(_,SpecList,S) 		? Code(SpecList); "SKIP -- ";WriteStrRef(S); NewLine();.
+  Instance(_,SpecList,S,ExprList) ? Code(SpecList); WriteSym(S); "("; Code(ExprList); ")"; NewLine();.
+  NullProcess(_,SpecList) ? Code(SpecList); .
+  
+  NoAlt()			? .
+  AnAlt(SpecList,Next,Guard) ? Code(SpecList); Code(Guard); Code(Next); .
+  ANewAlt(SpecList,Next,AltType) ? Code(SpecList); Code(AltType); Code(Next); .
+  
+  AltInput(_,Const(_,T,_),Input,Process)	? (T.Number==true); Code(Input); Indent(); Code(Process); Outdent(); .
+  AltInput(_,Expr,Input,Process) 		? CodeExpr(Expr); " & "; Code(Input); Indent(); Code(Process); Outdent(); .
+  AltTimer(_,Const(_,T,_),After,Process)	? (T.Number==true); Code(After); Indent(); Code(Process); Outdent(); .
+  AltTimer(_,Expr,After,Process) 		? CodeExpr(Expr); " & "; Code(After); Indent(); Code(Process); Outdent(); .
+  AltCaseIn(_,Const(_,T,_),CaseIn)		? (T.Number==true); Code(CaseIn) ; .
+  AltCaseIn(_,Expr,CaseIn)			? CodeExpr(Expr); " & "; Code(CaseIn) ; .
+  NoInput(_,Expr,Process)			? CodeExpr(Expr); " & SKIP "; Indent(); Code(Process) ; Outdent(); .
+
+  NoChoice()			?.
+  AChoice(SpecList,Next,ExprList,Process) ? Code(SpecList); Code(ExprList); Indent(); Code(Process); Outdent(); Code(Next); .
+  ANewIf(SpecList,Next,IfType) ? Code(SpecList); Code(IfType); Code(Next); .
+
+  NoProcess()			?.
+  AProcess(Next,Process)	? Code(Process); Code(Next); .
+
+  PrototypeFunc(..)             ?.
+  PrototypeProc(..)             ?.
+
+  ParFrame(..)                  ?.
+  CallFrame(..)                 ?.
+
+  T                             ? CodeExpr(T); .
+  
+
+/*}}}*/
+
+/*{{{  PROCEDURE CodeDeclList(IdList)*/
+PROCEDURE CodeDeclList(IdList)
+  NoId() ?.
+  AnId (Next, S) 		? CodeDecl(SymbolType(S),S); CodeDeclList(Next);.
+/*}}}*/
+/*{{{  PROCEDURE CodeDecl(Type,tSymbol)*/
+PROCEDURE CodeDecl(Type,tSymbol)
+  UserStructTypes(_,_,F), S ? CodeDeclFields(S,F); .
+  T,S ? CodeType(T); WriteSym(S); WriteFields(S); ":"; NewLine(); .
+/*}}}*/
+/*{{{  PROCEDURE CodeDeclFields(tSymbol,FieldList)*/
+PROCEDURE CodeDeclFields(tSymbol,FieldList)
+  S, NoField() ? .
+  S, AField(N, FS, T) ? PushField(FS); CodeDecl(T,S); PopField(); CodeDeclFields(S,N); .
+/*}}}*/
+
+/*{{{  PROCEDURE CodeAbbrev(Spec,Type)*/
+PROCEDURE CodeAbbrev(Spec,Type)
+  AB,  UserStructTypes(_,_,F) ? CodeAbbrevFields(AB,F);.
+  Is (_, _, S, Element),T ? CodeType(T); WriteSym(S); " IS " ; CodeElemental(Element); ":"; NewLine();  .
+  Val (_, _, S, Expr),T ? "VAL "; CodeType(T); WriteSym(S); " IS "; CodeExpr(Expr); ":"; NewLine();  .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeAbbrevFields(Spec,FieldList)*/
+PROCEDURE CodeAbbrevFields(Spec,FieldList)
+  S, NoField() ? .
+  S, AField(N, FS, T) ? PushField(FS); CodeAbbrev(S,T); PopField(); CodeAbbrevFields(S,N); .
+/*}}}*/
+  
+/*{{{  PROCEDURE CodeFormals(Formals)*/
+PROCEDURE CodeFormals(Formals)
+  NoFormal() ? ; .
+  AF:AFormal(NoFormal(),_,_,T,_) ? CodeFormal(AF,T); .
+  AF:AFormal(Next,_,_,T,_) ? CodeFormal(AF,T); ","; CodeFormals(Next); .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeFormal(AFormal,Type)*/
+PROCEDURE CodeFormal(AFormal,Type)
+  AF, UserStructTypes(_,_,FL) ? CodeFormalFields(AF,FL);.
+  AFormal(_,_,B,_, S), T ? CodeBy(B) ; CodeType(T); WriteSym(S); WriteFields();.
+/*}}}*/
+/*{{{  PROCEDURE CodeFormalFields(AFormal,FieldList)*/
+PROCEDURE CodeFormalFields(AFormal,FieldList)
+  _, NoField() ?.
+  AF, AField(NoField(),FS,T) ? PushField(FS); CodeFormal(AF,T); PopField(); .
+  AF, AField(Next,FS,T) ? PushField(FS); CodeFormal(AF,T); PopField(); ","; CodeFormalFields(AF,Next); .
+/*}}}*/
+
+/*{{{  PROCEDURE CodeComplexExpr(Expr,Type,char)*/
+PROCEDURE CodeComplexExpr(Expr,Type,char)
+  E, UserStructTypes(_,_,FL),C ? CodeExprFields(E,FL,C); .
+  E,T,C ? CodeExpr(E); .
+/*}}}*/
+/*{{{  PROCEDURE CodeExprFields(Expr,FieldList)*/
+PROCEDURE CodeExprFields(Expr,FieldList,char)
+  ElementalExpr(P,UserLiteral(P1,EL,T)), _, _ ? Code(EL); .
+  E, NoField(), C ?.
+  E, AField(NoField(),FS,T), C ? PushField(FS); CodeComplexExpr(E,T,C); PopField(); .
+  E, AField(N,FS,T), C ? PushField(FS); CodeComplexExpr(E,T,C); PopField(); WriteChar(C); CodeExprFields(E,N,C); .
+  
+/*}}}*/
+
+/*{{{  PROCEDURE CodeUserProtocol(Protocol,Type)*/
+PROCEDURE CodeUserProtocol(Protocol,Type)
+  P:Counted(_,L,T), UserStructTypes(_,_,FL) ? CodeUserProtocolFields(P,FL);.
+  Counted(_,L,_), T ? CodeType(L) ; "::" ; CodeType(T);.
+/*}}}*/
+/*{{{  PROCEDURE CodeUserProtocolFields(Protocol,FieldList)*/
+PROCEDURE CodeUserProtocolFields(Protocol,FieldList)
+  P, NoField() ?.
+  P, AField(NoField(),FS,T) ? CodeUserProtocol(P,T); .
+  P, AField(N,FS,T) ? CodeUserProtocol(P,T); ";"; CodeUserProtocolFields(P,N);.
+/*}}}*/
+  
+/*{{{  PROCEDURE SemiSep(ExprList)           For writing semicolon separated expression lists*/
+PROCEDURE SemiSep(ExprList)
+
+  AnExpr(NoExpr(),Expr)		? CodeComplexExpr(Expr,ExprType(Expr),';');.
+  AnExpr(Next,Expr)		? CodeComplexExpr(Expr,ExprType(Expr),';'); "; "; SemiSep(Next);.
+
+  .. ? yyAbort("SemiSep");.  
+/*}}}*/
+
+/*{{{  PROCEDURE CodeExpr(Expr)*/
+PROCEDURE CodeExpr(Tree)
+  LOCAL { int lpindent, valindent;}
+  S:StringElement(..)                   ? (IsArrayType(ExprType(S))); (IsConstExpr(S)); "\""; WriteOccStr({(char*)}(S->StringElement.CA),CalcTypeSize(ExprType(S))); "\""; .
+  EX:ElementalExpr(_,E)                 ? (IsArrayType(ExprType(E))); (IsConstExpr(EX)); "["; CodeConstArray(ExprType(E),E->Elemental.CA); "]"; .
+  S:StringSubscript(_,Element,Expr)	? (IsConstExpr(S)); CodeConst(ExprType(S),ValConstExpr(S)); .
+
+  StringSubscript(_,Element,Expr)	? CodeExpr(Element); "[" ; CodeExpr(Expr) ; "]" ;.
+  StringRange(_,  Element, From, For)	? "["; CodeExpr(Element); " FROM "; CodeExpr(From) ; " FOR "; CodeExpr(For); "]";.
+
+  Convert(_,Type,Expr)		? "("; CodeType(Type); Code(Expr); ")";.
+
+  E:Expr(_)                      ? (IsConstExpr(E)); CodeConst(ExprType(E),ValConstExpr(E)); .
+
+  Valof(_, SpecList, Process, ExprList) ? SetIndent(lpindent); "( "; SetIndent(valindent); Code(SpecList); "VALOF"; Indent(); Code(Process); "RESULT "; Code(ExprList); Outdent(); ClearIndent(valindent); ")"; ClearIndent(lpindent); .
+  Binary(_, Lop, Rop, Op)       ? "("; Code(Lop); " "; CodeOp(Op); " "; Code(Rop); ")"; .
+  Unary(_, Expr, Op)		? "("; CodeOp(Op); " "; Code(Expr); ")";.
+  FuncCall(_, S, ExprList) 	? WriteSym(S); "("; Code(ExprList); ")"; .
+  Default(_)			? "ELSE"; .
+  ElementalExpr(_,Element)      ? CodeElemental(Element);.
+  Round(_,Type,Expr)		? "("; CodeType(Type); "ROUND "; Code(Expr); ")";.
+  Trunc(_,Type,Expr)		? "("; CodeType(Type); "TRUNC "; Code(Expr); ")";.
+  CA:CountArray(_,Length,Expr)	? CodeComplexExpr(CA,ExprType(Expr),';');.
+  UnBound(_)			?.
+
+  NoExpr()                      ?.
+  E                             ? fprintf(stderr,"Fell Through CodeExpr with -\n"); WriteTreeNode(stderr,E); NewLine(); .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeElemental(Elemental)*/
+PROCEDURE CodeElemental(Elemental)
+  T:TableSubscript(_,Element,Expr)	? (IsConstExpr(T)); CodeConst(ExprType(T),ValConstExpr(T)); .
+  T:TableSubscript(_,Element,Expr)	? (IsConstExpr(T)); CodeConst(ExprType(T),ValConstExpr(T)); .
+  Table(_,ExprList)			? "["; Code(ExprList); "]";.
+  TableSubscript(_,Element,Expr)	? CodeElemental(Element); "[" ; CodeExpr(Expr) ; "]" ;.
+  TableRange(_,  Element, From, For)	? "["; CodeElemental(Element); " FROM "; CodeExpr(From) ; " FOR "; CodeExpr(For); "]";.
+
+  Identifier(_,  S)		? WriteSym(S); WriteFields(); .
+  S:Subscript(_, Next, Expr)      ? (Tree_IsType(ElementalType(Next),kUserStructTypes)); CodeElemental(Next); ".."; CodeExpr(Expr);.
+  Subscript(_,  Next,Expr)	? CodeElemental(Next); "["; CodeExpr(Expr); "]";.
+  Range(_,  Next, From, For)	? "["; CodeElemental(Next); " FROM "; CodeExpr(From) ; " FOR "; CodeExpr(For); "]";.
+/*}}}*/
+
+
+/*{{{  PROCEDURE CodeConst(Type,tValue)*/
+PROCEDURE CodeConst(Type,tValue)
+
+  Int64(),V		? WritetInt(V.Number,true); "(INT64)"; .
+  Int(),V		? WritetInt(V.Number,false); .
+  Int16(),V		? WritetInt(V.Number,false); "(INT16)"; .
+  Int32(),V		? WritetInt(V.Number,false); "(INT32)"; .
+  Real32(),V            ? WriteReal(V); "(REAL32)";.
+  Real64(),V            ? WriteReal(V); "(REAL64)";.
+  Byte(),V       	? WriteByte(V.Number);  .
+  Bool(),V		? WriteBool(V.Number);  .
+
+  T,_                   ? fprintf(stderr,"Fell Through CodeConst with -\n"); WriteTreeNode(stderr,T); NewLine(); .
+
+/*}}}*/
+/*{{{  PROCEDURE CodeBy (By)*/
+PROCEDURE CodeBy (By)
+  ByVal() ? "VAL ";. 
+  ByRef() ? .
+/*}}}*/
+/*{{{  PROCEDURE CodeOp(Op)*/
+PROCEDURE CodeOp(Op)
+  Less() ? "<";.
+  Greater() ? ">";.
+  LessEqual() ? "<=";.
+  GreaterEqual() ? ">=";.
+  Equal() ? "=";.
+  NotEqual() ? "<>";.
+  Add() ? "+";.
+  Subtract() ? "-";.
+  Multiply() ? "*";.
+  Divide() ? "/";.
+  Rem() ? "\\";.
+  BitAnd() ? "/\\";.
+  BitOr() ? "\\/";.
+  BitEor() ? "><";.
+  BitNot() ? "~";.
+  LeftShift() ? "<<";.
+  RightShift() ? ">>";.
+  Size() ? "SIZE ";.
+  Plus() ? " PLUS ";.
+  Minus() ? " MINUS ";.
+  Times() ? " TIMES ";.
+  AfterOp() ? " AFTER ";.
+  And() ? " AND ";.
+  Or() ? " OR ";.
+  Not() ? " NOT ";.
+/*}}}*/
+/*{{{  PROCEDURE CodeType(Type)*/
+PROCEDURE CodeType(Type)
+  NIL                           ? "NoType";.
+  UserStructTypes(_,S,_) ? WriteSym(S); " ";.
+  Int() 			? "INT "; .
+  Int16() 			? "INT16 ";.
+  Int32() 			? "INT32 "; .
+  Int64() 			? "INT64 "; .
+  Real32() 			? "REAL32 "; .
+  Real64() 			? "REAL64 "; .
+  Bool()			? "BOOL "; .
+  Byte()			? "BYTE "; .
+  Chan(Simple(_,T))		? "CHAN OF "; CodeType(T); .
+  Chan(Protocol)		? "CHAN OF "; Code(Protocol); .
+  Timer()			? "TIMER ";.
+  Array(Expr,Type)		? "["; Code(Expr); "]"; CodeType(Type); .
+
+PROCEDURE CodeUserType(Type,char)
+  UserStructTypes(_,_,F),C        ? CodeTypeFields(F,C);.
+  AType(NoType(),T),C		? CodeUserType(T,C);.
+  AType(TL,T),C			? CodeUserType(T,C);WriteChar(C);CodeUserType(TL,C);.
+  Array(Expr,Type),C		? "["; Code(Expr); "]"; CodeUserType(Type,C); .
+  T,C                           ? CodeType(T);.
+
+PROCEDURE CodeTypeFields(FieldList,char)
+  NoField(),C ?.
+  AField(NoField(),_,T),C ? CodeUserType(T,C);.
+  AField(N,_,T),C ? CodeUserType(T,C); WriteChar(C); CodeTypeFields(N,C); .
+
+/*}}}*/
+
+/*{{{  PROCEDURE CodeConstArray(Type,tConstArray)*/
+PROCEDURE CodeConstArray(Type,tConstArray)
+  A:Array(E,T:Array(..)),CA ?
+    {
+      { int i,sz;
+        sz = CalcTypeSize(T);
+        for(i = 0; i < ValConstInt(E); ++i)
+        {
+          if (i) WriteChar(',');
+          WriteStr("[");
+          CodeConstArray(T,CA+i*sz);
+          WriteStr("]");
+        }
+      }
+    };
+    .
+   
+  A:Array(E,T),CA ?
+    {
+      { int i;
+        int sz = CalcTypeSize(T);
+        
+        for(i = 0; i < ValConstInt(E); ++i)
+        {
+          if (i) WriteChar(',');
+          CodeConst(T,ReadConstArray(T,CA+(sz*i)));
+        }
+      }
+    };
+    .
+/*}}}*/

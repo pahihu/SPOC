@@ -1,0 +1,228 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Attributes for controlling type checking
+||@(#)   System : occam 2 c
+||@(#) Filename : typechk.attr
+||@(#)  Version : 1.33
+||@(#)     Date : 9/20/93
+\*@(#)====================================================*/
+/*}}}*/
+
+/*{{{  MODULE TypeCheckTree*/
+MODULE TypeCheckTree
+
+TREE
+
+EXPORT
+{
+  typedef tTree tType;
+
+  typedef unsigned char *tConstArray;
+  #define NoConstArray ((tConstArray)NULL)
+
+  #define DoBndChk(S) S->Subscript.CB
+  #define DoLwrBndChk(R) R->Range.CLB
+  #define DoUprBndChk(R) R->Range.CUB
+
+  #define ConstFlag(E) E.C
+  #define IsConstInt(E) (Tree_IsType(ExprType(E),kInteger) && ConstFlag(E->Expr))
+  #define ValConstInt(E) E->Expr.CV.Number
+
+  #define ElementalConst(E) E->Elemental.CA
+  #define StringConst(S) S->StringElement.CA
+
+  #define IsConstExpr(E) ConstFlag(E->Expr)
+  #define ValConstExpr(E) E->Expr.CV
+
+  #define IsConstIntElement(E) (Tree_IsType(ElementType(E),kInteger) && ConstFlag(E->Element))
+  #define ValConstIntElement(E) E->Element.CV.Number
+
+  #define IsConstIntExprList(E) (Tree_IsType(ExprListType(E),kInteger) && ConstFlag(E->ExprList))
+  #define IsConstExprList(E)    (ConstFlag(E->ExprList))
+
+  #define ParType(P) (P->ParType.PType)
+  #define AltIsPri(P) (P->AltType.Pri)
+  typedef enum { xxPar, xxPriPar, xxPlacedPar } tParType;
+
+  #define IsLVIdent(I) I->Identifier.LV
+  #define ExprType(E) E->Expr.SynType
+  #define ExprListType(E) E->ExprList.SynType
+  #define ChoiceListType(E) E->ChoiceList.SynType
+  #define ElementType(E) E->Element.SynType
+  #define ElementalType(E) E->Elemental.SynType
+  #define ExprFieldList(E) E->Expr.FLOut
+  
+  #define Writable(E) E->Element.W
+  #define TempRequired(EL) EL->ExprList.TR
+
+  typedef enum { xxUnused, xxUsed, xxInput, xxOutput, xxInOut } tUsage; 
+  extern tUsage UpdateUsage(tUsage old, tUsage new);
+
+  /*{{{  VUsage*/
+  enum { xxxAccess,xxxLRead,xxxLWrite,xxxNLRead,xxxNLWrite,xxxAtomic };
+  #define xxLRead   (1<<xxxLRead)
+  #define xxLWrite  (1<<xxxLWrite)
+  #define xxNLRead  (1<<xxxNLRead)
+  #define xxNLWrite (1<<xxxNLWrite)
+  #define xxAtomic  (1<<xxxAtomic)
+  #define xxAccess  (1<<xxxAccess)
+  
+  #define AddVUsage(S,U)  { SymbolUsage(S) |= (U); }
+  
+  #define AddRVUsage(S,P) { tVUsage u = (SymbolDepth(S)<=SymbolDepth(P)) ?  xxNLRead :  xxLRead; AddVUsage(S,xxAccess | u); MarkRefParent(S,SymbolKind(P),xxNLRead); }
+  #define AddWVUsage(S,P) { tVUsage u = (SymbolDepth(S)<=SymbolDepth(P)) ? xxNLWrite : xxLWrite; AddVUsage(S,xxAccess | u); MarkRefParent(S,SymbolKind(P),xxNLWrite);}
+  /*}}}*/
+
+  typedef enum { xxOccam, xxAtomicOccam, xxF90, xxF77, xxC } tLang;
+}
+
+GLOBAL
+{
+  /*{{{  tUsage UpdateUsage(tUsage old, tUsage new)*/
+  tUsage UpdateUsage(tUsage old, tUsage new)
+  {
+    if (old==xxInput && new==xxOutput) return xxInOut;
+    if (new==xxInput && old==xxOutput) return xxInOut;
+    if (old==xxInput || old==xxOutput) return old;
+    return(new);  
+  }
+  /*}}}*/
+}
+
+END TypeCheckTree   
+/*}}}*/
+
+/*{{{  MODULE TypeCheck*/
+MODULE TypeCheck
+
+EVAL TypeChkAg
+
+IMPORT 
+{ 
+  #include "TypeChk.h" 
+  #include "Cout.h"
+}
+
+/*{{{  GLOBAL */
+GLOBAL 
+{ 
+  #define FALSE 0 
+  static tTree T;
+  static int ag_phase=0;
+}
+/*}}}*/
+/*{{{  BEGIN*/
+BEGIN
+{
+  BeginTypeChk();
+}
+/*}}}*/
+/*{{{  CLOSE*/
+CLOSE
+{
+  CloseTypeChk();
+  ag_phase++;
+}
+/*}}}*/
+
+DECLARE
+  Expr Elemental ExprList ChoiceList = [ SynType:tType ].
+  Expr ExprList Elemental ChoiceList CaseList = [ InhType:tType INH ].
+  Range = [CLB:bool SYN] [CUB:bool SYN].
+  Subscript = [CB:bool SYN].
+END TypeCheck
+/*}}}*/
+/*{{{  MODULE Writable*/
+MODULE Writable
+
+EVAL TypeChkAg
+
+DECLARE
+  Elemental = [W SYN].
+
+END Writable
+/*}}}*/
+/*{{{  MODULE ValofScope*/
+MODULE ValofScope
+
+EVAL TypeChkAg
+
+DECLARE  
+  Valof = [VS INPUT].
+  Process ProcList SpecList Spec AltList CaseList ChoiceList Guard = [VS INH].
+
+END ValofScope
+/*}}}*/
+/*{{{  MODULE TreeOrder*/
+MODULE TreeOrder
+  
+EVAL TypeChkAg
+
+DECLARE
+  SpecList Spec Type Process ExprList Elemental AltList Guard Formals
+  CaseList Expr Replicator ProcList ChoiceList  = [ V THREAD ].
+
+END TreeOrder
+/*}}}*/
+/*{{{  MODULE ConstExpr*/
+MODULE ConstExpr
+
+EVAL TypeChkAg
+
+DECLARE
+  Expr Elemental ExprList = [ C:bool SYN ].
+  Expr Elemental = [ CV:tValue SYN ].
+  
+END ConstIntExpr
+/*}}}*/
+/*{{{  MODULE ConstArray*/
+MODULE ConstArray
+
+EVAL TypeChkAg
+
+DECLARE
+  Elemental StringElement = [CA:tConstArray SYN].
+
+END ConstArray
+/*}}}*/
+/*{{{  MODULE MarkUsed*/
+MODULE MarkUsed
+
+EVAL TypeChkAg
+
+DECLARE
+  DefAProc DefAFunc = [U:tUsage SYN].
+  AFormal AnId Is= [U:tUsage SYN].
+  Elemental = [U:tUsage INH].
+  Formals = [InPrototype:bool INH].
+
+END MarkUsed
+/*}}}*/
+/*{{{  MODULE MarkTempRequired*/
+MODULE MarkTempRequired
+
+EVAL TypeChkAg
+
+DECLARE
+  ExprList = [TR:bool SYN].
+
+END MarkTempRequired 
+
+
+
+/*}}}*/
+/*{{{  MODULE AtomicProcesses*/
+MODULE AtomicProcesses
+
+EVAL
+
+DECLARE
+  Process, ProcList, ChoiceList, DefProc, DefFunc, DefIsFunc = [ATOMIC:bool SYN] .
+END Atomics
+
+/*}}}*/

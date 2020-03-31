@@ -1,0 +1,146 @@
+'\" t
+.\"
+.\" Manual page for tbmaths.lib - INMOS occam toolset maths libraries
+.\"
+.\" $Source: /usr/src/local/bin/oc2man/RCS/tbmaths-lib.man,v $
+.\"
+.\" $Id: tbmaths-lib.man,v 1.1 1993/03/12 11:30:18 djb1 Exp $
+.\"
+.\" Copyright (C) 1993 David Beckett, University of Kent at Canterbury
+.\"
+.\" This was derived from snglmath.lib, dblmath.lib and tbmaths.lib
+.\" (the libraries) using ilist and the perl program fixilist.pl
+.\" which cleaned up the output. 
+.\"
+.de tt \" Begin tt definition [.ttype]
+.ft CR
+.nf
+..     \" End tu definition
+.de tu \" Begin tu definition [.tu End ttype]
+.fi
+.ft P
+..     \" End tu definition
+.de ve \" Begin ve definition [.verb]
+.ft CR
+\\$1
+.ft P
+..
+.TH TBMATHSLIB 3L "8 March 1993" TBMATHSLIB "OCCAM LIBRARIES" TBMATHSLIB
+.SH NAME
+snglmath.lib, dblmath.lib, tbmaths.lib \- INMOS occam toolset maths libraries
+.SH SYNOPSIS
+.tt
+#USE "snglmath.lib"
+#USE "dblmath.lib"
+#USE "tbmaths.lib"
+.tu
+.SH SUMMARY
+The occam toolset maths libraries snglmath.lib, dblmath.lib,
+tbmaths.lib provide various mathematical functions.
+.LP
+.SH OVERVIEW
+To use the functions in this library do the following:
+.LP
+.tt
+#USE "snglmath.lib"
+#USE "dblmath.lib"
+#USE "tbmaths.lib"
+.tu
+.LP
+All the libraries provide the following standard mathematical
+functions: COS,SIN, TAN, COSH, SINH, TANH, ATAN, ACOS, ASIN, ATAN2.
+Also provided is LOG (logarithm base 2), LOG10 (base 10), EXP and
+POWER.
+.LP
+The single precision (\f(CRREAL32\fP) functions have the names above
+and the double precision versions (\f(CRREAL64\fP) have the same name
+but prefixed with a \f(CRD\fP.
+.LP
+.SH snglmath.lib
+.LP
+This library provides functions that handle \f(CRREAL32\fP numbers.
+.LP
+.tt
+REAL32 FUNCTION ACOS (VAL REAL32 X)
+REAL32 FUNCTION ALOG (VAL REAL32 X)
+REAL32 FUNCTION ALOG10 (VAL REAL32 X)
+REAL32 FUNCTION ASIN (VAL REAL32 X)
+REAL32 FUNCTION ATAN (VAL REAL32 X)
+REAL32 FUNCTION ATAN2 (VAL REAL32 U, VAL REAL32 V)
+REAL32 FUNCTION COS (VAL REAL32 X)
+REAL32 FUNCTION COSH (VAL REAL32 X)
+REAL32 FUNCTION EXP (VAL REAL32 X)
+REAL32 FUNCTION POWER (VAL REAL32 Base.r, VAL REAL32 Expn.r)
+REAL32,INT32 FUNCTION RAN (VAL INT32 SeedRan)
+REAL32 FUNCTION SIN (VAL REAL32 X)
+REAL32 FUNCTION SINH (VAL REAL32 X)
+REAL32 FUNCTION TAN (VAL REAL32 X)
+REAL32 FUNCTION TANH (VAL REAL32 X)
+.tu
+.SH dblmath.lib
+.LP
+This library provides functions that handle \f(CRREAL64\fP numbers.
+.LP
+.tt
+REAL64 FUNCTION DACOS (VAL REAL64 X)
+REAL64 FUNCTION DALOG (VAL REAL64 X)
+REAL64 FUNCTION DALOG10 (VAL REAL64 X)
+REAL64 FUNCTION DASIN (VAL REAL64 X)
+REAL64 FUNCTION DATAN (VAL REAL64 X)
+REAL64 FUNCTION DATAN2 (VAL REAL64 U, VAL REAL64 V)
+REAL64 FUNCTION DCOS (VAL REAL64 X)
+REAL64 FUNCTION DCOSH (VAL REAL64 X)
+REAL64 FUNCTION DEXP (VAL REAL64 X)
+REAL64 FUNCTION DPOWER (VAL REAL64 Base.r, VAL REAL64 Expn.r)
+REAL64,INT64 FUNCTION DRAN (VAL INT64 DSeedIn)
+REAL64 FUNCTION DSIN (VAL REAL64 X)
+REAL64 FUNCTION DSINH (VAL REAL64 X)
+REAL64 FUNCTION DTAN (VAL REAL64 X)
+REAL64 FUNCTION DTANH (VAL REAL64 X)
+.tu
+.SH tbmaths.lib
+.LP
+This library provides functions that handle both \f(CRREAL32\fP and
+\f(CRREAL64\fP numbers.
+.LP
+.tt
+REAL32 FUNCTION ACOS (VAL REAL32 X)
+REAL32 FUNCTION ALOG (VAL REAL32 X)
+REAL32 FUNCTION ALOG10 (VAL REAL32 X)
+REAL32 FUNCTION ASIN (VAL REAL32 X)
+REAL32 FUNCTION ATAN (VAL REAL32 X)
+REAL32 FUNCTION ATAN2 (VAL REAL32 U, VAL REAL32 V)
+REAL32 FUNCTION COS (VAL REAL32 X)
+REAL32 FUNCTION COSH (VAL REAL32 X)
+REAL64 FUNCTION DACOS (VAL REAL64 X)
+REAL64 FUNCTION DALOG (VAL REAL64 X)
+REAL64 FUNCTION DALOG10 (VAL REAL64 X)
+REAL64 FUNCTION DASIN (VAL REAL64 X)
+REAL64 FUNCTION DATAN (VAL REAL64 X)
+REAL64 FUNCTION DATAN2 (VAL REAL64 U, VAL REAL64 V)
+REAL64 FUNCTION DCOS (VAL REAL64 X)
+REAL64 FUNCTION DCOSH (VAL REAL64 X)
+REAL64 FUNCTION DEXP (VAL REAL64 X)
+REAL64 FUNCTION DPOWER (VAL REAL64 Base.r, VAL REAL64 Expn.r)
+REAL64,INT64 FUNCTION DRAN (VAL INT64 DSeedRan)
+REAL64 FUNCTION DSIN (VAL REAL64 X)
+REAL64 FUNCTION DSINH (VAL REAL64 X)
+REAL64 FUNCTION DTAN (VAL REAL64 X)
+REAL64 FUNCTION DTANH (VAL REAL64 X)
+REAL32 FUNCTION EXP (VAL REAL32 X)
+REAL32 FUNCTION POWER (VAL REAL32 Base.r, VAL REAL32 Expn.r)
+REAL32,INT32 FUNCTION RAN (VAL INT32 SeedRan)
+REAL32 FUNCTION SIN (VAL REAL32 X)
+REAL32 FUNCTION SINH (VAL REAL32 X)
+REAL32 FUNCTION TAN (VAL REAL32 X)
+REAL32 FUNCTION TANH (VAL REAL32 X)
+.tu
+.LP
+.SH SEE ALSO
+INMOS  occam 2 toolset user manual - part 2 (occam libraries and
+appendices) INMOS document number 72 TDS 276 02.
+.SH AUTHOR
+This document is Copyright (C) 1993 David Beckett, University of Kent
+at Canterbury.
+.LP
+The library contents are Copyright (C) 1991 INMOS Limited.

@@ -1,0 +1,64 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.time
+PROC sp.time (CHAN OF SP fs, ts, INT32 localtime, UTCtime, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To retrieve the local and UTC time from the host system.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      localtime - the local time
+  -- Out:      UTCtime - the Coordinated Universal Time, if available; zero
+  --           if not available
+  -- Out:      result - spr.ok if operation successful; otherwise
+  --           >= spr.operation.failed - refer to hostio.inc or iserver
+  --           documentation for details
+  -- Notes:    Both times are expressed as the number of seconds that have
+  --           elapsed since midnight on the 1st of January, 1970, and are
+  --           given as unsigned INT32s
+  --           UTC time used to be known as Greenwich Mean Time ( GMT )
+  --}}}
+
+  [10]BYTE buffer :  -- 9 needed, plus 1 to make it even
+  SEQ
+    --{{{  pack the data into the buffer (1 byte)
+    buffer [0] := sp.time.tag
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 len :
+    fs ?  len :: buffer
+    --}}}send and receive the buffer
+    --{{{  copy out the result           (1 or 9 bytes)
+    result := buffer [0]
+    
+    [4]BYTE b.localtime RETYPES localtime :
+    b.localtime := [buffer FROM 1 FOR 4]
+    
+    [4]BYTE b.UTCtime RETYPES UTCtime :
+    b.UTCtime := [buffer FROM 5 FOR 4]
+    --}}}copy out the result           (1 or 9 bytes)
+:
+--}}}sp.time
+--{{{  so.time
+PROC so.time (CHAN OF SP fs, ts, INT32 localtime, UTCtime)
+
+  --{{{  specification
+  -- Purpose:  To retrieve the local and UTC time from the host system.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      localtime - the local time
+  -- Out:      UTCtime - the Coordinated Universal Time, if available; zero
+  --           if not available
+  -- Notes:    Both times are expressed as the number of seconds that have
+  --           elapsed since midnight on the 1st of January, 1970, and are
+  --           given as unsigned INT32s
+  --           UTC time used to be known as Greenwich Mean Time ( GMT )
+  --}}}
+
+  BYTE result:
+  sp.time (fs, ts, localtime, UTCtime, result)
+:
+--}}}so.time

@@ -1,0 +1,48 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.tell
+PROC sp.tell (CHAN OF SP fs, ts, VAL INT32 streamid,
+              INT32 position, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To return the current file position for the specified stream.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the open stream associated
+  --           whith the file the reading/writing position of which is desired
+  -- Out:      position - the current file position
+  -- Out:      result - equal to spr.ok if the file position determined;
+  --           otherwise >= spr.operation.failed - refer to hostio.inc or
+  --           iserver documentation for further details
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (5 bytes)
+    buffer [0] := sp.tell.tag
+    
+    VAL [4]BYTE b.streamid RETYPES streamid :
+    [buffer FROM 1 FOR 4] := b.streamid
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 temp.INT16 :
+    fs ? temp.INT16 :: buffer
+    --}}}
+    --{{{  copy out the result           (1 or 5 bytes)
+    result := buffer [0]
+    
+    [4]BYTE b.position RETYPES position :
+    b.position := [buffer FROM 1 FOR 4]
+    --}}}
+:
+--}}}sp.tell
+--{{{  so.tell
+PROC so.tell (CHAN OF SP fs, ts, VAL INT32 streamid,
+              INT32 position, BYTE result)
+
+  sp.tell (fs, ts, streamid, position, result)
+:
+--}}}so.tell

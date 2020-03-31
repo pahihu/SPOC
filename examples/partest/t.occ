@@ -1,0 +1,6 @@
+PROC TEST()
+  INT i:
+  PAR
+    i := 5
+    i := 6
+:

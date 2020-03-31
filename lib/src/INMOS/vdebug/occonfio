@@ -1,0 +1,53 @@
+##############################################################################
+#
+#        Make file for occam 2 toolset configurer library occonfio.lib
+#
+#                              25-Oct-90 SRH
+#
+#                This makefile is presently set up for UNIX
+#
+# ********** virtual.lib and debug.lib must have already been built **********
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm $(SWITCH)f
+
+
+# tools and global options
+LINKER=ilink
+LINKOPT=$(SWITCH)zc
+LIBRARIAN=ilibr
+LIBOPT=
+
+# linker indirect file
+INDIRECT=occonfio.lnk
+
+
+LINKEDUNIT2=occonft2.lku
+LINKEDUNITA=occonfta.lku
+LINKEDUNIT8=occonft8.lku
+
+
+TARGET=occonfio.lib
+
+
+#
+############################## target and rules ##############################
+#
+all: $(TARGET)
+
+occonfio.lib: virtual.lib debug.lib
+	$(LINKER) $(LINKOPT) virtual.lib debug.lib $(SWITCH)f $(INDIRECT) \
+	$(SWITCH)t2 $(SWITCH)x $(SWITCH)o $(LINKEDUNIT2)
+	$(LINKER) $(LINKOPT) virtual.lib debug.lib $(SWITCH)f $(INDIRECT) \
+	$(SWITCH)ta $(SWITCH)x $(SWITCH)o $(LINKEDUNITA)
+	$(LINKER) $(LINKOPT) virtual.lib debug.lib $(SWITCH)f $(INDIRECT) \
+	$(SWITCH)t8 $(SWITCH)x $(SWITCH)o $(LINKEDUNIT8)
+#
+	$(LIBRARIAN) $(LINKEDUNIT2) $(LINKEDUNIT8) $(LINKEDUNITA) \
+	$(LIBOPT) $(SWITCH)o $(TARGET)
+#
+	$(DELETE) $(LINKEDUNIT2) $(LINKEDUNITA) $(LINKEDUNIT8)

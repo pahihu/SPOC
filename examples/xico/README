@@ -1,0 +1,1 @@
+omakef xico -d CCOPTIONS=-I/usr/X11/include CLOPTIONS="-L/usr/X11/lib -lX11"

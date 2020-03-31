@@ -1,0 +1,84 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE ALOG "ALOG%c"
+#PRAGMA TRANSLATE ALOG10 "ALOG10%c"
+#endif
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  ALOG
+REAL32 FUNCTION ALOG (VAL REAL32 X)
+
+  REAL32 RWork :
+  VALOF
+    IF
+      NOTFINITE (X)
+        --{{{  NaN or Inf
+        IF
+          ISNAN (X)
+            RWork := X
+          TRUE -- must be inf
+            RWork := undefined.NaN
+        --}}}
+      (X <= Zero) -- X is negative
+        RWork := undefined.NaN
+      TRUE
+        REAL32 XWork :
+        INT N :
+        SEQ
+          N, XWork := FLOATING.UNPACK (X)
+          XWork := DIVBY2 (XWork) -- to produce fraction in [0.5, 1.0)
+          --{{{  Reduced Log
+          VAL REAL32 C0 RETYPES #3F3504F3(INT32) : -- SQRT(0.5) in floating point
+          VAL A0 IS -5.527074855E-1(REAL32) :
+          VAL B0 IS -6.632718214(REAL32) :
+          REAL32 Z :
+          SEQ
+            IF
+              XWork > C0
+                SEQ
+                  Z := ((XWork - Half) - Half) / ((XWork * Half) + Half)
+                  N := N + 1             -- to ensure exponent corresponds
+              TRUE
+                VAL ZNum IS XWork - Half :
+                VAL ZDen IS (ZNum * Half) + Half :
+                Z := ZNum / ZDen
+            VAL W IS Z * Z :
+            RWork := Z + (Z * ((W * A0)/(W + B0)))
+          --}}}
+          IF
+            N = 0
+              SKIP
+            TRUE -- Result := RWork + N*ln(2)
+              VAL RealN IS REAL32 ROUND N :
+              --{{{  C1, C2
+              VAL REAL32 C1 RETYPES #3F318000(INT32) :
+              VAL REAL32 C2 RETYPES #B95E8083(INT32) :
+              -- C1 + C2 = ln(2) to extra precision
+              --}}}
+              RWork := (RWork + (RealN * C2)) + (RealN * C1)
+
+    RESULT RWork
+:
+--}}}
+--{{{  ALOG10
+REAL32 FUNCTION ALOG10 (VAL REAL32 X)
+
+  REAL32 NLog :
+  VALOF
+    SEQ
+      NLog := ALOG (X)
+      IF
+        ISNAN (NLog)
+          SKIP
+        TRUE
+          VAL REAL32 LogE RETYPES #3EDE5BD9(INT32) :
+          NLog := NLog * LogE
+    RESULT NLog
+:
+--}}}

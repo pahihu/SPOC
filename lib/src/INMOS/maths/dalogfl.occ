@@ -1,0 +1,166 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE DALOG "DALOG%c"
+#PRAGMA TRANSLATE DALOG10 "DALOG10%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE DALOG "DLOG%f"
+#PRAGMA TRANSLATE DALOGP "DLOGP%f"
+#PRAGMA TRANSLATE DALOGPP "DLOGPP%f"
+#PRAGMA TRANSLATE DALOG10 "DLOG10%f"
+#PRAGMA TRANSLATE DALOG10P "DLOG10P%f"
+#PRAGMA TRANSLATE DALOG10PP "DLOG10PP%f"
+#endif
+#endif
+
+--{{{  history
+-- V1.0 1-Jul-88
+-- Added OPTION "V"; V1.1 27-Mar-90 SRH
+--}}}
+--{{{  DALOG
+REAL64 FUNCTION DALOG (VAL REAL64 X)
+
+  REAL64 RWork :
+  VALOF
+    IF
+      DNOTFINITE (X)
+        --{{{  NaN or Inf
+        IF
+          DISNAN (X) -- NaN
+            RWork := X   -- transmit NaN
+          TRUE       -- Inf
+            RWork := Dundefined.NaN
+        --}}}
+      X <= DZero  -- X is negative
+        RWork := Dundefined.NaN
+      TRUE
+        REAL64 XWork :
+        INT N :
+        SEQ
+          N, XWork := DFLOATING.UNPACK (X)
+          XWork := DDIVBY2 (XWork)  -- to map XWork into the range [0.5, 1.0)
+          --{{{  Reduced Log
+          VAL REAL64 C0 RETYPES #3FE6A09E667F3BCD(INT64) : -- SQRT(0.5)
+          VAL A2 IS -7.8956112887491257267E-1(REAL64) :
+          VAL A1 IS  1.6383943563021534222E+1(REAL64) :
+          VAL A0 IS -6.4124943423745581147E+1(REAL64) :
+          VAL B2 IS -3.5667977739034646171E+1(REAL64) :
+          VAL B1 IS  3.1203222091924532844E+2(REAL64) :
+          VAL B0 IS -7.6949932108494879777E+2(REAL64) :
+          REAL64 Z :
+          SEQ
+            IF
+              XWork > C0
+                SEQ
+                  Z := ((XWork - DHalf) - DHalf) / ((XWork * DHalf) + DHalf)
+                  N := N + 1              -- to ensure N corresponds
+              TRUE
+                VAL REAL64 ZNum IS XWork - DHalf :
+                Z := ZNum / ((ZNum * DHalf) + DHalf)
+            VAL W IS Z * Z :
+            RWork := Z+(Z*(((((((A2*W)+A1)*W)+A0)*W)/(((((W+B2)*W)+B1)*W)+B0))))
+          --}}}
+          IF
+            N = 0
+              SKIP
+            TRUE
+              --{{{  C1, C2 : C1 + C2 = Ln(2) to extra precision
+              VAL REAL64 C1 RETYPES #3FE6300000000000(INT64) :
+              VAL REAL64 C2 RETYPES #BF2BD0105C610CA8(INT64) :
+              --}}}
+              VAL RealN IS REAL64 ROUND N :
+              RWork := ( RWork + (RealN * C2)) + (RealN * C1)
+    RESULT RWork
+:
+--}}}
+--{{{  DALOG10
+REAL64 FUNCTION DALOG10 (VAL REAL64 X)
+
+  REAL64 RWork :
+  VALOF
+    -- LogE = 0.434294481903251816667932416748953983187675476074218750,
+    -- which is the closest IEEE double precision number to the
+    -- exact  0.43429448190325182765....
+    VAL REAL64 LogE RETYPES #3FDBCB7B1526E50E(INT64) :
+    REAL64 NLog :
+    SEQ
+      NLog := DALOG (X)
+      IF
+        DISNAN (NLog)
+          RWork := NLog -- transmit NaN
+        TRUE
+          RWork := NLog * LogE
+    RESULT RWork
+:
+--}}}
+#ifdef FORTRAN
+--{{{  DALOGP/DALOGPP
+-- This 'P' version exists for when the FORTRAN intrinsic DALOG is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DALOGP.  When DALOGP is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DALOGP has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value.  The occam calling convention is to pass REAL64
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DALOGP( VAL INT dummy, VAL REAL64 X ) IS DALOG( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DALOGPP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DALOG( X )
+:
+#endif
+--}}}
+--{{{  DALOG10P/DALOG10PP
+-- This 'P' version exists for when the FORTRAN intrinsic DALOG10 is passed as
+-- a parameter to a routine.  The FORTRAN compiler will see the interface to
+-- DALOG10P.  When DALOG10P is called from FORTRAN the default FORTRAN calling
+-- conventions are used, i.e. pass a gsb pointer and pass parameters by
+-- reference.  Due to these facts DALOG10P has a dummy parameter to catch the gsb.
+#ifdef FPU
+-- On the T8 the REAL64 result is passed back on the floating point
+-- stack by occam.  This is the same in FORTRAN and so no special code is
+-- required here.  The dummy parameter comes first to take the gsb followed
+-- by the REAL64 value.  The occam calling convention is to pass REAL64
+-- by reference, so this parameter should match already.
+
+REAL64 FUNCTION DALOG10P( VAL INT dummy, VAL REAL64 X ) IS DALOG10( X ) :
+#else
+-- On a non-floating point processor the REAL64 result is passed back by
+-- way of a pointer to a result variable by both occam and FORTRAN.  If the
+-- routine is written as a function then this result variable is expected
+-- by occam to be the first parameter passed onto the stack.  This is not
+-- the case in FORTRAN where the first parameter put onto the stack is
+-- the gsb, the result parameter follows the gsb.  So the order of the
+-- dummy and the result in occam is opposite to that in FORTRAN.   In order
+-- to be able to pick up the result pointer we must write the routine as a
+-- procedure and cope with the result pointer ourselves.  Therefore, the
+-- first parameter is the dummy, the second is the result pointer.  Then
+-- comes the REAL64 value.  The occam calling convention is to pass
+-- REAL64s by reference, so this parameter should match already.
+
+PROC DALOG10PP( VAL INT dummy, REAL64 result, VAL REAL64 X )
+  result := DALOG10( X )
+:
+#endif
+--}}}
+#endif

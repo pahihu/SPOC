@@ -1,0 +1,65 @@
+#OPTION "E V" -- no compiler libraries, no vector space
+#COMMENT "Type conversion library V1.1 22/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+PROC STRINGTOINT (BOOL Error, INT n, VAL []BYTE string)
+
+  --{{{  history
+  --  Corrected to handle strings without digits MDP 19.2.88
+  -- V1.0, 1-Jul-88
+  -- Added V to the OPTIONs; V1.1, 22-Mar-90 SRH
+  --}}}
+
+  INT chars.scanned:
+  INT carry, digit:
+  BOOL Neg, More :
+  --{{{  ValidDigit
+  PROC ValidDigit (INT digit, BOOL valid, VAL BYTE ch)
+    --convert char to decimal digit and set valid flag
+    SEQ
+      digit := (INT ch)
+      IF
+        ((INT '0') <= digit) AND (digit <= (INT '9'))
+          SEQ
+            digit:= (digit - (INT '0'))
+            valid := TRUE
+        TRUE
+          valid := FALSE
+  :
+  --}}}
+  SEQ
+    n := 0
+    Error := FALSE
+    IF
+      (SIZE string) > 0
+        SEQ
+          Neg := string[0] = '-'
+          IF
+            (string[0] = '+') OR (string[0] = '-')
+              chars.scanned := 1
+            TRUE
+              chars.scanned := 0
+          More := chars.scanned < (SIZE string)
+      TRUE
+        More := FALSE
+    digit := 0
+    WHILE More AND (chars.scanned < (SIZE string))
+      SEQ
+        carry, n := LONGPROD (n, 10, digit)
+        Error := Error OR (carry <> 0)
+        ValidDigit (digit, More, string[chars.scanned])
+        chars.scanned := chars.scanned + 1
+    IF
+      More
+        SEQ
+          carry, n := LONGPROD (n, 10, digit)
+          Error := Error OR (carry <> 0)
+          IF
+            Neg
+              SEQ
+                n := 0 MINUS n
+                Error := Error OR (n > 0)
+            TRUE
+              Error := Error OR (n < 0)
+      TRUE
+        Error := TRUE
+:

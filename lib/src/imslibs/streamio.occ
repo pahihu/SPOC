@@ -1,0 +1,40 @@
+--{{{  File banner
+-- @(#)=====================================================
+-- @(#)  Project : GPMIMD ESPRIT P5404
+-- @(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+-- @(#)            University of Southampton
+--  
+-- @(#)    Title : top level file for inmos streamio
+-- @(#)   System : Occam 2 C
+-- @(#) Filename : streamio.occ
+-- @(#)  Version : 1.1
+-- @(#)     Date : 12/10/93
+-- @(#)====================================================
+--}}}
+#INCLUDE "hostio.inc"
+#INCLUDE "streamio.inc"
+#USE "keyscr"
+#USE "keysink"
+#USE "kfile"
+#USE "kkbd"
+#USE "kstdin"
+#USE "scrcont"
+#USE "scrcopy"
+#USE "scrfan"
+#USE "scrmux"
+#USE "scrsink"
+#USE "scrtfarr"
+#USE "sfile"
+#USE "srchar"
+#USE "srint"
+#USE "srint64"
+#USE "srreal32"
+#USE "srreal64"
+#USE "sstdout"
+#USE "swint"
+#USE "swint64"
+#USE "swreal32"
+#USE "swreal64"
+#USE "swsimple"
+#USE "toansi"
+#USE "totvi"

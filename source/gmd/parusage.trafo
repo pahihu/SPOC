@@ -1,0 +1,950 @@
+/* -*-c-*- */
+/*{{{  File banner*/
+/*@(#)=====================================================*\
+||@(#)  Project : GPMIMD ESPRIT P5404
+||@(#)  Authors : Mark Debbage, Mark Hill and Sean Wykes
+||@(#)            University of Southampton
+||  
+||@(#)    Title : Puma routines for parallel usage checking
+||@(#)   System : occam 2 c
+||@(#) Filename : parusage.trafo
+||@(#)  Version : 1.19
+||@(#)     Date : 9/3/93
+\*@(#)====================================================*/
+/*}}}*/
+
+TRAFO ParUsage TREE extoccam
+
+/*{{{  PUBLIC*/
+PUBLIC
+  CreateUsage
+  AddWriteUsage
+  AddReadUsage
+  AddInstanceLValues
+  AddLValues
+  DeleteUsage
+  CombineUsage         CombineFuncUsage
+  CheckUsage           CheckRepUsage
+  CheckSimpleExpr      SimplifyLinExpr
+  RangeCheckLinExpr    SubscriptCheckLinExpr TransferLinExpr
+  CheckForAbbrev       CheckForValAbbrev
+  CheckForAbbrevInProc CheckForValAbbrevInProc
+  CreateElementList
+/*}}}*/
+/*{{{  IMPORT*/
+IMPORT
+{
+  #include "Sets.h"
+}
+
+/*}}}*/
+/*{{{  GLOBAL*/
+GLOBAL
+{
+  typedef tSet *pSet;
+
+  static UEMode = xxError; 
+  #define IsLVExprList(EL) EL->ExprList.LV
+  #define IsSimpEl(S) S->Element.SE
+  #define IsParAssigned(E) E->ElementalExpr.PAR
+
+  /*#define EXCLUDE_REPORTED_CONFLICTS*/
+  /*{{{  static bool IsDisjoint (tSet *Set1,tSet *Set2)*/
+  static bool IsDisjoint (tSet *Set1,tSet *Set2)
+  {
+     register tSet *   rSet1   = Set1;
+     register cardinal i       = rSet1->LastBitset + 1;
+     register BITSET * s1      = rSet1->BitsetPtr;
+     register BITSET * s2      = Set2->BitsetPtr;
+     do {
+	if (* s1 ++ & * s2 ++) return false;
+     } while (-- i);
+     return true;
+  }
+  /*}}}*/
+
+  /*{{{  static void AllowNoValAbbrev(tSymbol this, tSymbol scope, tPosition P, tTree E)*/
+  static void AllowNoValAbbrev(tSymbol this, tSymbol scope, tPosition P, tTree E)
+  {
+    tTree EL = CreateElementList(E);
+   
+    while (scope!=this)
+      if (CheckForValAbbrev(this,SymbolKind(scope),EL))
+      {
+	Message("Variable has been VAL abbreviated",UEMode,P);
+	return;
+      }
+      else if (CheckForAbbrev(this,SymbolKind(scope),EL))
+      {
+	Message("Variable has been abbreviated",UEMode,P);
+	return;
+      }
+      else
+	scope = Symbol(scope).Scope;
+  }
+  /*}}}*/
+  /*{{{  static void AllowNoAbbrev(tSymbol this, tSymbol scope, tPosition P, tTree E)*/
+  static void AllowNoAbbrev(tSymbol this, tSymbol scope, tPosition P, tTree E)
+  {
+    tTree EL = CreateElementList(E);
+  
+    while (scope!=this)
+      if (CheckForAbbrev(this,SymbolKind(scope),EL))
+      {
+	Message("Variable has been abbreviated",UEMode,P);
+	return;
+      }
+      else
+	scope = Symbol(scope).Scope;
+  }
+  /*}}}*/
+  /*{{{  void AllowNoAbbrevInProc(tSymbol proc,tSymbol scope, tParUsage U, tPosition P)*/
+  void AllowNoAbbrevInProc(tSymbol proc,tSymbol scope, tParUsage U, tPosition P)
+  {
+    while (scope!=proc)
+    {
+      if (CheckForValAbbrevInProc(SymbolKind(scope),U))
+      {
+	 Message("Procedure assigns to variables which have since been VAL abbreviated",UEMode,P);
+	 return;
+      } else if (CheckForAbbrevInProc(SymbolKind(scope),U))
+      {
+	 Message("Procedure uses variables which have since been abbreviated",UEMode,P);
+	 return;
+      }
+      else
+	scope = Symbol(scope).Scope;
+    }
+  }
+  /*}}}*/
+
+  /*{{{  static void RemoveLocalSymbols(pSet S, int Depth)*/
+  static void RemoveLocalSymbols(pSet S, int Depth)
+  {
+    int i;
+    for (i=Minimum(S);i<=Maximum(S);i++)
+      if (IsElement(i,S))
+	if (Symbol(i).Depth>Depth)
+	   Exclude(S,i); 
+  }    
+  /*}}}*/
+
+  /*{{{  static void ReportUsages(tParUsage ALL, tParUsage U, tPosition P)*/
+  static void ReportUsages(tParUsage ALL, tParUsage U, tPosition P)
+  {
+    int i;
+    tSet D;
+    MakeSet(&D,SymSize+1);
+    Assign(&D,&ALL->W);
+    Intersection(&D,&U->W);
+    for (i=Minimum(&D);i<=Maximum(&D);i++)
+      if (IsElement(i,&D)) 
+      {
+	MessageI("\tWrite/Write Conflict on ",xxInformation,P,xxIdent,(char*)&Symbol(i).Id);
+	#ifdef EXCLUDE_REPORTED_CONFLICTS 
+	Exclude(&ALL->W,i);  Exclude(&U->W,i);
+	#else
+	Exclude(&ALL->R,i);  Exclude(&U->R,i);
+	#endif
+      }
+    Assign(&D,&ALL->R);
+    Intersection(&D,&U->W);
+    for (i=Minimum(&D);i<=Maximum(&D);i++)
+      if (IsElement(i,&D))
+      {
+	 MessageI("\tWrite/Read Conflict on ",xxInformation,P,xxIdent,(char*)&Symbol(i).Id);
+	 #ifdef EXCLUDE_REPORTED_CONFLICTS 
+	 Exclude(&ALL->R,i); Exclude(&U->W,i); 
+	 #endif
+      }
+    Assign(&D,&ALL->W);
+    Intersection(&D,&U->R);
+    for (i=Minimum(&D);i<=Maximum(&D);i++)
+      if (IsElement(i,&D)) 
+      {
+	MessageI("\tRead/Write Conflict on ",xxInformation,P,xxIdent,(char*)&Symbol(i).Id);
+	#ifdef EXCLUDE_REPORTED_CONFLICTS 
+	Exclude(&ALL->W,i);  Exclude(&U->R,i);
+	#endif
+      }
+    ReleaseSet(&D);
+  }
+  /*}}}*/
+  /*{{{  static void ReportRepUsages(tParUsage U, tPosition P)*/
+  static void ReportRepUsages(tParUsage U, tPosition P)
+  {
+    int i;
+    tSet D;
+    MakeSet(&D,SymSize+1);
+    Assign(&D,&U->R);
+    Intersection(&D,&U->W);
+    for (i=Minimum(&D);i<=Maximum(&D);i++)
+      if (IsElement(i,&D))
+      {
+	MessageI("\tWrite/Read Conflict on ",xxInformation,P,xxIdent,(char*)&Symbol(i).Id);
+	#ifdef EXCLUDE_REPORTED_CONFLICTS 
+	Exclude(&U->R,i); Exclude(&U->W,i); 
+	#endif
+      }
+    ReleaseSet(&D);
+    for (i=Minimum(&U->W);i<=Maximum(&U->W);i++)
+      if (IsElement(i,&U->W)) 
+      {
+	MessageI("\tWrite/Write Conflict on ",xxInformation,P,xxIdent,(char*)&Symbol(i).Id);
+	#ifdef EXCLUDE_REPORTED_CONFLICTS 
+	Exclude(&U->W,i); 
+	#endif
+      }
+  }
+  /*}}}*/
+}
+/*}}}*/
+/*{{{  EXPORT*/
+EXPORT
+{
+  struct tParUsageStruct 
+  {
+    tPosition Pos;
+    tSet W;
+    tSet R;
+    tTree WAL;  /* written symbol access list */
+    tTree RAL;  /* read symbol access list */
+  } ;
+  #define NoParUsage ((tParUsage) NULL)
+  extern void AllowNoAbbrevInProc(tSymbol proc, tSymbol scope, tParUsage U, tPosition P);
+}
+/*}}}*/
+/*{{{  BEGIN*/
+BEGIN
+{
+  if (IS_Mode(xxUsageWarnings)) UEMode=xxWarning;
+}
+/*}}}*/
+
+/*{{{  FUNCTION CreateUsage(tPosition) tParUsage*/
+FUNCTION CreateUsage(tPosition) tParUsage
+  LOCAL { tParUsage U=(tParUsage)malloc(sizeof(tParUsageStruct)); }
+  P RETURN U ? 
+    {if (U==NULL) Message("Malloc failure during usage checking",xxFatal,P); };
+    MakeSet(&U->W,SymSize+1); 
+    MakeSet(&U->R,SymSize+1); 
+    U->WAL := mNoAccess();
+    U->RAL := mNoAccess();
+    U->Pos := P; .
+/*}}}*/
+/*{{{  FUNCTION AddWriteUsage(tParUsage,Elemental) bool*/
+FUNCTION AddWriteUsage(tParUsage,Elemental) bool
+  NIL, E RETURN true ?.
+  U,E:Element RETURN SetWriteUsage(U,GetElementSymbol(E),E) ?.
+  U,E RETURN true ?.
+
+FUNCTION SetWriteUsage(tParUsage,tSymbol,Element) bool
+  PU,S,E RETURN false ? (E->Element.U==xxInput); (IsElement(S,&PU->W));.
+  PU,S,E RETURN false ? (E->Element.U==xxOutput); (IsElement(Symbol(S).Out,&PU->W)); .
+  PU,S,E RETURN B ? (E->Element.U==xxInput); 
+    PU->WAL:=InsertAccess(PU->WAL,S,E,&PU->W=>B);
+  . 
+  PU,S,E RETURN B ? (E->Element.U==xxOutput); 
+    PU->WAL:=InsertAccess(PU->WAL,Symbol(S).Out,E,&PU->W=>B);
+  .
+  PU,S,E RETURN false ? (!IsChanType(SymbolType(S))); (IsElement(S,&PU->W)); 
+    AllowNoValAbbrev(S,GetElementScope(E),GetElementPosition(E),E);
+  .
+  PU,S,E RETURN B ? (!IsChanType(SymbolType(S))); 
+    PU->WAL:=InsertAccess(PU->WAL,S,E,&PU->W=>B);  
+    AllowNoValAbbrev(S,GetElementScope(E),GetElementPosition(E),E); 
+  .
+  PU,S,E RETURN true;.
+/*}}}*/
+/*{{{  FUNCTION AddReadUsage(tParUsage,Elemental) bool*/
+FUNCTION AddReadUsage(tParUsage,Elemental) bool
+  NIL, E RETURN true ?.
+  U, E RETURN true ? (E->Elemental.FLOut!=NoTree);.  
+  U,E:Element RETURN SetReadUsage(U,GetElementSymbol(E),E)?.
+  U,E RETURN true ?.
+
+FUNCTION SetReadUsage(tParUsage,tSymbol,Element) bool
+  PU,S,E RETURN false ? (E->Element.U==xxInput); (IsElement(S,&PU->R));.
+  PU,S,E RETURN false ? (E->Element.U==xxOutput); (IsElement(Symbol(S).Out,&PU->R)); .
+  PU,S,E RETURN B ? (E->Element.U==xxInput); 
+    PU->RAL:=InsertAccess(PU->RAL,S,E,&PU->R=>B);
+  . 
+  PU,S,E RETURN B ? (E->Element.U==xxOutput); 
+    PU->RAL:=InsertAccess(PU->RAL,Symbol(S).Out,E,&PU->R=>B);
+  .
+  PU,S,E RETURN false ? (!IsChanType(SymbolType(S))); (IsElement(S,&PU->R)); 
+    AllowNoAbbrev(S,GetElementScope(E),GetElementPosition(E),E); 
+  .
+  PU,S,E RETURN B ? (!IsChanType(SymbolType(S))); 
+    PU->RAL:=InsertAccess(PU->RAL,S,E,&PU->R=>B);
+    AllowNoAbbrev(S,GetElementScope(E),GetElementPosition(E),E); 
+  .
+  PU,S,E RETURN true;.
+/*}}}*/
+/*{{{  PROCEDURE AddInstanceLValues(Formals,ExprList)*/
+PROCEDURE AddInstanceLValues(Formals,ExprList)
+  NoFormal(),N:NoExpr() ? IsLVExprList(N):=false;.
+  AFormal(NF,_,ByRef(),..),AE:AnExpr(NE,EE:ElementalExpr) ? IsLVExprList(AE):=true; IsParAssigned(EE):=true; AddInstanceLValues(NF,NE); .
+  AFormal(NF,_,ByVal(),..),AE:AnExpr(NE,_) ?  IsLVExprList(AE):=false; AddInstanceLValues(NF,NE); .
+/*}}}*/
+/*{{{  PROCEDURE AddLValues(ExprList,bool,bool) - bool1 true if an LValue, bool2 if a Parallel assignment */
+PROCEDURE AddLValues(ExprList,bool,bool)
+  EL:NoExpr(),B,P ? IsLVExprList(EL):=B;.
+  EL:AnExpr(NE,E:ElementalExpr),B,P ? IsLVExprList(EL):=B; IsParAssigned(E):=P; AddLValues(NE,B,P);.
+  EL:AnExpr(NE,_),B,P ? IsLVExprList(EL):=B; AddLValues(NE,B,P);.
+/*}}}*/
+/*{{{  FUNCTION  GetElement(Element) Element*/
+FUNCTION  GetElement(Element) Element
+  I:Identifier(_,S) RETURN I ?.
+  Subscript(_,N,E) RETURN GetElement(N) ? .
+  Range(_,N,_,_) RETURN GetElement(N) ? .
+/*}}}*/
+/*{{{  FUNCTION  GetElementSymbol(Element) tSymbol*/
+FUNCTION  GetElementSymbol(Element) tSymbol
+  Identifier(_,S) RETURN S ?.
+  Subscript(_,N,E) RETURN GetElementSymbol(N) ? .
+  Range(_,N,_,_) RETURN GetElementSymbol(N) ? .
+
+/*}}}*/
+/*{{{  FUNCTION  GetElementPosition(Element) tPosition*/
+FUNCTION  GetElementPosition(Element) tPosition
+  Identifier(P,_) RETURN P ?.
+  Subscript(_,N,E) RETURN GetElementPosition(N) ? .
+  Range(_,N,_,_) RETURN GetElementPosition(N) ? .
+
+/*}}}*/
+/*{{{  FUNCTION  GetElementScope(Element) int*/
+FUNCTION  GetElementScope(Element) int
+  I:Identifier RETURN I->Identifier.Scope ? .
+  Subscript(_,N,E) RETURN GetElementScope(N) ? .
+  Range(_,N,_,_) RETURN GetElementScope(N) ? .
+/*}}}*/
+
+/*{{{  FUNCTION DeleteUsage(tParUsage) tParUsage*/
+FUNCTION DeleteUsage(tParUsage) tParUsage
+  _ RETURN {NoParUsage} ?.
+/*}}}*/
+/*{{{  FUNCTION CombineUsage(tParUsage,tParUsage,int) tParUsage*/
+FUNCTION CombineUsage(tParUsage,tParUsage,int) tParUsage
+  ALL,U,D RETURN ALL ? RemoveLocalSymbols(&U->W,D); RemoveLocalSymbols(&U->R,D);
+		     Union(&ALL->W,&U->W); Union(&ALL->R,&U->R); 
+		     ALL->WAL := MergeAccess(ALL->WAL, U->WAL, &ALL->W,D); 
+		     ALL->RAL := MergeAccess(ALL->RAL, U->RAL, &ALL->R,D);.
+/*}}}*/
+/*{{{  FUNCTION CombineFuncUsage(tParUsage,Spec) tParUsage*/
+FUNCTION CombineFuncUsage(tParUsage,Spec) tParUsage
+  U, DefFunc(_,_,_,_,V:Valof(_,_,_,EL)) RETURN CombineUsage(U,EL->ExprList.PUOut,V->Valof.VS) ?.
+  U, DefIsFunc(_,Sym,_,_,EL) RETURN CombineUsage(U,EL->ExprList.PUOut,Symbol(Sym).Depth) ?.
+  U, _ RETURN U ?.
+
+/*}}}*/
+
+/*{{{  FUNCTION CheckUsage(tParUsage,tParUsage,tPosition) tParUsage*/
+FUNCTION CheckUsage(tParUsage,tParUsage,tPosition,int) tParUsage
+  ALL,U,_,D RETURN CombineUsage(ALL,U,D) ? 
+    UsageCheckAccess(ALL->RAL,&ALL->R,U->WAL,&U->W); 
+    UsageCheckAccess(ALL->WAL,&ALL->W,U->WAL,&U->W); 
+    UsageCheckAccess(ALL->WAL,&ALL->W,U->RAL,&U->R); 
+    (IsDisjoint(&ALL->R,&U->W)); 
+    (IsDisjoint(&ALL->W,&U->W)); 
+    (IsDisjoint(&ALL->W,&U->R)); 
+/*    "WRITE USAGE CHECKING\n";
+    WriteSet(stdout,&U->W);
+    WriteTree(stdout,U->WAL);
+    "AGAINST\n";
+    WriteSet(stdout,&ALL->W);
+    WriteTree(stdout,ALL->WAL);
+    "READ USAGE CHECKING\n";
+    WriteSet(stdout,&U->R);
+    WriteTree(stdout,U->RAL);
+    "AGAINST";
+    WriteSet(stdout,&ALL->R);
+    WriteTree(stdout,ALL->RAL);
+    "END\n\n"; 
+*/  .
+
+    ALL,U,P,D RETURN CombineUsage(ALL,U,D) ? 
+    Message("Usage violation within this construct",UEMode,P); 
+    ReportUsages(ALL,U,P);.
+/*}}}*/
+/*{{{  FUNCTION CheckRepUsage(tParUsage,tParUsage,Replicator,tPosition,int) tParUsage*/
+FUNCTION CheckRepUsage(tParUsage,tParUsage,Replicator,tPosition,int) tParUsage
+  ALL,U,Replicator(S,_,E:Expr(_)),P,D RETURN CombineUsage(ALL,U,D) ? (IsConstInt(E) && ValConstInt(E)==1);.
+  ALL,U,Replicator(S,..),P,D RETURN CombineUsage(ALL,U,D) ? 
+  
+   /*"REPLICATOR WRITE USAGE:\n";
+    WriteSet(stdout,&U->W);
+    "\nTREE\n";
+    WriteTree(stdout,U->WAL);
+    "AGAINST READ USAGE:\n";
+    WriteSet(stdout,&U->W);
+    "\nTREE\n";
+    WriteTree(stdout,U->RAL);
+    "END CHECKING\n\n\n";*/
+
+    UsageCheckRepAccess(U->WAL,&U->W,D,S); 
+    UsageCheckRepWRAccess(U->WAL,&U->W,U->RAL,&U->R,D,S); 
+    RemoveLocalSymbols(&U->W,D); (IsEmpty(&U->W));.
+  ALL,U,_,P,D RETURN CombineUsage(ALL,U,D) ? 
+    Message("Parallel use violation within replicated PAR",UEMode,P);
+    ReportRepUsages(U,P);.
+/*}}}*/
+
+/*{{{  PREDICATE CheckSimpleExpr(Expr)*/
+PREDICATE CheckSimpleExpr(Expr)
+  E:Expr(_) ? (IsConstInt(E));.
+  ElementalExpr(_,Identifier(_,S)) ? 
+     (Tree_IsType(SymbolKind(S),kReplicator));
+     CheckSimpleExpr(SymbolKind(S)->Replicator.From); 
+     CheckSimpleExpr(SymbolKind(S)->Replicator.For);.
+  ElementalExpr(_,Identifier(_,S)) ? 
+     (Tree_IsType(SymbolKind(S),kVal));
+     CheckSimpleExpr(SymbolKind(S)->Val.Expr);.
+  Binary(_,E:Expr(_),RE,Multiply()) ? (IsConstInt(E)); CheckSimpleExpr(RE);.
+  Binary(_,LE,E:Expr(_),Multiply()) ? (IsConstInt(E)); CheckSimpleExpr(LE);.
+  Binary(_,LE,RE,Add()) ? CheckSimpleExpr(LE);CheckSimpleExpr(RE);.
+  Binary(_,LE,RE,Subtract()) ? CheckSimpleExpr(LE);CheckSimpleExpr(RE);.
+  Unary(_,E,Add()) ? CheckSimpleExpr(E);.  
+  Unary(_,E,Subtract()) ? CheckSimpleExpr(E);.  
+
+/*}}}*/
+/*{{{  PROCEDURE SimplifyLinExpr(pLinExpr,Expr,int)*/
+PROCEDURE SimplifyLinExpr(pLinExpr,Expr,int)
+  LNE, E:Expr(_), COEF ? (IsConstInt(E)); 
+    AddLinExprConst(LNE,COEF*ValConstInt(E));
+    .
+  LNE, ElementalExpr(_,Identifier(_,S)), COEF ? (Tree_IsType(SymbolKind(S),kReplicator)); 
+    AddLinExprCoef(LNE, S, COEF);
+    .
+  LNE, ElementalExpr(_,Identifier(_,S)), COEF ? (Tree_IsType(SymbolKind(S),kVal)); 
+    SimplifyLinExpr(LNE,SymbolKind(S)->Val.Expr,COEF);
+    .
+  LNE, Binary(_,E:Expr(_),RE,Multiply()), COEF ? (IsConstInt(E));
+    SimplifyLinExpr(LNE,RE,COEF*ValConstInt(E));
+    .
+  LNE, Binary(_,LE,E:Expr(_),Multiply()), COEF ? (IsConstInt(E)); 
+    SimplifyLinExpr(LNE,LE,COEF*ValConstInt(E));
+    .
+  LNE, Binary(_,LE,RE,Add()),COEF ? 
+    SimplifyLinExpr(LNE,LE,COEF);
+    SimplifyLinExpr(LNE,RE,COEF);
+    .
+  LNE, Binary(_,LE,RE,Subtract()),COEF ? 
+    SimplifyLinExpr(LNE,LE,COEF);
+    SimplifyLinExpr(LNE,RE,-COEF);
+    .
+  LNE, Unary(_,E,Add()), COEF ? 
+    SimplifyLinExpr(LNE,E,COEF);
+    .
+  LNE, Unary(_,E,Subtract()), COEF ? 
+    SimplifyLinExpr(LNE,E,-COEF);
+    .  
+
+/*}}}*/
+/*{{{  PROCEDURE RangeCheckLinExpr(Elemental,pLinExpr,pLinExpr,Type)*/
+PROCEDURE RangeCheckLinExpr(Elemental,pLinExpr,pLinExpr,Type)
+  SELF:Elemental(Pos),FromLE,ForLE,T ? 
+    {
+      if (!FromLE->Const)
+	{
+	  if (TestLinExpr_Const(FromLE,kLess,0))
+	     Message("Array slice start potentially out of range",xxWarning,Pos);
+	   else if (T->Array.SE && TestLinExpr_LinExpr(FromLE,kGreaterEqual,T->Array.\LE))
+	     Message("Array slice start potentially out of range",xxWarning,Pos);
+	   else
+	     DoLwrBndChk(SELF)=false;
+	}
+	if (!FromLE->Const || !ForLE->Const)
+	{
+	  if (T->Array.SE && TestLinExprPlusLinExpr_LinExpr(FromLE,ForLE,kGreater,T->Array.LE))
+	    Message("Array slice end potentially out of range",xxWarning,Pos);
+	  else
+	    DoUprBndChk(SELF)=false;
+	}
+    };.   
+/*}}}*/
+/*{{{  PROCEDURE SubscriptCheckLinExpr(Elemental,pLinExpr,Type)*/
+PROCEDURE SubscriptCheckLinExpr(Elemental,pLinExpr,Type)
+SELF:Elemental(Pos),LE,T:Array(..) ?
+  {
+    if (TestLinExpr_Const(LE,kLess,0))
+	Message("Array subscript potentially out of range",xxWarning,Pos);
+      else if (T->Array.SE && TestLinExpr_LinExpr(LE,kGreaterEqual,T->Array.\LE))
+	Message("Array subscript potentially out of range",xxWarning,Pos);
+      else
+	DoBndChk(SELF)=false;
+  };.
+SELF,_,_ ? { DoBndChk(SELF)=false; } ; .
+/*}}}*/
+/*{{{  PROCEDURE TransferLinExpr(Type,pLinExpr,bool)*/
+PROCEDURE TransferLinExpr(Type,pLinExpr,bool)
+  /* if node is array type inherit value of Linear Expression */
+  /*  used to update synthesised types with LinExpr computations */
+  A:Array(..),LE,SE ? { A->Array.\LE = LE; A->Array.\SE = SE; }; .
+  _,_,_ ? .
+/*}}}*/
+  
+/*{{{  PREDICATE CheckUnconstrained(Element)*/
+PREDICATE CheckUnconstrained(Element)
+  Identifier(..) ?.
+  R:Range(_,N,..) ? (!IsSimpEl(R)); CheckUnconstrained(N);.
+  S:Subscript(_,N,..) ? (!IsSimpEl(S)); CheckUnconstrained(N);.
+/*}}}*/
+/*{{{  FUNCTION InsertAccess(AccessList,tSymbol,Element, pSet) AccessList*/
+FUNCTION InsertAccess(AccessList,tSymbol,Element, pSet=>bool) AccessList
+  NA:NoAccess(),S,E,SET =>true RETURN NA ? (CheckUnconstrained(E)); 
+    Include(SET,S);
+  .
+  NA:NoAccess(),S,E,SET =>true RETURN AnAccess(NA,S,CreateElementList(E)) ?
+  .
+  AA:AnAccess(NAL,NS,NEL),S,E,SET => B RETURN AA ? (S>NS); 
+    NAL := InsertAccess(NAL,S,E,SET=>B);
+  .
+  AA:AnAccess(NAL,NS,NDL),S,E,SET => true RETURN NAL ? (S<NS); CheckUnconstrained(E); 
+    Include(SET,S);
+  .
+  AA:AnAccess(NAL,NS,NDL),S,E,SET => true RETURN AnAccess(AA,S,CreateElementList(E)) ? (S<NS);
+  .
+  AA:AnAccess(NAL,NS,NDL),S,E,SET => false RETURN NAL ? (S==NS); CheckUnconstrained(E);
+    Include(SET,S);
+  .
+  AA:AnAccess(NAL,NS,NEL),S,E,SET => IsDistinct RETURN AA ? (S==NS); 
+    NEL := InsertElement(NEL,GetElement(E)=>IsDistinct);
+  .
+/*}}}*/
+/*{{{  FUNCTION CreateElementList(Element) ElementList*/
+FUNCTION CreateElementList(Element) ElementList
+  Identifier(..) RETURN NoElement() ? .
+  E RETURN AnElement(NoElement(),GetElement(E)) ? .
+/*}}}*/
+/*{{{  FUNCTION IsElementSubset(Element,Element) bool*/
+FUNCTION IsElementSubset(Element,Element) bool
+  /* returns true if the access patterns of E1 are provably a subset of those of E2 */
+  Identifier(..),Identifier(..) RETURN true;
+  .
+  Identifier(P,..),_ ;
+  _,Identifier(P,..)   RETURN true ?
+    Message("Internal parallel usage error",xxError,P);
+  .
+  E1:ElementAccess(_,N1), E2:ElementAccess(_,N2) RETURN IsElementSubset(N1,N2) ? (!IsSimpEl(E2));
+  .
+  E1, E2 RETURN false ? (!IsSimpEl(E1));
+  .
+  S1:Subscript(_,N1,_), S2:Subscript(_,N2,_) RETURN IsElementSubset(N1,N2) ?
+    (SameLinExpr(S1->Subscript.LE,S2->Subscript.LE));
+  .
+  R1:Range(_,N1,_,_), R2:Range(_,N2,_,_) RETURN IsElementSubset(N1,N2) ?
+    (SameLinExpr(R1->Range.FromLE,R2->Range.FromLE));
+    (SameLinExpr(R1->Range.ForLE,R2->Range.ForLE));
+  .
+  _,_ RETURN false ?
+  .   
+/*}}}*/
+/*{{{  FUNCTION InsertElement(ElementList,Element=>bool) ElementList*/
+FUNCTION InsertElement(ElementList,Element=>bool) ElementList
+  EL:NoElement(), E => true RETURN AnElement(EL,E) ?
+  . 
+  EL:AnElement(NEL,E1), E2 =>false RETURN EL ? (IsElementSubset(E2,E1)); 
+  .
+  EL:AnElement(NEL,_), E => B RETURN EL ? 
+    NEL := InsertElement(NEL,E=>B);
+  .
+/*}}}*/
+
+/*{{{  FUNCTION MergeAccess(AccessList,AccessList,pSet,int) AccessList*/
+FUNCTION MergeAccess(AccessList,AccessList,pSet,int) AccessList
+  MA:NoAccess(), NoAccess(),_,_ RETURN MA ?
+  .
+  AnAccess(MAL,S,_), A:NoAccess(), SET, D RETURN MergeAccess(MAL,A,SET,D) ? (IsElement(S,SET));
+  .
+  MA:AnAccess(MAL,S,_), A:NoAccess(), SET, D RETURN MA ? 
+    MAL := MergeAccess(MAL,A,SET,D);
+  .
+  NA:NoAccess(), MA:AnAccess(MAL,S,EL),SET,D RETURN AnAccess(MergeAccess(NA,MAL,SET,D),S,CopyElementList(EL)) ? (Symbol(S).Depth<=D);
+  .
+  MA, AnAccess(MAL,S,_),_, D RETURN MA ? (Symbol(S).Depth>D);
+  .
+  MA1,MA2,SET,D RETURN MergeAccess2(MA1,MA2,SET,D);
+  .
+
+FUNCTION MergeAccess2(AccessList,AccessList,pSet,int) AccessList
+  AnAccess(MAL,S,_), A , SET, D RETURN MergeAccess(MAL,A,SET,D) ? (IsElement(S,SET));
+  .
+  A, AnAccess(AL,S,_) , SET, D RETURN MergeAccess(A,AL,SET,D) ? (IsElement(S,SET));
+  .
+  MA:AnAccess(MAL,MS,MEL), A:AnAccess(AL,S,EL), SET, D RETURN MA ? (MS<S); 
+    MAL := MergeAccess(MAL,A,SET,D);
+  .
+  MA:AnAccess(MAL,MS,MEL), A:AnAccess(AL,S,EL), SET, D RETURN AnAccess(MergeAccess(MA,AL,SET,D),S,EL) ? (S<MS); 
+  .
+  MA:AnAccess(MAL,MS,MEL), AnAccess(AL,S,EL),SET,_ RETURN MA ? (S==MS); MEL := MergeElementList(MEL,EL);
+  .
+/*}}}*/
+/*{{{  FUNCTION CopyElementList(ElementList) ElementList*/
+FUNCTION CopyElementList(ElementList) ElementList
+  NoElement() RETURN NoElement() ?.
+  AnElement(NEL,E) RETURN AnElement(CopyElementList(NEL),E) ?.
+/*}}}*/
+/*{{{  FUNCTION MergeElementList(ElementList,ElementList) ElementList*/
+FUNCTION MergeElementList(ElementList,ElementList) ElementList
+  ME,NoElement() RETURN ME ?.
+  ME,AnElement(NEL,E)  RETURN MergeElementList(InsertElement(ME,E=>B),NEL) ?.
+/*}}}*/
+
+/*{{{  PROCEDURE UsageCheckAccess(AccessList,pSet,AccessList,pSet) */
+PROCEDURE UsageCheckAccess(AccessList,pSet,AccessList,pSet) 
+  NoAccess(),_,NoAccess(),_ ?
+  .
+  AnAccess(NAL1,S1,EL1),U1,AL2:NoAccess(),U2 ? (!IsElement(S1,U2)); 
+    UsageCheckAccess(NAL1,U1,AL2,U2);
+  .
+  AnAccess(NAL1,S1,EL1),U1,AL2:NoAccess(),U2 ? 
+    Include(U1,S1); 
+    UsageCheckAccess(NAL1,U1,AL2,U2);
+  .
+  AL1:NoAccess(),U1,AnAccess(NAL2,S2,EL2),U2 ? (!IsElement(S2,U1)); 
+    UsageCheckAccess(AL1,U1,NAL2,U2);
+  .
+  AL1:NoAccess(),U1,AnAccess(NAL2,S2,EL2),U2 ? 
+    Include(U2,S2); 
+    UsageCheckAccess(AL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1<S2); (!IsElement(S1,U2)); 
+    UsageCheckAccess(NAL1,U1,AL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1<S2); 
+    Include(U1,S1);
+    UsageCheckAccess(NAL1,U1,AL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1>S2); (!IsElement(S2,U1)); 
+    UsageCheckAccess(AL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1>S2); 
+    Include(U2,S2);
+    UsageCheckAccess(AL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1==S2); 
+    (IsElement(S1,U2) || IsElement(S2,U1)); 
+    Include(U1,S1); Include(U2,S2); 
+    UsageCheckAccess(NAL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1==S2); 
+    CheckElement(EL1,EL2); 
+    UsageCheckAccess(NAL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? (S1==S2); 
+    Include(U1,S1); 
+    Include(U2,S2); 
+    UsageCheckAccess(NAL1,U1,NAL2,U2);
+  .
+
+/*}}}*/
+
+/*{{{  PREDICATE CheckElement(ElementList,ElementList)*/
+PREDICATE CheckElement(ElementList,ElementList)
+  /*{{{  about*/
+  /* true if all accesses are disjoint */
+  /*}}}*/
+  NoElement(), _ ?
+  .
+  A:AnElement(NEL,E), EL2 ? CheckEachElement(E,EL2); CheckElement(NEL,EL2);
+  .    
+/*}}}*/
+/*{{{  PREDICATE CheckEachElement(Element,ElementList)*/
+PREDICATE CheckEachElement(Element,ElementList)
+  /*{{{  about*/
+  /* returns true if Element is disjoint from all accesses in EL */
+  /*}}}*/
+  _,NoElement() ?
+  .
+  E1,AnElement(NEL,E2) ? 
+    CheckElementVsElement(E1,E2);
+    CheckEachElement(E1,NEL);
+  .
+/*}}}*/
+/*{{{  FUNCTION CheckElementVsElement(Element,Element) bool*/
+FUNCTION CheckElementVsElement(Element,Element) bool
+  /*{{{  about*/
+  /* Returns true if access patterns are disjoint in at lease one dimension
+   * It is necessary to work backwards from the Identifier because different
+   * entries will be subscripted differing amounts of times and we have to
+   * make sure we are comparing expressions indexing into the same dimension 
+   */
+  /*}}}*/
+  NIL, _ RETURN false ? 
+  .
+  _ , NIL RETURN false ? 
+  .
+  I1:Identifier(..), I2:Identifier(..) RETURN CheckElementVsElement(ElementRevLink(I1),ElementRevLink(I2)) ?
+  .
+  Identifier(P,..),_;_,Identifier(P,..) RETURN false ? 
+    Message("Internal parallel usage error",xxError,P);  
+  .
+  E1:ElementAccess(..), E2:ElementAccess(..) RETURN CheckElementVsElement(ElementRevLink(E1),ElementRevLink(E2)) ? (!IsSimpEl(E1));
+  .
+  E1:ElementAccess(..), E2:ElementAccess(..) RETURN CheckElementVsElement(ElementRevLink(E1),ElementRevLink(E2)) ? (!IsSimpEl(E2));    
+  .
+  S1:Subscript(..), S2:Subscript(..) RETURN true ? (!TestLinExpr_LinExpr(S1->Subscript.LE,kEqual,S2->Subscript.LE));
+  .
+  R:Range(..), S:Subscript(..) RETURN true ? (!TestLinExprInRange(S->Subscript.LE,R->Range.FromLE,R->Range.ForLE));
+  .
+  S:Subscript(..), R:Range(..) RETURN true ? (!TestLinExprInRange(S->Subscript.LE,R->Range.FromLE,R->Range.ForLE));
+  .
+  R1:Range(..), R2:Range(..) RETURN true ? (TestLinExprPlusLinExpr_LinExpr(R1->Range.FromLE,R1->Range.ForLE,kLessEqual,R2->Range.FromLE));
+  .
+  R1:Range(..), R2:Range(..) RETURN true ? (TestLinExprPlusLinExpr_LinExpr(R2->Range.FromLE,R2->Range.ForLE,kLessEqual,R1->Range.FromLE));
+  .
+  E1:ElementAccess(..), E2:ElementAccess(..) RETURN CheckElementVsElement(ElementRevLink(E1),ElementRevLink(E2)) ?
+  .
+/*}}}*/
+
+/*{{{  PROCEDURE UsageCheckRepWRAccess(AccessList,pSet,AccessList,pSet,int,tSymbol) */
+PROCEDURE UsageCheckRepWRAccess(AccessList,pSet,AccessList,pSet,int,tSymbol) /*usage set/depth/replicator*/
+  NoAccess(),.. ?
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,_,U2,D,R ? (Symbol(S1).Depth>D);
+  .
+  AnAccess(NAL1,S1,EL1),U1,AL2:NoAccess(),U2,D,R ? (!IsElement(S1,U2)); 
+    UsageCheckRepWRAccess(NAL1,U1,AL2,U2,D,R);
+  .
+  AnAccess(NAL1,S1,EL1),U1,AL2:NoAccess(),U2,D,R ? Include(U1,S1); 
+    UsageCheckRepWRAccess(NAL1,U1,AL2,U2,D,R);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2,D,R ? (S1<S2); (!IsElement(S1,U2)); 
+    UsageCheckRepWRAccess(NAL1,U1,AL2,U2,D,R);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2,D,R ? (S1<S2); 
+    Include(U1,S1); 
+    UsageCheckRepWRAccess(NAL1,U1,AL2,U2,D,R);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2,D,R ? (S1>S2); (!IsElement(S1,U2));
+    UsageCheckRepWRAccess(AL1,U1,NAL2,U2,D,R);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2,D,R ? (S1>S2);
+    Include(U1,S1);
+    UsageCheckRepWRAccess(AL1,U1,NAL2,U2,D,R);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2,D,R ? (S1==S2); 
+    CheckRepWRElementList(EL1,EL2,R); 
+    UsageCheckRepWRAccess(NAL1,U1,NAL2,U2,D,R);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2,D,R ? (S1==S2); 
+    Include(U1,S1); 
+    Include(U2,S2); 
+    UsageCheckRepWRAccess(NAL1,U1,NAL2,U2,D,R);
+  .
+/*}}}*/
+/*{{{  PREDICATE CheckRepWRElement(ElementList,ElementList,tSymbol)*/
+PREDICATE CheckRepWRElementList(ElementList,ElementList,tSymbol)
+  /*{{{  about*/
+  /* true if array accesses are distinct */
+  /*}}}*/
+  EL:AnElement(N,E),REL,REP ? 
+   CheckRepWRElementList(N,REL,REP); 
+   CheckRepEachElement(E,REL,REP);
+  .
+  NoElement(),REL,REP ?.
+/*}}}*/
+
+/*{{{  PROCEDURE UsageCheckRepAccess(AccessList,pSet,int,tSymbol)*/
+PROCEDURE UsageCheckRepAccess(AccessList,pSet,int,tSymbol) /*usage set/depth/replicator*/
+  NoAccess(),_,_,_ ?.
+  AnAccess(N,S,EL),U,D,R ? (Symbol(S).Depth<=D); CheckRepElementList(EL,R); UsageCheckRepAccess(N,U,D,R);.
+  AnAccess(N,S,EL),U,D,R ? (Symbol(S).Depth<=D); Include(U,S); UsageCheckRepAccess(N,U,D,R);.
+  AnAccess(N,S,EL),U,D,R ? ;.
+/*}}}*/
+
+/*{{{  PREDICATE CheckRepElementList(ElementList,tSymbol)*/
+PREDICATE CheckRepElementList(ElementList,tSymbol)
+  EL:AnElement(N,E),REP ? 
+    CheckRepElementList(N,REP); 
+    CheckRepEachElement(E,EL,REP);
+  .
+  NoElement(),R ?.
+/*}}}*/
+/*{{{  PREDICATE CheckRepEachElement(Element,ElementList,tSymbol)*/
+PREDICATE CheckRepEachElement(Element,ElementList,tSymbol)
+  _,NoElement(),_ ?.
+  E1,AnElement(N,E2),REP ?
+    CheckRepElementVsElement(E1,E2,REP); 
+    CheckRepEachElement(E1,N,REP);
+  . 
+/*}}}*/
+/*{{{  PREDICATE CheckRepElementVsElement(Element,Element,tSymbol)*/
+FUNCTION CheckRepElementVsElement(Element,Element,tSymbol) bool
+  /*{{{  about*/
+  /* Returns true if access patterns are disjoint in at lease one dimension
+   * It is necessary to work backwards from the Identifier because different
+   * entries will be subscripted differing amounts of times and we have to
+   * make sure we are comparing expressions indexing into the same dimension 
+   */
+  /*}}}*/
+    NIL, _, _ RETURN false ? .
+  _ , NIL, _ RETURN false ? .
+  I1:Identifier(..),I2:Identifier(..),REP RETURN CheckRepElementVsElement(ElementRevLink(I1),ElementRevLink(I2),REP) ?
+  .
+  Identifier(P,..),_,REP;_,Identifier(P,..),REP RETURN false ?
+    Message("Internal parallel usage error",xxError,P);
+  .
+  E1:ElementAccess(..), E2:ElementAccess(..),REP RETURN CheckRepElementVsElement(ElementRevLink(E1),ElementRevLink(E2),REP) ? 
+    (!IsSimpEl(E1));
+  .
+  E1:ElementAccess(..), E2:ElementAccess(..),REP RETURN CheckRepElementVsElement(ElementRevLink(E1),ElementRevLink(E2),REP) ? 
+    (!IsSimpEl(E2));
+  .
+  S1:Subscript(..), S2:Subscript(..), REP RETURN true ? 
+    (TestLinExprsDistinctWrtRep(S1->Subscript.LE,S2->Subscript.LE,REP));
+  .
+  R:Range(..), S:Subscript(..), REP RETURN true ? 
+    (TestLinExprsDistinctWrtRepOverRange(S->Subscript.LE,R->Range.FromLE,REP,NULL,R->Range.ForLE));
+  . 
+  S:Subscript(..), R:Range(..), REP RETURN true ? 
+    (TestLinExprsDistinctWrtRepOverRange(S->Subscript.LE,R->Range.FromLE,REP,NULL,R->Range.ForLE));
+  .
+  R1:Range(..), R2:Range(..),REP RETURN true ? 
+    (TestLinExprsDistinctWrtRepOverRange(R1->Range.FromLE,R2->Range.FromLE,REP,R1->Range.ForLE,R2->Range.ForLE)); 
+  .
+   E1:ElementAccess(..), E2:ElementAccess(..),REP RETURN CheckRepElementVsElement(ElementRevLink(E1),ElementRevLink(E2),REP) ?
+  .
+/*}}}*/
+
+/*{{{  PREDICATE CheckForValAbbrev(tSymbol,Spec,ElementList)*/
+FUNCTION CheckForValAbbrev(tSymbol,Spec,ElementList) bool
+  _, NIL, _ RETURN false ?
+  .
+  S, AVal(_,_,_,E), EL RETURN true ? 
+    (IsElement(S,&E->Expr.PUOut->R));
+  .
+  S, AVal(_,_,_,E), NoElement() RETURN CheckAccessForSymbol(E->Expr.PUOut->RAL,S) ? ; 
+  .
+  S, AVal(_,_,_,E), EL RETURN true ? 
+    (!CheckAccessVsElementList(E->Expr.PUOut->RAL,S,EL));
+  .
+  _,_,_ RETURN false ?
+  .
+/*}}}*/
+/*{{{  PREDICATE CheckForAbbrev(tSymbol,Spec,ElementList)*/
+FUNCTION CheckForAbbrev(tSymbol,Spec,ElementList) bool
+  _, NIL, _ RETURN false ?
+  .
+  S, Is(_,_,_,E), EL; S, Retypes(_,_,_,E), EL RETURN true ? 
+    (IsElement(S,&E->Element.PUOut->W));
+  .
+  S, Is(_,_,_,E), NoElement() ; S, Retypes(_,_,_,E), NoElement() RETURN CheckAccessForSymbol(E->Element.PUOut->WAL,S) ? ;
+  .
+  S, Is(_,_,_,E), EL; S, Retypes(_,_,_,E), EL RETURN true ? 
+    (!CheckAccessVsElementList(E->Element.PUOut->WAL,S,EL));
+  . 
+  _,_,_ RETURN false ?
+  .
+/*}}}*/
+/*{{{  PREDICATE CheckForValAbbrevInProc(Spec,tParUsage)*/
+PREDICATE CheckForValAbbrevInProc(Spec,tParUsage)
+  NIL, _ ? FAIL;.
+  _, NIL ? FAIL;.
+  AVal(_,_,_,E), P ? 
+    (!IsDisjoint(&E->Expr.PUOut->R,&P->W));
+  .
+  AVal(_,_,_,E), P ? 
+   (CheckAccessForAlias(E->Expr.PUOut->RAL,&E->Expr.PUOut->R,P->WAL,&P->W));
+  .
+/*}}}*/
+/*{{{  PREDICATE CheckForAbbrevInProc(Spec,tParUsage)*/
+PREDICATE CheckForAbbrevInProc(Spec,tParUsage)
+  _, NIL ; NIL, _ ? 
+    FAIL;
+  .
+  Is(_,_,_,E), P ; Retypes(_,_,_,E), P ? 
+    (!IsDisjoint(&E->Element.PUOut->W,&P->W));
+  .
+  Is(_,_,_,E), P ; Retypes(_,_,_,E), P ? 
+    (!IsDisjoint(&E->Element.PUOut->W,&P->R));
+  .
+  Is(_,_,_,E), P ; Retypes(_,_,_,E), P ? 
+    (CheckAccessForAlias(E->Element.PUOut->WAL,&E->Element.PUOut->W,P->WAL,&P->W));
+  .
+  Is(_,_,_,E), P ; Retypes(_,_,_,E), P ? 
+    (CheckAccessForAlias(E->Element.PUOut->WAL,&E->Element.PUOut->W,P->RAL,&P->R));
+  .
+/*}}}*/
+/*{{{  PREDICATE CheckAccessForSymbol(AccessList,tSymbol) */
+PREDICATE CheckAccessForSymbol(AccessList,tSymbol) 
+  AnAccess(N,S1,_), S2 ?
+    (S1<S2);
+    CheckAccessForSymbol(N,S2);
+  .
+  AnAccess(N,S1,_), S2 ? 
+    (S1==S2);
+  .
+/*}}}*/
+/*{{{  PREDICATE CheckAccessForAlias(AccessList,pSet,AccessList,pSet) */
+PREDICATE CheckAccessForAlias(AccessList,pSet,AccessList,pSet) 
+  AnAccess(NAL1,S1,EL1),U1,AL2:NoAccess(),U2 ? 
+    (IsElement(S1,U2)); 
+  .
+  AnAccess(NAL1,S1,EL1),U1,AL2:NoAccess(),U2 ? 
+    CheckAccessForAlias(NAL1,U1,AL2,U2);
+  .
+  AL1:NoAccess(),U1,AnAccess(NAL2,S2,EL2),U2 ? 
+    (IsElement(S2,U1)); 
+  .
+  AL1:NoAccess(),U1,AnAccess(NAL2,S2,EL2),U2 ? 
+    CheckAccessForAlias(AL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? 
+    (S1<S2); 
+    (IsElement(S1,U2)); 
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? 
+    (S1<S2); 
+    CheckAccessForAlias(NAL1,U1,AL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? 
+    (S1>S2); 
+    (IsElement(S2,U1)); 
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? 
+    (S1>S2); 
+    CheckAccessForAlias(AL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? 
+    (S1==S2); 
+    (!CheckElement(EL1,EL2)); 
+    CheckAccessForAlias(NAL1,U1,NAL2,U2);
+  .
+  AL1:AnAccess(NAL1,S1,EL1),U1,AL2:AnAccess(NAL2,S2,EL2),U2 ? 
+    (S1==S2); 
+    CheckAccessForAlias(NAL1,U1,NAL2,U2);
+  .
+
+/*}}}*/
+/*{{{  PREDICATE CheckAccessVsElementList(AccessList,tSymbol,ElementList)*/
+PREDICATE CheckAccessVsElementList(AccessList,tSymbol,ElementList)
+  /*{{{  about*/
+  /* true if Array accesses are distinct */
+  /*}}}*/
+  NoAccess(),_,_, ?
+  .
+  AnAccess(NAL1,S1,EL1),S,EL ? 
+    (S1>S);
+  .
+  AnAccess(NAL1,S1,EL1),S,EL ? 
+    (S1<S); 
+    CheckAccessVsElementList(NAL1,S,EL);
+  .
+  AnAccess(NAL1,S1,EL1),S,EL ? 
+    (S1==S); 
+    CheckElement(EL,EL1);
+  .
+/*}}}*/
+ 
+/*{{{  PREDICATE IsChanType(Type)*/
+PREDICATE IsChanType(Type)
+  Array(_,T) ? IsChanType(T); .
+  Chan(..) ?. 
+/*}}}*/
+/*{{{  FUNCTION ElementRevLink(Element) Element*/
+FUNCTION ElementRevLink(Element) Element
+  E RETURN E->Element.RVL ? .
+/*}}}*/
+  

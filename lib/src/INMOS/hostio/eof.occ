@@ -1,0 +1,42 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.eof
+PROC sp.eof (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+
+  --{{{  specification
+  -- Purpose:  To test whether the specified stream has end of file status
+  --           or not.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- In:       streamid - the identification number of the stream to test
+  -- Out:      result - equals spr.ok if end of file status is set;
+  --           >= spr.operation.failed if the end of file status has not
+  --           been set
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (5 bytes)
+    buffer [0] := sp.eof.tag
+    
+    VAL [4]BYTE b.streamid RETYPES streamid :
+    [buffer FROM 1 FOR 4] := b.streamid
+    --}}}pack the data into the buffer (5 bytes)
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 temp.INT16 :
+    fs ? temp.INT16 :: buffer
+    --}}}send and receive the buffer
+    --{{{  copy out the result           (1 byte)
+    result := buffer [0]
+    --}}}
+:
+--}}}sp.eof
+--{{{  so.eof
+PROC so.eof (CHAN OF SP fs, ts, VAL INT32 streamid, BYTE result)
+
+  sp.eof (fs, ts, streamid, result)
+:
+--}}}so.eof

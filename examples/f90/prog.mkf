@@ -1,0 +1,79 @@
+# Makefile for prog produced by omakef version 1.33
+
+NAG=/usr/nag/NAGWare_f90/lib
+CLOPTIONS=$(NAG)/libf90.a
+F90 = f90
+F902PGM=f90 -S
+
+ARCH=sun4
+OCCOPTIONS=-u -d 
+CCOPTIONS=
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C-DEP=$(SPOC)/lib/$(ARCH)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) -mi -me -mn
+OCC2PGM=occ2c $(OCCOPT) $(XOCCOPT)
+OCC2MOD=occ2c $(OCCOPT) -l
+C2OBJ-DEP=$(SPOC)/lib/$(ARCH)/Occam2C.h
+CCOPT=-I$(SPOC)/lib/$(ARCH) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOC)/lib/$(ARCH)/Occam2C.h
+C2PRO=gcc $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+XOCCOPT=-s
+XCCOPT=-g -DUSE_SOCKETS
+XCL-DEP=$(SPOC)/lib/$(ARCH)/libspserver.a
+
+
+# Any command-line definitions:
+
+prog=prog
+prog-LDD=$(SPOC)/lib/sun4/libhostio.a $(SPOC)/lib/sun4/libconvert.a            \
+         $(SPOC)/lib/sun4/libIntrinsics.a laplace.o 
+$(prog): $(prog).$(O) $(CLINK-DEP) $(prog-LDD)
+	$(CLINK) $(prog).$(O) -o $(prog) $(prog-LDD) $(CLINK-DEP) $(CLLIB)
+
+prog-HDR=laplace.hdr $(SPOC)/lib/sun4/hostio.hdr                               \
+         $(SPOC)/lib/sun4/Intrinsics.hdr 
+$(prog).$(O): $(prog).$(C) $(C2OBJ-DEP) $(prog-HDR)
+	$(C2OBJ) $(prog).$(C) -o $(prog).$(O)
+
+prog-DEP=laplace.t $(SPOC)/lib/sun4/hostio.lib                                 \
+         $(SPOC)/lib/sun4/Intrinsics.lib $(SPOC)/lib/sun4/hostio.inc 
+$(prog).$(C): $(prog).$(OCC) $(prog-DEP) $(OCC2C-DEP)
+	$(OCC2PGM) $(prog).$(OCC) -o $(prog).$(C)
+
+laplace=laplace
+$(laplace).$(C): $(laplace).$(F90)
+	$(F902PGM) $(laplace).$(F90)
+
+$(laplace).$(O): $(laplace).$(C)
+	$(C2OBJ) $(laplace).$(C) -o $(laplace).$(O) -I$(NAG)/lib
+
+
+
+clean:
+	rm -f prog prog.o prog.c 

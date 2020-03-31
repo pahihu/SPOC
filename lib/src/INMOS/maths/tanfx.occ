@@ -1,0 +1,155 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "t4fhdr.inc"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracDiv "FracDiv%O"
+#PRAGMA TRANSLATE FIX "FIX%O"
+#PRAGMA TRANSLATE ReFloat "ReFloat%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE TAN "TAN%c"
+#PRAGMA TRANSLATE FracDiv "FracDiv%c"
+#PRAGMA TRANSLATE FIX "FIX%c"
+#PRAGMA TRANSLATE ReFloat "ReFloat%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE TAN "TAN%f"
+#PRAGMA TRANSLATE TANP "TANP%f"
+#PRAGMA TRANSLATE FracDiv "FracDiv%f"
+#PRAGMA TRANSLATE FIX "FIX%f"
+#PRAGMA TRANSLATE ReFloat "ReFloat%f"
+#endif
+#endif
+#endif
+#USE "utilstb.lib"
+
+REAL32 FUNCTION TAN (VAL REAL32 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 Result :
+  VALOF
+    --{{{  definitions and variables
+    -- Threshold for tan(x) = x is 2 ** (-ManBits/2), see C&W p156.
+    VAL Eps IS #39800000(INT) :
+    -- Limit on X is (Pi/2) * 2**(ManBits/2). See C&W p154.
+    VAL XMax IS #45C90FDB(INT) :
+    VAL REAL32 TwoInvPi RETYPES #3F22F983 :
+    -- C1 + C2 = Pi/2 to extra precision
+    VAL REAL32  C1  RETYPES #3FC90000 :
+    VAL REAL32  C2  RETYPES #39FDAA22 :
+    VAL PIby4 IS #3F490FDB(INT) :
+    VAL INT X.I RETYPES X :
+    VAL absX.i IS X.I /\ (~(MOSTNEG INT)) :
+    BOOL Negative :
+    --}}}
+    SEQ
+      Negative := (X.I < 0)
+      IF
+        --{{{  special cases
+        absX.i >= RealInf   -- X is NaN or Inf
+          IF
+            absX.i = RealInf   -- X is Inf
+              Result := undefined.NaN
+            TRUE
+              Result := X    -- transmit NaN
+        absX.i > XMax      -- X is too large to compute an accurate result
+          Result := inexact.NaN
+        --}}}
+        TRUE
+          BOOL Odd :
+          REAL32 XWork, RWork :
+          SEQ
+            --{{{  reduce argument
+            IF
+              absX.i > PIby4
+                --{{{  reduce argument
+                VAL REAL32 absX RETYPES absX.i :
+                VAL N IS INT ROUND (absX * TwoInvPi) : --  |X|/(Pi/2)
+                VAL XN IS REAL32 ROUND N :
+                SEQ
+                  Odd := ((N /\ 1) = 1)
+                  XWork := (absX - (XN * C1)) - (XN * C2) -- extended precision
+                  INT XW.i RETYPES XWork :
+                  IF
+                    XW.i < 0
+                      SEQ
+                        Negative := (Odd = Negative)
+                        XW.i := XW.i /\ (~(MOSTNEG INT)) -- make positive
+                    TRUE
+                      Negative := (Odd <> Negative)
+                --}}}
+              TRUE
+                VAL REAL32 absX RETYPES absX.i :
+                SEQ
+                  Odd := FALSE
+                  XWork := absX
+            --}}}
+            --{{{  approximation in primary range
+            INT XW.i :
+            SEQ
+              INT XW RETYPES XWork :
+              XW.i := XW
+              IF
+                XW.i < Eps
+                  RWork := XWork
+                TRUE
+                  -- X is in the range (0, Pi/4]
+                  VAL P IS [#FF0BE843(INT), #15555554(INT)] :
+                  VAL Q IS [#0105B543(INT), #E38A1EF0(INT), #40000000(INT)] :
+                  INT H, G :
+                  SEQ
+                    H := FIX (XWork)
+                    G := FRACMUL (H, H) -- rational function in XWork^2
+                    RWork := XWork +
+                      ReFloat(FracDiv(FRACMUL(FRACMUL(FRACMUL(P[0],G)+P[1],G),H),
+                                      FRACMUL(FRACMUL(Q[0],G)+Q[1],G)+Q[2]))
+            --}}}
+            --{{{  if Negative, negate
+            IF
+              Negative
+                RWork := - RWork
+              TRUE
+                SKIP
+            --}}}
+            --{{{  if Odd, take reciprocal
+            IF
+              Odd
+                IF
+                  RWork = Zero
+                    Result := unstable.NaN
+                  TRUE
+                    Result := REAL32OP (One, Div, RWork) -- in case of overflow
+              TRUE
+                Result := RWork
+            --}}}
+    RESULT Result
+:
+#ifdef FORTRAN
+--{{{  TANP
+REAL32 FUNCTION TANP( VAL INT dummy, VAL INT X )
+
+  -- TANP exists for when the FORTRAN intrinsic TAN is passed as a
+  -- parameter to a routine.  The FORTRAN compiler will see the interface
+  -- to TANP.  When TANP is called from FORTRAN the default FORTRAN
+  -- calling conventions are used, i.e. pass a gsb pointer and pass
+  -- parameters by reference.  Due to these facts TANP has a dummy
+  -- parameter to catch the gsb and ASM code to dereference its argument
+  -- which is in fact a pointer to the true argument.
+  -- We use INTs as arguments for TANP because an INT has the same size
+  -- as a pointer.
+
+  REAL32 Xtemp :
+  VALOF
+    ASM
+      LD       X
+      LDNL     0
+      ST       Xtemp
+    RESULT TAN( Xtemp )
+:
+--}}}
+#endif

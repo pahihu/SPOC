@@ -1,0 +1,60 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Floating point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#INCLUDE "mathhdr.inc"
+#ifdef C
+#PRAGMA TRANSLATE TAN "TAN%c"
+#endif
+
+REAL32 FUNCTION TAN (VAL REAL32 X)
+
+  --{{{  history
+  -- 27 Jan 88
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL32 RWork :
+  VALOF
+    IF
+      NOTFINITE (X)
+        --{{{  NaN or Inf
+        IF
+          ISNAN (X)
+            RWork := X    -- transmit NaN
+          TRUE
+            RWork := undefined.NaN
+        --}}}
+      TRUE
+        REAL32 XWork :
+        INT32 N :
+        BOOL ok :
+        SEQ
+          ok, N, XWork := ARGUMENT.REDUCE (X, PiBy2, PiBy2.err)
+          IF
+            ok
+              REAL32 XNum, XDen :
+              SEQ
+                --{{{  approximation in primary range
+                -- X is in the range [-Pi/4, Pi/4]
+                VAL P1 IS -9.58017723E-2(REAL32) :
+                VAL Q2 IS  9.71685835E-3(REAL32) :
+                VAL Q1 IS -4.29135777E-1(REAL32) :
+                VAL REAL32 G IS XWork * XWork :
+                SEQ
+                  XNum := ((P1*G) * XWork) + XWork
+                  XDen := (((Q2 * G) + Q1) * G) + One
+                --}}}
+                --{{{  construct result
+                IF
+                  ((N /\ one) = 0(INT32))
+                    RWork := REAL32OP (XNum, Div, XDen)
+                  XNum = Zero
+                    RWork := unstable.NaN
+                  TRUE
+                    RWork := - REAL32OP (XDen, Div, XNum)
+                --}}}
+            TRUE
+              RWork := inexact.NaN
+    RESULT RWork
+:

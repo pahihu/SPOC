@@ -1,0 +1,26 @@
+#INCLUDE "farm.inc"
+#INCLUDE "hostio.inc"
+#USE "controller.t"
+#USE "worker.t"
+#USE "loop.t"
+
+PROC main(CHAN OF SP fs,ts)
+  VAL last IS MaxWorkers-1 :
+  VAL loop IS last + 1:
+
+  -- declare channels of type farming
+  -- out[] = direction of control flow
+  -- in[]  = direction of result flow
+  [1+MaxWorkers]CHAN OF farming out,in :
+  
+  PAR
+    control(fs,ts,out[0],in[0])
+  
+    PAR i = 0 FOR (MaxWorkers-1)
+      worker(out[i],in[i],out[i+1],in[i+1])
+  
+    -- Last worker requires loopback process
+    worker(out[last],in[last],out[loop],in[loop])
+    loopback(out[loop],in[loop])
+:
+

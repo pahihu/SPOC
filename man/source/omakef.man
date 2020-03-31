@@ -1,0 +1,72 @@
+.TH omakef 1 "1oct1993" "SPOC Tools" "SPOC Tools"
+
+.SH NAME
+omakef \- Makefile generator 
+.SH SYNOPSIS
+.B omakef [omakef-options] file [occ2c-options] [env=string]..
+
+.SH DESCRIPTION
+
+Makefile generator for 
+.B SPOC (Southampton Portable Occam Compilation)
+system. The compiler support tool omakef generates makefiles to allow
+occam applications to be compiled. The command sequences to issue
+partial and complete compilations of modules are contained in a textual
+template file. In principle, the tool simply walks through an occam
+source tree producing a makefile entry for each item of source that is
+to be compiled.  The tool has been tested with GNU make version 3.68
+and the unix make distributed with SunOs version 4.1.3.
+
+.SS COMMAND LINE
+.TP
+.I "file"
+Name of target file to be produced by the generated makefile. The
+tool examines the extension of this target file to select the actions
+required to generate it. Currently supported extensions are:
+
+.I "<no extension>"
+Generate makefile for executable.
+
+.I "\.lib"
+Generate makefile for library prototype file.
+
+The filename of the makefile is derived by stripping any extension from
+.I file 
+and appending the extension .I \.mkf
+, except when options .I -t
+or .I -c
+are specified, when either a .I \.mkt
+or .I \.mkc
+are appended.
+
+.SS OMAKEF OPTIONS
+.TP
+.I \-t
+Generate a makefile containing only rules involving the translation from occam to C.
+
+.TP
+.I \-c
+Generate a makefile containing only rules involving the compilation and linking of generated C files.
+
+.TP 
+.I "\-z"
+This option switches on debug information from omakef showing which
+files are referenced by which module.
+
+.SS OCC2C OPTIONS
+.TP
+.I "\-g" 
+Enables on source-level debugging by propagating the option to all occam-to-C
+translations and all C compilations.
+
+.TP 
+Any command-line option containing an `equals' character
+is propagated to the generated makefile between the header definition
+section and the rules. This allows the default compilation options to
+be overridden or appended.
+
+.TP 
+Any other option : These are propagated directly to the
+occam-to-C translator.
+
+.SH BUGS

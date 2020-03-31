@@ -1,0 +1,67 @@
+#COMMENT "Host i/o library, V1.1, 21/05/90"
+#COMMENT "(c) Copyright INMOS Limited 1989, 1990"
+#INCLUDE "hostio.inc"
+#USE "solib.lib"
+#USE "convert.lib"
+
+PROC so.read.echo.hex.int (CHAN OF SP fs, ts, INT n, BOOL error)
+
+  --{{{  specification
+  -- Purpose:  To read an integer in ( two's complement ) hexadecimal form
+  --           from the keyboard, and to echo it to standard out.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      n - if error is FALSE, the value of the hexadecimal number read;
+  --           otherwise undefined
+  -- Out:      error - FALSE if everything was in order; TRUE otherwise:
+  --           1) if the integer overflows the INT range;
+  --           2) if there is a non-hex character in the string read from
+  --              the keyboard ( other than #, $, or % in the first character
+  --              position )
+  -- Notes:    The hexadecimal number must begin with one of '#', '$' or '%';
+  --           a sign is not allowed ( nor necessary since the most significant
+  --           bit indicates the sign ).
+  --           A '#' and '$' mean exactly the same thing: the following
+  --           digits form a hex integer.
+  --           A '%' means add the given hex integer to MOSTNEG INT using
+  --           modulo arithmetic to give the result.
+  --           Both upper and lower case hex digits are permissible.
+  --           The number typed at the keyboard must be terminated by pressing
+  --           'RETURN'.
+  --}}}
+  --{{{  history
+  -- V1.1  bug fix TS/0052 SRH 21-May-90; lower case hex digits allowed;
+  -- also allowed '%' prefix possibility and gave string an extra byte
+  -- so that the user could enter a full 32-bit hex number.
+  --}}}
+
+  [9]BYTE string : -- 9 = 8 + 1, the 1 being for the #, $ or %
+  INT len :
+  BYTE result :
+
+  SEQ
+    so.read.echo.line (fs, ts, len, string, result)
+    IF
+      (result = spr.ok) AND (len > 0) AND
+      ((string[0] = '#') OR (string[0] = '$') OR (string[0] = '%'))
+        SEQ
+          --{{{  convert any lower case hex digits to upper case SRH 21/05/90
+          SEQ i = 1 FOR ( len - 1 ) -- assumes len > 0
+            IF  -- assumes ASCII
+              ( 'a' <= string[i] ) AND ( string[i] <= 'f' )
+                string[i] := BYTE( (INT string[i]) -
+                                   ( (INT 'a') - (INT 'A') ) )
+              TRUE
+                SKIP
+          --}}}
+          STRINGTOHEX (error, n, [string FROM 1 FOR len - 1])
+          --{{{  deal with % if necessary - SRH 21-May-90
+          IF
+            string[0] = '%'
+              n := n PLUS (MOSTNEG INT)  -- can't overflow even if error
+            TRUE  -- ( string[0] = '#' ) OR ( string[0] = '$' )
+              SKIP
+          --}}}
+      TRUE
+        error := TRUE
+:

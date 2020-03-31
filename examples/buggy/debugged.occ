@@ -1,0 +1,28 @@
+-- For use in conjunction with the SPOC User Guide
+-- See section on source-level Debugging
+-- Debugging example code 3
+
+PROC jim()
+  PROC fred([]INT array,VAL INT a,VAL INT b)
+    SEQ
+      SEQ i = 0 FOR SIZE array
+        IF
+          (i \ 2)=0
+            array[i] := a
+          TRUE
+            array[i] := b
+  :
+  INT a :
+  VAL b IS 4 :
+  SEQ
+    a := 2
+    [5]INT A : 
+    INT j :
+    SEQ
+      fred(A,a,b)
+      j := 0
+      WHILE j<(SIZE A)
+        SEQ
+          A[j] := j
+          j := j + 1
+: 

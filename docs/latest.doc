@@ -1,0 +1,23 @@
+SPOC Version 1.1
+----------------
+
+Bugs:
+
+File system write errors are not trapped during translation by occ2c,
+thus if the filing-system fills or any other errors occur, occ2c will
+not notice and will return a successful exit status.
+
+Several Intrinsic functions call library routines, which may not be present
+on all systems. These include:
+  o DNEXTAFTER() calls nextafter()
+  o REAL32REM()  calls remainder()
+  o REAL64REM()  calls remainder()
+  o IEEE32REM()  calls remainder()
+  o IEEE64REM()  calls remainder()
+  o LOGB()       calls ilogb()
+  o DLOGB()      calls ilogb()
+
+The OCCAM floating point remainder operator is implemented via a call
+to remainder(), which may not be present on all systems.
+
+

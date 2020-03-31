@@ -1,0 +1,95 @@
+#                 Make file for the single precision maths
+#                 part of the FORTRAN from occam library
+#
+# The macro OUTNAMEA and OUTNAME8 must be supplied from the command line.
+#
+# This file is cribbed from the make file for snglmath, without RAN.
+#
+# FORTRAN routines must not have vector space.
+#
+#                           5-Feb-91 SRH
+#
+# This makefile is presently set up for UNIX.
+
+
+# these two macros must be supplied from the command line
+OUTNAMEA=
+OUTNAME8=
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d FORTRAN
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+# see bug report TS/744 for reason for 'u' option in OCCOPT
+OCCOPT=$(SWITCH)d $(SWITCH)x $(SWITCH)v $(SWITCH)u $(SWITCH)g $(SWITCH)zlcp %f $(SWITCH)zlcs %  $(OCCEXTRAS)
+
+
+# TA and TB class modules
+SNGLTA=alogfl.tax expfl.tax \
+	powfl.tax sinfl.tax \
+	cosfl.tax tanfl.tax \
+	asinfl.tax acosfl.tax \
+	atanfl.tax hyperfl.tax \
+	alogfl.tbx expfl.tbx \
+	powfl.tbx sinfl.tbx \
+	cosfl.tbx tanfl.tbx \
+	asinfl.tbx acosfl.tbx \
+	atanfl.tbx hyperfl.tbx
+
+# T8 class modules
+SNGLT8=alogfl.t8x expfl.t8x \
+	powfl.t8x sinfl.t8x \
+	cosfl.t8x tanfl.t8x \
+	asinfl.t8x acosfl.t8x \
+	atanfl.t8x hyperfl.t8x
+
+
+#
+############################## target and rules ##############################
+#
+all: $(OUTNAMEA) $(OUTNAME8) mathhdr.inc
+
+
+$(OUTNAMEA): $(SNGLTA)
+	$(CONCATENATE)  $(SNGLTA) $(INTO) $(OUTNAMEA)
+
+$(OUTNAME8): $(SNGLT8)
+	$(CONCATENATE)  $(SNGLT8) $(INTO) $(OUTNAME8)
+
+
+# Pattern matching rules.
+#
+# All object files actually depend on mathhdr.inc also, and most, if not all,
+# depend on occama.lib and occam8.lib.
+# an explicit rule is chosen before a pattern matching rule
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+
+%.tbx: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbx
+	$(OCCAM) $*.pbx $(SWITCH)x $(SWITCH)tb $(OCCOPT) $(SWITCH)o $*.tbx
+	$(DELETE) $*.pbx
+
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)d FPU $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

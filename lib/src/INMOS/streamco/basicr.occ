@@ -1,0 +1,18 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "TDS/TOOLSET conversion library V1.1 08/01/90"
+#COMMENT "Copyright INMOS Limited 1989"
+#INCLUDE "streamio.inc"
+#INCLUDE "hostio.inc"
+#USE "streamio.lib"
+
+-- 08-JAN-90 SRH channel retyping introduced
+
+PROC read.char (CHAN OF INT source, INT char)
+  CHAN OF KS source RETYPES source :
+  ks.read.char(source, char)
+:
+
+PROC read.line (CHAN OF INT source, INT len, []BYTE line, INT char)
+  CHAN OF KS source RETYPES source :
+  ks.read.line(source, len, line, char)
+:

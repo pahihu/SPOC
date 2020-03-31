@@ -1,0 +1,75 @@
+##############################################################################
+#
+#              Make file for occam2 toolset library xlink.lib
+#
+#
+# All of the routines in xlink.lib have some ASM in them using the RESETCH 
+# instruction.  They are such that they will not work with virtual channels,
+# but we want them to be callable from anything ( ie library i/o or 
+# instruction i/o ), and thus everything should be compiled with the
+# zv option: do i/o not by call, but mark as by call.  This means that
+# use of the xlink.lib routines during interactive debugging will lead to
+# undefined results.
+#
+#                             25-Oct-90 SRH
+#
+#               This makefile is presently set up for UNIX.
+#
+##############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+PREPROCESSOR=preocc
+PREOPT=
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+OCCOPT=$(SWITCH)d $(SWITCH)e $(SWITCH)x $(SWITCH)v $(SWITCH)zv $(OCCEXTRAS)
+
+
+#
+############################## target and rules ##############################
+#
+all: xlink.lib
+
+xlink.lib:  xlink.t2 xlink.t8 xlink.ta
+	$(LIBRARIAN) xlink.t2 xlink.t8 xlink.ta $(SWITCH)o xlink.lib $(LIBOPT)
+
+xlink.t2: xlink0.t2x xlink1.t2x xlink2.t2x xlink3.t2x xlink4.t2x
+	$(CONCATENATE) xlink0.t2x xlink1.t2x xlink2.t2x xlink3.t2x xlink4.t2x $(INTO) xlink.t2
+
+xlink.ta: xlink0.tax xlink1.tax xlink2.tax xlink3.tax xlink4.tax
+	$(CONCATENATE) xlink0.tax xlink1.tax xlink2.tax xlink3.tax xlink4.tax $(INTO) xlink.ta
+
+xlink.t8: xlink0.t8x xlink1.t8x xlink2.t8x xlink3.t8x xlink4.t8x
+	$(CONCATENATE) xlink0.t8x xlink1.t8x xlink2.t8x xlink3.t8x xlink4.t8x $(INTO) xlink.t8
+
+
+# pattern matching rules; do not define anything for PREPROCESSOR so that
+# the #PRAGMA TRANSLATE lines in the source are not included for occam
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

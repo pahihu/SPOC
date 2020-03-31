@@ -1,0 +1,7 @@
+The INMOS library sources are included from the NMOS D7202a-oc oc compiler
+product sources published on 
+	http://www.hensa.ac.uk/parallel/occam/compilers/inmos/oc/index.html
+as part of the UK HENSA archive.  Read the file LICENSE for conditions of use.
+ 
+The file hostio/exit.occ has been slightly modified to compile under SPOC
+without the C preprocessor.

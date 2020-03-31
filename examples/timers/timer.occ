@@ -1,0 +1,10 @@
+PROC main()
+  TIMER t :
+  SEQ
+    WHILE TRUE
+      INT time :
+      SEQ
+	t ? time
+	t ? AFTER time PLUS 10000
+	#C printf("Hello world\n");
+:

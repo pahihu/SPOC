@@ -1,0 +1,124 @@
+#############################################################################
+#
+#             Make file for occam2 toolset library dblmath.lib
+#
+#                              21-Dec-90 SRH
+#
+#                 This makefile is presently set up for UNIX
+#
+#############################################################################
+
+
+# UNIX specific macros
+SWITCH=-
+DELETE=rm
+CONCATENATE=cat
+INTO=>
+
+
+# for the flexibility to pass something in from the command line 
+OCCEXTRAS=
+
+# tools and global options
+PREPROCESSOR=preocc
+PREOPT=$(SWITCH)d OCCAM
+LIBRARIAN=ilibr
+LIBOPT=
+OCCAM=oc
+# see bug report TS/744 for reason for 'u' option in OCCOPT
+OCCOPT=$(SWITCH)d $(SWITCH)v $(SWITCH)u $(OCCEXTRAS)
+
+
+# T2 class modules
+DBLT2=dalogfl.t2h dalogfl.t2x dexpfl.t2h dexpfl.t2x \
+	dpowfl.t2h dpowfl.t2x dsinfl.t2h dsinfl.t2x \
+	dcosfl.t2h dcosfl.t2x dtanfl.t2h dtanfl.t2x \
+	dasinfl.t2h dasinfl.t2x dacosfl.t2h dacosfl.t2x \
+	datanfl.t2h datanfl.t2x dhyperfl.t2h dhyperfl.t2x \
+	dranfl.t2h dranfl.t2x
+
+# TA class modules
+DBLTA=dalogfl.tah dalogfl.tax dexpfl.tah dexpfl.tax \
+	dpowfl.tah dpowfl.tax dsinfl.tah dsinfl.tax \
+	dcosfl.tah dcosfl.tax dtanfl.tah dtanfl.tax \
+	dasinfl.tah dasinfl.tax dacosfl.tah dacosfl.tax \
+	datanfl.tah datanfl.tax dhyperfl.tah dhyperfl.tax \
+	dranfl.tah dranfl.tax \
+	dpowfl.tbh dpowfl.tbx
+
+# T8 class modules
+DBLT8=dalogfl.t8h dalogfl.t8x dexpfl.t8h dexpfl.t8x \
+	dpowfl.t8h dpowfl.t8x dsinfl.t8h dsinfl.t8x \
+	dcosfl.t8h dcosfl.t8x dtanfl.t8h dtanfl.t8x \
+	dasinfl.t8h dasinfl.t8x dacosfl.t8h dacosfl.t8x \
+	datanfl.t8h datanfl.t8x dhyperfl.t8h dhyperfl.t8x \
+	dranfl.t8h dranfl.t8x
+
+
+#
+############################## target and rules ##############################
+#
+all: dblmath.lib
+
+dblmath.lib:	mathhdr.inc dblmath.t2 dblmath.t8 dblmath.ta
+	$(LIBRARIAN) dblmath.t2 dblmath.t8 dblmath.ta $(SWITCH)o dblmath.lib $(LIBOPT)
+
+dblmath.t2:	$(DBLT2)
+	$(CONCATENATE) $(DBLT2) $(INTO) dblmath.t2
+
+dblmath.ta:	$(DBLTA)
+	$(CONCATENATE) $(DBLTA) $(INTO) dblmath.ta
+
+dblmath.t8:	$(DBLT8)
+	$(CONCATENATE) $(DBLT8) $(INTO) dblmath.t8
+
+
+# Pattern matching rules.
+#
+# All object files except dranfl.xxx actually depend on mathhdr.inc also.
+# Most, if not all, also depend on occam2.lib, occama.lib and occam8.lib
+# an explicit rule is chosen before a pattern matching rule
+# $< is a dynamic macro which means the current dependency file
+# $* is a dynamic macro which means the base name of the current target
+%.t2h: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2h
+	$(OCCAM) $*.p2h $(SWITCH)h $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2h
+	$(DELETE) $*.p2h
+
+%.t2x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p2x
+	$(OCCAM) $*.p2x $(SWITCH)x $(SWITCH)t2 $(OCCOPT) $(SWITCH)o $*.t2x
+	$(DELETE) $*.p2x
+
+
+%.tah: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pah
+	$(OCCAM) $*.pah $(SWITCH)h $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tah
+	$(DELETE) $*.pah
+
+%.tax: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pax
+	$(OCCAM) $*.pax $(SWITCH)x $(SWITCH)ta $(OCCOPT) $(SWITCH)o $*.tax
+	$(DELETE) $*.pax
+
+
+%.tbh: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbh
+	$(OCCAM) $*.pbh $(SWITCH)h $(SWITCH)tb $(OCCOPT) $(SWITCH)o $*.tbh
+	$(DELETE) $*.pbh
+
+%.tbx: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.pbx
+	$(OCCAM) $*.pbx $(SWITCH)x $(SWITCH)tb $(OCCOPT) $(SWITCH)o $*.tbx
+	$(DELETE) $*.pbx
+
+
+%.t8h: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8h
+	$(OCCAM) $*.p8h $(SWITCH)h $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8h
+	$(DELETE) $*.p8h
+
+%.t8x: %.occ
+	$(PREPROCESSOR) $< $(PREOPT) $(SWITCH)o $*.p8x
+	$(OCCAM) $*.p8x $(SWITCH)x $(SWITCH)t8 $(OCCOPT) $(SWITCH)o $*.t8x
+	$(DELETE) $*.p8x

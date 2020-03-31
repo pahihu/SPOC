@@ -1,0 +1,41 @@
+#COMMENT "Host i/o library, V1.00, 10/03/89"
+#COMMENT "(c) Copyright INMOS Limited 1989"
+#INCLUDE "hostio.inc"
+--{{{  sp.getkey
+PROC sp.getkey (CHAN OF SP fs, ts, BYTE key, result)
+
+  --{{{  specification
+  -- Purpose:  To read a single character from the keyboard, waiting for one
+  --           if there is none.
+  -- Channels: fs - from server
+  --           ts - to server
+  -- Out:      key - the key that was read
+  -- Out:      result - equals spr.ok if the read was successful; otherwise
+  --           >= spr.operation.failed - see hostio.inc or iserver
+  --           documentation for further details
+  -- Notes:    The key is not echoed to the screen.
+  --}}}
+
+  [sp.min.packet.data.size]BYTE buffer :
+  SEQ
+    --{{{  pack the data into the buffer (1 byte)
+    buffer [0] := sp.getkey.tag
+    --}}}
+    --{{{  send and receive the buffer
+    ts ! INT16 sp.min.packet.data.size :: buffer
+    
+    INT16 len :
+    fs ?  len :: buffer
+    --}}}
+    --{{{  copy out the result           (1 or 2 bytes)
+    result := buffer [0]
+    key    := buffer [1]
+    --}}}
+:
+--}}}sp.getkey
+--{{{  so.getkey
+PROC so.getkey (CHAN OF SP fs, ts, BYTE key, result)
+
+  sp.getkey (fs, ts, key, result)
+:
+--}}}so.getkey

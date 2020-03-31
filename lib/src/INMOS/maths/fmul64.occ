@@ -1,0 +1,83 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE FracMult64 "FracMult64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE FracMult64 "FracMult64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE FracMult64 "FracMult64%f"
+#endif
+#endif
+#endif
+
+INT64 FUNCTION FracMult64 (VAL INT64 X, Y)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  INT64 Result :
+  VALOF
+    --{{{  Signed fixed point multiply
+    VAL [2]INT X.i RETYPES X :
+    VAL [2]INT Y.i RETYPES Y :
+    INT64 ResHi, ResLo :
+    SEQ
+      --{{{  LONGPROD64 (ResHi, ResLo, X, Y, 0(INT64))
+      VAL [2]INT left  RETYPES X :
+      VAL [2]INT right RETYPES Y :
+      [2]INT hi.out RETYPES ResHi :
+      [2]INT lo.out RETYPES ResLo :
+      INT carry, c0, c1 :
+      SEQ
+        carry, lo.out[0] := LONGPROD ( left[0],  right[0],  0)
+        c0,  carry       := LONGPROD ( left[1],  right[0],  carry)
+        carry, lo.out[1] := LONGPROD ( left[0],  right[1],  carry)
+        c1,  carry       := LONGPROD ( left[1],  right[1],  carry)
+        carry, hi.out[0] := LONGSUM ( carry,  c0,  0)
+        carry, hi.out[1] := LONGSUM ( c1,  0,  carry)
+      --}}}
+      --{{{  subtract back if X or Y negative
+      IF
+        X.i[1] < 0
+          ResHi := ResHi MINUS Y
+        TRUE
+          SKIP
+      IF
+        Y.i[1] < 0
+          ResHi := ResHi MINUS X
+        TRUE
+          SKIP
+      --}}}
+      --{{{  SHIFTLEFT64 (ResHi, ResLo, ResHi, ResLow, 1)
+      [2]INT hi RETYPES ResHi :
+      [2]INT lo RETYPES ResLo :
+      SEQ
+        INT carry :
+        hi[1],  carry := SHIFTLEFT ( hi[1],  hi[0],  1)
+        INT carry :
+        hi[0],  carry := SHIFTLEFT ( hi[0],  lo[1],  1)
+        lo[1],  lo[0] := SHIFTLEFT ( lo[1],  lo[0],  1)
+      --}}}
+      --{{{  round result
+      [2] INT RH RETYPES ResHi :
+      [2] INT RL RETYPES ResLo :
+      IF
+        RL[1] >= 0   -- guard bit is 0
+          VAL INT64 ResHi RETYPES RH :
+          Result := ResHi
+        -- round up to even
+        (RL[1] <> (MOSTNEG INT)) OR (RL[0] <> 0) OR ((RH[0] /\ 1) = 1)
+          VAL INT64 ResHi RETYPES RH :
+          Result := ResHi + 1(INT64)
+        TRUE
+          VAL INT64 ResHi RETYPES RH :
+          Result := ResHi
+      --}}}
+    --}}}
+    RESULT Result
+:

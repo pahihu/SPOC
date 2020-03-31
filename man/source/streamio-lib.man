@@ -1,0 +1,297 @@
+'\" t
+.\"
+.\" Manual page for streamio.lib - INMOS occam toolset stream file library
+.\"
+.\" $Source: /u0/src/local/bin/oc2man/RCS/streamio-lib.man,v $
+.\"
+.\" $Id: streamio-lib.man,v 1.2 1993/02/24 14:58:31 djb1 Exp $
+.\"
+.\" Copyright (C) 1993 David Beckett, University of Kent at Canterbury
+.\"
+.\" This was derived from streamio.lib (the library) using ilist and the
+.\" perl program fixilist.pl which cleaned up the output.
+.\"
+.de tt \" Begin tt definition [.ttype]
+.ft CR
+.nf
+..     \" End tu definition
+.de tu \" Begin tu definition [.tu End ttype]
+.fi
+.ft P
+..     \" End tu definition
+.de ve \" Begin ve definition [.verb]
+.ft CR
+\\$1
+.ft P
+..
+.TH STREAMIOLIB 3L "23 February 1993" STREAMIOLIB "OCCAM LIBRARIES" STREAMIOLIB
+.SH NAME
+streamio.lib \- INMOS occam toolset stream file library
+.SH SYNOPSIS
+.tt
+#INCLUDE "streamio.inc"
+#USE "streamio.lib"
+.tu
+.SH SUMMARY
+The occam toolset library streamio.lib provides a stream file interface
+between the host and the transputer network.
+.LP
+.SH OVERVIEW
+To use the functions in this library do the following:
+.LP
+.tt
+#INCLUDE "streamio.inc"
+#USE "streamio.lib"
+.tu
+.LP
+The functions in this library have three protocols in general.
+.LP
+The first is \f(CRCHAN OF SP fs, ts\fP which is the protocol to and
+from the host server and refers to most procedures in
+\f(CRhostio.lib\fR.
+.LP
+The second is \f(CRCHAN OF KS\fP which is the \f(CRkeystream\fP or
+\fIkey stream\fP protocol, providing input from the keyboard.
+.LP
+The third is \f(CRCHAN OF SS\fP which is the \f(CRscrstream\fP or
+\fIscreen stream\fP protocol which provides output to the screen.
+.LP
+Error returns from procedures are passed out a variable called
+\f(CRresult\fP which can take the following values:
+.TS
+lf(CR) lw(5i).
+spr.ok	The operation was successful
+spr.bad.name	Invalid name parameter
+spr.bad.packet.size	Some data was larger than the built in buffer
+>=spr.operation.failed	Server returned a failure
+.TE
+.LP
+.SH KS (Key Stream) Procedures
+.tt
+PROC ks.keystream.sink (CHAN OF KS keys)
+.tu
+.IP
+Throw away the \fIkey stream\fP (\f(CRKS\fP) input until a termination.
+.LP
+.tt
+PROC ks.keystream.to.scrstream (CHAN OF KS keyboard, CHAN OF SS scrn)
+.tu
+.IP
+Convert \fIkey stream\fP (\f(CRKS\fP) protocol to \fIscreen stream\fP
+(\f(CRSS\fP) protocol.
+.LP
+.tt
+PROC ks.read.char (CHAN OF KS source, INT char)
+PROC ks.read.int (CHAN OF KS source, INT number, INT char)
+PROC ks.read.int64 (CHAN OF KS source, INT64 number, INT char)
+PROC ks.read.line (CHAN OF KS source, INT len, []BYTE line,
+                   INT char)
+PROC ks.read.real32 (CHAN OF KS source, REAL32 number, INT char)
+PROC ks.read.real64 (CHAN OF KS source, REAL64 number, INT char)
+.tu
+.IP
+Read data from the keyboard using \fIkey stream\fP (\f(CRKS\fP)
+protocol.
+.LP
+.tt
+.LP
+.SH SO (Screen Output) Procedures
+.tt
+PROC so.keystream.from.file (CHAN OF SP fs, ts,
+                             CHAN OF KS keys.out,
+                             VAL []BYTE filename,
+                             BYTE result)
+PROC so.keystream.from.kbd (CHAN OF SP fs, ts,
+                            CHAN OF KS keys.out,
+                            CHAN OF BOOL stopper,
+                            VAL INT ticks.per.poll)
+PROC so.keystream.from.stdin (CHAN OF SP fs, ts,
+                              CHAN OF KS keys.out, BYTE result)
+.tu
+.IP
+Read characters from a file, the keyboard or standard input
+respectively and convert to the \fIkey stream\fP (\f(CRKS\fP)
+protocol. Termination for the file and standard input is on end of
+file but the keyboard handler must be terminated by sending any
+\f(CRBOOL\fP along \f(CRstopper\fP.
+.LP
+.tt
+PROC so.scrstream.to.ANSI (CHAN OF SP fs, ts, CHAN OF SS scrn)
+PROC so.scrstream.to.TVI920 (CHAN OF SP fs, ts, CHAN OF SS scrn)
+PROC so.scrstream.to.file (CHAN OF SP fs, ts, CHAN OF SS scrn,
+                           VAL []BYTE filename, BYTE result)
+PROC so.scrstream.to.stdout (CHAN OF SP fs, ts, CHAN OF SS scrn,
+                             BYTE result)
+.tu
+.IP
+Convert the \fIscreen stream\fP (\f(CRSS\fP) protocol to output on an
+ANSI terminal, TVI920 terminal, a file or to standard output
+respectively.
+.LP
+.SH SS (Screen Stream) Procedures
+.tt
+PROC ss.beep (CHAN OF SS scrn)
+.tu
+.IP
+Output a terminal bell/beep.
+.LP
+.tt
+PROC ss.clear.eol (CHAN OF SS scrn)
+.tu
+.IP
+Make the terminal clear to end of line.
+.LP
+.tt
+PROC ss.clear.eos (CHAN OF SS scrn)
+.tu
+.IP
+Make the terminal clear to end of the screen.
+.LP
+.tt
+PROC ss.del.line (CHAN OF SS scrn)
+.tu
+.IP
+Make the terminal delete the current line.
+.LP
+.tt
+PROC ss.delete.chl (CHAN OF SS scrn)
+.tu
+.IP
+Make the terminal delete the character to the left of the cursor.
+.LP
+.tt
+PROC ss.delete.chr (CHAN OF SS scrn)
+.tu
+.IP
+Make the terminal delete the character to the right of the cursor.
+.LP
+.tt
+PROC ss.down (CHAN OF SS scrn)
+.tu
+.IP
+Move the terminal cursor down.
+.LP
+.tt
+PROC ss.goto.xy (CHAN OF SS scrn, VAL INT x, y)
+.tu
+.IP
+Move the terminal cursor to the given x,y coordinate (from top left).
+.LP
+.tt
+PROC ss.ins.line (CHAN OF SS scrn)
+.tu
+.IP
+Make the terminal insert a new line at the cursor position.
+.LP
+.tt
+PROC ss.insert.char (CHAN OF SS scrn, VAL BYTE ch)
+.tu
+.IP
+Make the terminal insert a new character at the cursor position.
+.LP
+.tt
+PROC ss.left (CHAN OF SS scrn)
+.tu
+.IP
+Move the terminal cursor left.
+.LP
+.tt
+PROC ss.right (CHAN OF SS scrn)
+.tu
+.IP
+Move the terminal cursor right.
+.LP
+.tt
+PROC ss.scrstream.copy (CHAN OF SS scrn.in, scrn.out)
+.tu
+.IP
+Copy the output of one \fIscreen stream\fP onto another.
+.LP
+.tt
+PROC ss.scrstream.fan.out (CHAN OF SS scrn,
+                           CHAN OF SS screen.out1,
+                                      screen.out2)
+.tu
+.IP
+Copy the output of one \fIscreen stream\fP onto two others.
+.LP
+.tt
+PROC ss.scrstream.from.array (CHAN OF SS scrn,
+                              VAL []BYTE buffer)
+.tu
+.IP
+Provide a \fIscreen stream\fP from the given array.
+.LP
+.tt
+PROC ss.scrstream.multiplexor ([]CHAN OF SS screen.in,
+                               CHAN OF SS screen.out,
+                               CHAN OF INT stopper)
+.tu
+.IP
+Multiplex several \fIscreen streams\fP onto one until any
+\f(CRBOOL\fP is received along \f(CRstopper\fP.
+.LP
+.tt
+PROC ss.scrstream.sink (CHAN OF SS scrn)
+.tu
+.IP
+Throw away the \fIscreen stream\fP until a terminate is received.
+.LP
+.tt
+PROC ss.scrstream.to.array (CHAN OF SS scrn, []BYTE buffer)
+.tu
+.IP
+Output a \fIscreen stream\fP to the given array.
+.LP
+.tt
+PROC ss.up (CHAN OF SS scrn)
+.tu
+.IP
+Move the terminal cursor up.
+.LP
+.tt
+PROC ss.write.char (CHAN OF SS scrn, VAL BYTE char)
+.tu
+.IP
+Write a character to the terminal.
+.LP
+.tt
+PROC ss.write.endstream (CHAN OF SS scrn)
+.tu
+.IP
+Terminate a \fIscreen stream\fP (\f(CRSS\fP).
+.LP
+.tt
+PROC ss.write.hex.int (CHAN OF SS scrn, VAL INT number,
+                       VAL INT field)
+PROC ss.write.hex.int64 (CHAN OF SS scrn, VAL INT64 number,
+                         VAL INT field)
+PROC ss.write.int (CHAN OF SS scrn, VAL INT number,
+                   VAL INT field)
+PROC ss.write.int64 (CHAN OF SS scrn, VAL INT64 number,
+                     VAL INT field)
+PROC ss.write.nl (CHAN OF SS scrn)
+PROC ss.write.real32 (CHAN OF SS scrn, VAL REAL32 number,
+                      VAL INT Ip, VAL INT Dp)
+PROC ss.write.real64 (CHAN OF SS scrn, VAL REAL64 number,
+                      VAL INT Ip, VAL INT Dp)
+PROC ss.write.string (CHAN OF SS scrn, VAL []BYTE str)
+PROC ss.write.text.line (CHAN OF SS scrn, VAL []BYTE str)
+.tu
+.IP
+Write the given data type to a screen stream formatting
+where necessary and possibly padding with spaces to a given field
+\f(CRwidth\fP or printing \f(CRIp\fP integer places and \f(CRDp\fP
+decimal places for \f(CRREAL32\fP and \f(CRREAL64\fP types. Hex
+numbers are written prefixed by a '#'. PROCedures ending in
+\f(CR.nl\fP write a newline sequence.
+.LP
+.LP
+.SH SEE ALSO
+INMOS  occam 2 toolset user manual - part 2 (occam libraries and
+appendices) INMOS document number 72 TDS 276 02.
+.SH AUTHOR
+This document is Copyright (C) 1993 David Beckett, University of Kent
+at Canterbury.
+.LP
+The library contents are Copyright (C) 1991 INMOS Limited.

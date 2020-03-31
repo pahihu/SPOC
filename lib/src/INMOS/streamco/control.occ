@@ -1,0 +1,58 @@
+#OPTION "E"   -- no compiler libraries
+#COMMENT "TDS/TOOLSET conversion library V1.0, 31/03/89"
+#COMMENT "Copyright INMOS Limited 1989"
+#INCLUDE "streamio.inc"
+#INCLUDE "hostio.inc"
+#USE "streamio.lib"
+
+PROC goto.xy (CHAN OF ANY sink, VAL INT x, y)
+  ss.goto.xy(sink, x, y)
+:
+
+PROC clear.eol (CHAN OF ANY sink)
+  ss.clear.eol(sink)
+:
+
+PROC clear.eos (CHAN OF ANY sink)
+  ss.clear.eos(sink)
+:
+
+PROC beep (CHAN OF ANY sink)
+  ss.beep(sink)
+:
+
+PROC up (CHAN OF ANY sink)
+  ss.up(sink)
+:
+
+PROC down (CHAN OF ANY sink)
+  ss.down(sink)
+:
+
+PROC left (CHAN OF ANY sink)
+  ss.left(sink)
+:
+
+PROC right (CHAN OF ANY sink)
+  ss.right(sink)
+:
+
+PROC insert.char (CHAN OF ANY sink, VAL BYTE ch)
+  ss.insert.char(sink, ch)
+:
+
+PROC delete.chr (CHAN OF ANY sink)
+  ss.delete.chr(sink)
+:
+
+PROC delete.chl (CHAN OF ANY sink)
+  ss.delete.chl(sink)
+:
+
+PROC ins.line (CHAN OF ANY sink)
+  ss.ins.line(sink)
+:
+
+PROC del.line (CHAN OF ANY sink)
+  ss.del.line(sink)
+:

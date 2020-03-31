@@ -1,0 +1,84 @@
+#OPTION "V"  -- no vector space
+#COMMENT "Fixed point maths library, V1.1 27/03/90"
+#COMMENT "(c) Copyright INMOS Limited 1988"
+#ifdef OCCAM
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%O"
+#else
+#ifdef C
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%c"
+#else
+#ifdef FORTRAN
+#PRAGMA TRANSLATE ReFloat64 "ReFloat64%f"
+#endif
+#endif
+#endif
+
+REAL64 FUNCTION ReFloat64 (VAL INT64 X)
+
+  --{{{  history
+  -- V1.0 1-Jul-88
+  -- Added OPTION "V"; V1.1 27-Mar-90 SRH
+  --}}}
+
+  REAL64 RWork.r :
+  VALOF
+    --{{{  Convert X back to floating point (32-bit machine only)
+    VAL DRealXcess IS 1023( INT ) :
+    VAL DRealShift IS   11( INT ) :
+    VAL Dzero      IS    0(INT64) :
+    VAL Done       IS    1(INT64) :
+    VAL DZero      IS 0.0(REAL64) :
+    -- Assumes X is in range -2**63 + 1 to 2**63 - 1
+    VAL [2] INT X.i RETYPES X :
+    VAL BOOL Negative IS (X.i [1] < 0) :
+    IF
+      X = Dzero
+        RWork.r := DZero
+      TRUE
+        INT64 RWork RETYPES RWork.r :
+        SEQ
+          --{{{  make positive
+          IF
+            Negative
+              RWork := -X
+            TRUE
+              RWork := X
+          --}}}
+          [2] INT RW.i RETYPES RWork :
+          INT XExp :
+          SEQ
+            XExp, RW.i[1], RW.i[0] := NORMALISE (RW.i[1], RW.i[0])
+            IF
+              XExp < DRealShift  -- will lose bits in packing
+                --{{{  pack and round
+                INT LostBits :
+                SEQ
+                  INT dummy :
+                  dummy, LostBits  := SHIFTRIGHT (RW.i[0], 0, DRealShift)
+                  RW.i[1], RW.i[0] := SHIFTRIGHT ((RW.i[1]<<1)>>1,RW.i[0], DRealShift)
+                  RW.i [1] := RW.i [1] \/ ((DRealXcess - XExp) << 20)
+                  IF
+                    LostBits >= 0
+                      SKIP
+                    (LostBits <> (MOSTNEG INT)) OR ((RW.i[0] /\ 1) = 1)
+                      INT64 RWork RETYPES RW.i :
+                      RWork := RWork + Done
+                    TRUE
+                      SKIP
+                --}}}
+              TRUE
+                --{{{  pack
+                SEQ
+                  RW.i[1], RW.i[0] := SHIFTRIGHT ((RW.i[1]<<1)>>1,RW.i[0], DRealShift)
+                  RW.i[1] := RW.i[1] \/ ((DRealXcess - XExp) << 20)
+                --}}}
+            --{{{  fixup sign
+            IF
+              Negative
+                RW.i[1] := RW.i[1] \/ (MOSTNEG INT)
+              TRUE
+                SKIP
+            --}}}
+    --}}}
+    RESULT RWork.r
+:
