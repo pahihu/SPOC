@@ -13,6 +13,7 @@
 # @(#)====================================================
 #}}}
 INMOS=0
+MAKE=gnumake
 
 if [ ! $SPOC ]; then
   echo Error - You must set SPOC environment variable before installing libraries
@@ -197,7 +198,7 @@ else
 fi
 
 echo Now running 'make' to compile and link libraries:
-echo SPOC=$SPOC make
-SPOC=$SPOC PATH=$SPOC/bin/$ARCH:$PATH make
+echo SPOC=$SPOC $MAKE
+SPOC=$SPOC PATH=$SPOC/bin/$ARCH:$PATH $MAKE
 echo " "
 echo To remake libraries at any time cd to $PWD and type make

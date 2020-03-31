@@ -1,3 +1,4 @@
+# include <string.h>
 # include "Tree.h"
 # define yyALLOC(ptr, size)	if ((ptr = (tTree) Tree_PoolFreePtr) >= (tTree) Tree_PoolMaxPtr) \
   ptr = Tree_Alloc (); \
@@ -28,6 +29,7 @@ extern "C" {
 # include "Sets.h"
 # include "Positions.h"
 # endif
+# include "OccamOut.h"
 
 /* line 63 "" */
  
@@ -95,7 +97,7 @@ typedef struct yysBlock {
 } yytBlock, * yytBlockPtr;
 
 tTree TreeRoot;
-unsigned long Tree_HeapUsed = 0;
+uint32_t Tree_HeapUsed = 0;
 
 static yytBlockPtr yyBlockList	= (yytBlockPtr) NoTree;
 char * Tree_PoolFreePtr	= (char *) NoTree;
@@ -6983,7 +6985,7 @@ yyt = yyt->AnElement.Element; break;
 # define yyInitTreeStoreSize 32
 # define yyMapToTree(yyLabel) yyTreeStorePtr [yyLabel]
 
-static unsigned long yyTreeStoreSize = yyInitTreeStoreSize;
+static uint32_t yyTreeStoreSize = yyInitTreeStoreSize;
 static tTree yyTreeStore [yyInitTreeStoreSize];
 static tTree * yyTreeStorePtr = yyTreeStore;
 static int yyLabelCount;
@@ -14777,7 +14779,7 @@ case kACase: yyTail->ACase.Next = yyOld; break;
 # define yyInitOldToNewStoreSize 32
 
 typedef struct { tTree yyOld, yyNew; } yytOldToNew;
-static unsigned long yyOldToNewStoreSize = yyInitOldToNewStoreSize;
+static uint32_t yyOldToNewStoreSize = yyInitOldToNewStoreSize;
 static yytOldToNew yyOldToNewStore [yyInitOldToNewStoreSize];
 static yytOldToNew * yyOldToNewStorePtr = yyOldToNewStore;
 static int yyOldToNewCount;

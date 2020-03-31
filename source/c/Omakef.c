@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "Fopenenv.h"
 /*}}}*/
@@ -1146,10 +1147,10 @@ void generate_empty_rule (char *p1, ...)
   va_list ap;
   char *s;
 
-  fprintf(fp_out,p1);
+  fprintf(fp_out,"%s",p1);
   va_start (ap,p1);
   while ((s = (char*) va_arg(ap,char*)) != NULL)
-    fprintf(fp_out,s);
+    fprintf(fp_out,"%s",s);
   va_end(ap);
 
   fprintf(fp_out, ":\n\n");
@@ -1163,10 +1164,10 @@ void generate_open_variable (char *p1, ...)
   va_list ap;
   char *s;
 
-  template_position += fprintf(fp_out,p1);
+  template_position += fprintf(fp_out,"%s",p1);
   va_start (ap,p1);
   while ((s = (char*) va_arg(ap,char*)) != NULL)
-    template_position += fprintf(fp_out,s);
+    template_position += fprintf(fp_out,"%s",s);
   va_end(ap);
 
   template_position += fprintf(fp_out,"=");
@@ -1182,7 +1183,7 @@ void generate_string (char *name)
     generate_newline();
   }
     
-  template_position += fprintf(fp_out,name);
+  template_position += fprintf(fp_out,"%s",name);
 }
 /*}}}*/
 /*{{{  void generate_strings (char *p1, ...)*/
@@ -1204,11 +1205,11 @@ void generate_strings (char *p1, ...)
     generate_newline();
   }
 
-  template_position += fprintf(fp_out,p1);
+  template_position += fprintf(fp_out,"%s",p1);
 
   va_start (ap,p1);
   while ((s = (char*) va_arg(ap,char*)) != NULL)
-    template_position += fprintf(fp_out,s);
+    template_position += fprintf(fp_out,"%s",s);
   va_end(ap);
 }
 /*}}}*/

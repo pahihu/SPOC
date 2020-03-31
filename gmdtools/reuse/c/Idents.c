@@ -65,7 +65,7 @@ typedef struct {
 static	unsigned short	Null		= 0;
 static	IdentTableEntry	Table [InitialTableSize] = {{0, 0, 0}, {& Null, 0, cNoIdent}};
 static	IdentTableEntry	* TablePtr	= Table;
-static	unsigned long	IdentTableSize	= InitialTableSize;
+static	uint32_t	IdentTableSize	= InitialTableSize;
 static	tIdent		IdentCount	= 1;
 
 static	tIdent		HashTable [HashTableSize] = {
@@ -129,7 +129,7 @@ tIdent MakeIdent
       }
 
       if (++ IdentCount == IdentTableSize)	/* not found: enter */
-	 ExtendArray ((char * *) & TablePtr, & IdentTableSize, (long) sizeof (IdentTableEntry));
+	 ExtendArray ((char * *) & TablePtr, & IdentTableSize, (int32_t) sizeof (IdentTableEntry));
       TablePtrReg = & TablePtr [IdentCount];
       TablePtrReg->String	= PutString (string, length);
       TablePtrReg->Length	= length;

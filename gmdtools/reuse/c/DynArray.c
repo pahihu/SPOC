@@ -34,12 +34,12 @@ static char rcsid [] = "$Id: DynArray.c,v 1.6 1992/08/17 11:42:24 grosch rel $";
 # include "General.h"
 # include "Memory.h"
 
-/* INVARIANT ElmtCount * AlignedSize (ElmtSize) % sizeof (long) == 0 */
+/* INVARIANT ElmtCount * AlignedSize (ElmtSize) % sizeof (int32_t) == 0 */
 
-static unsigned long AlignedSize (ElmtSize)
-   unsigned long	ElmtSize;
+static uint32_t AlignedSize (ElmtSize)
+   uint32_t	ElmtSize;
    {
-      register unsigned long Align;
+      register uint32_t Align;
 
       if (ElmtSize >= yyMaxAlign) {
 	 Align = yyMaxAlign;
@@ -51,15 +51,15 @@ static unsigned long AlignedSize (ElmtSize)
 
 void MakeArray (ArrayPtr, ElmtCount, ElmtSize)
    char * *	ArrayPtr	;
-   unsigned long * ElmtCount	;
-   unsigned long ElmtSize	;
+   uint32_t * ElmtCount	;
+   uint32_t ElmtSize	;
    {
       ElmtSize = AlignedSize (ElmtSize);
       switch (ElmtSize % 4) {
       case 0: break;
       case 2: if (* ElmtCount & 1) (* ElmtCount) ++; break;
       case 1:
-      case 3: * ElmtCount += sizeof (long) - 1 - (* ElmtCount - 1) % sizeof (long); break;
+      case 3: * ElmtCount += sizeof (int32_t) - 1 - (* ElmtCount - 1) % sizeof (int32_t); break;
       }
       * ArrayPtr = Alloc (* ElmtCount * ElmtSize);
       if (* ArrayPtr == NULL) (void) fprintf (stderr, "MakeArray: out of memory\n");
@@ -67,19 +67,19 @@ void MakeArray (ArrayPtr, ElmtCount, ElmtSize)
 
 void ExtendArray (ArrayPtr, ElmtCount, ElmtSize)
    char * *	ArrayPtr	;
-   unsigned long * ElmtCount	;
-   unsigned long ElmtSize	;
+   uint32_t * ElmtCount	;
+   uint32_t ElmtSize	;
    {
       		char *	NewPtr	;
-      register	long *	Source	;
-      register	long *	Target	;
-      register	long	i     	;
+      register	int32_t *	Source	;
+      register	int32_t *	Target	;
+      register	int32_t	i     	;
 
       ElmtSize = AlignedSize (ElmtSize);
       NewPtr = Alloc (* ElmtCount * ElmtSize * 2);
-      Source = (long *) * ArrayPtr;
-      Target = (long *) NewPtr;
-      i      = * ElmtCount * ElmtSize / sizeof (long);
+      Source = (int32_t *) * ArrayPtr;
+      Target = (int32_t *) NewPtr;
+      i      = * ElmtCount * ElmtSize / sizeof (int32_t);
 
       if (NewPtr == NULL)
 	 (void) fprintf (stderr, "ExtendArray: out of memory\n");
@@ -96,8 +96,8 @@ void ExtendArray (ArrayPtr, ElmtCount, ElmtSize)
 
 void ReleaseArray (ArrayPtr, ElmtCount, ElmtSize)
    char * *	ArrayPtr	;
-   unsigned long * ElmtCount	;
-   unsigned long ElmtSize	;
+   uint32_t * ElmtCount	;
+   uint32_t ElmtSize	;
    {
       ElmtSize = AlignedSize (ElmtSize);
       Free (* ElmtCount * ElmtSize, * ArrayPtr);

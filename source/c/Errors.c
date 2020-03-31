@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
+#include "Memory.h"
 #include "System.h"
 #include "Sets.h"
 #include "Idents.h"

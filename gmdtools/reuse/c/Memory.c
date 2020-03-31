@@ -62,11 +62,11 @@ static char rcsid [] = "$Id: Memory.c,v 1.13 1992/06/24 12:23:15 grosch rel $";
 # define PoolSize		10240L
 # define NIL			(tBlockPtr) NULL
 
-unsigned long MemoryUsed = 0;
+uint32_t MemoryUsed = 0;
 
 struct tBlock {
    struct tBlock *	Successor;
-   unsigned long	Size;
+   uint32_t	Size;
 };
 typedef struct tBlock *	tBlockPtr;
 typedef cardinal	tSmallBlockRange;
@@ -90,7 +90,7 @@ static	char *		PoolFreePtr = 0;
 static	char *		PoolEndPtr  = 0;
 
 char * Alloc (ByteCount)
-   register unsigned long ByteCount;
+   register uint32_t ByteCount;
 
 /* Returns a pointer to dynamically allocated	*/
 /* space of size 'ByteCount' bytes.		*/
@@ -105,7 +105,7 @@ char * Alloc (ByteCount)
 	 SmallChain [ByteCount] = CurrentBlock->Successor;
 	 return (char *) CurrentBlock;
       } else {					/* obtain block from storage pool */
-	 register unsigned long FreeBytes;
+	 register uint32_t FreeBytes;
 	 register char *	OldFreePtr;
 						/* release old pool */
 	 if ((FreeBytes = PoolEndPtr - PoolFreePtr) < ByteCount) {
@@ -125,10 +125,10 @@ char * Alloc (ByteCount)
       register tBlockPtr	CurrentBlock	= LargeChain [ChainNumber];
       register tBlockPtr	PreviousBlock	= (tBlockPtr) & (LargeChain [ChainNumber]);
       register tBlockPtr	BestBlock	= NIL;
-      register unsigned long	BestBlockSize	= 1000000000;
+      register uint32_t	BestBlockSize	= 1000000000;
       register tBlockPtr	PredecessorBlock;
       register tLargeBlockRange	j		;
-      register unsigned long	CurrentBlockSize;
+      register uint32_t	CurrentBlockSize;
 
       while (CurrentBlock) {
 	 CurrentBlockSize = CurrentBlock->Size;
@@ -169,7 +169,7 @@ char * Alloc (ByteCount)
       }
 
       if (ByteCount < PoolSize) {		/* 3. obtain block from storage pool */
-	 register unsigned long FreeBytes;
+	 register uint32_t FreeBytes;
 						/* release old pool */
 	 if ((FreeBytes = PoolEndPtr - PoolFreePtr) < ByteCount) {
 	    if (FreeBytes >= MinSizeSmallBlock) Free (FreeBytes, PoolFreePtr);
@@ -179,7 +179,7 @@ char * Alloc (ByteCount)
 	 PoolFreePtr += ByteCount;
 	 return PoolFreePtr - ByteCount;
       } else {					/* 4. allocate individual block */
-	 CurrentBlock = (tBlockPtr) SysAlloc ((long) ByteCount);
+	 CurrentBlock = (tBlockPtr) SysAlloc ((int32_t) ByteCount);
 	 MemoryUsed += ByteCount;
 	 return (char *) CurrentBlock;
       }
@@ -187,7 +187,7 @@ char * Alloc (ByteCount)
 }
 
 void Free (ByteCount, a)
-   unsigned long	ByteCount;
+   uint32_t	ByteCount;
    char *		a;
 
 /* The dynamically allocated space starting at	*/

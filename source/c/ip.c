@@ -2612,7 +2612,7 @@ normalize(Problem * problemPtr)
 		if (g < 0)
 		    g = -g;
 		for (; i0 >= 0; i0--) {
-		    register x;
+		    register int x;
 		    i = packing[i0];
 		    x = GEQs[e].coef[i];
 		    hashCode = hashCode * keyMult * (i + 3) + x;
@@ -2626,7 +2626,7 @@ normalize(Problem * problemPtr)
 			g = gcd(x, g);
 		};
 		for (; i0 >= 0; i0--) {
-		    register x;
+		    register int x;
 		    i = packing[i0];
 		    x = GEQs[e].coef[i];
 		    hashCode = hashCode * keyMult * (i + 3) + x;

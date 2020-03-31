@@ -1,3 +1,10 @@
+Changes
+=======
+
+* able to build on macOS Mojave 64bit using clang
+* ported GMDTOOLS runtime library to 64bit (the runtime is 32bit though)
+
+
 SPOC : Southampton's Portable Occam Compiler, Version 1.3, 4/4/97
 M. Debbage, X Fu, M. Hill, D. Nicole, S. Wykes  University Of Southampton, ESPRIT GPMIMD P5404
 

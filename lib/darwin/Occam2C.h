@@ -19,9 +19,13 @@
 #include <setjmp.h>
 #include <math.h>
 
+#define INLINE
+
+/*
 #ifndef __GNUC__
-#define inline
+#define INLINE
 #endif
+*/
 /*}}}*/
 /*{{{  architectures and operating systems*/
 #define TRANSPUTER 0
@@ -178,7 +182,7 @@ static char* MSG_IP = "\nInvalid Instruction Pointer\n";
 #elif (defined CONTINUE_ON_ERROR)
 #define SETERR_PROCEED  fprintf(stderr,MSG_CA);
 #else
-#define SETERR_PROCEED  fprintf(stderr,MSG_TA);exit(-1)
+#define SETERR_PROCEED  fprintf(stderr,"%s",MSG_TA);exit(-1)
 #endif
 
 #define SETERR(M)	seterr(M,__LINE__,__FILE__)
@@ -199,8 +203,8 @@ extern void seterr(char *M,int L,char *F);
 #undef BOOL
 #undef TEMPVAL
 
-#define INT   long int
-#define INT32 long int
+#define INT   int
+#define INT32 int
 
 #ifndef NO_INT64
 #if (defined __GNUC__) || (defined cham)
@@ -261,7 +265,7 @@ typedef union
 #define UBYTE  BYTE
 
 /*{{{  casting down primitives*/
-static void inline FailConvert(int V,int L, char *F)
+static void INLINE FailConvert(int V,int L, char *F)
 {
   fprintf(stderr,"Error- Type conversion failed range check (value was %d)\n",V);
   seterr(MSG_NULL,L,F);
@@ -465,8 +469,8 @@ static void inline FailConvert(int V,int L, char *F)
 #endif
 /*}}}*/
 /*}}}*/
-/*{{{  static void inline CheckPrimitiveSizes(void)*/
-static void inline CheckPrimitiveSizes(void)
+/*{{{  static void INLINE CheckPrimitiveSizes(void)*/
+static void INLINE CheckPrimitiveSizes(void)
 {
   char *failedtype=NULL;
   
@@ -568,8 +572,8 @@ typedef struct
 
 /*}}}*/
 /*{{{  scheduling / communication routines*/
-/*{{{  static void inline DeSchedule(register tTaskMode state)*/
-static void inline DeSchedule(register tTaskMode state)
+/*{{{  static void INLINE DeSchedule(register tTaskMode state)*/
+static void INLINE DeSchedule(register tTaskMode state)
 {
   register tTask *task = CURTASK;
   
@@ -578,8 +582,8 @@ static void inline DeSchedule(register tTaskMode state)
   if (QFP[task->TaskPriority] == NoTask) QBP[task->TaskPriority] = NoTask;
 }   
 /*}}}*/
-/*{{{  static void inline ReSchedule(register tTask *task)*/
-static void inline ReSchedule(register tTask *task)
+/*{{{  static void INLINE ReSchedule(register tTask *task)*/
+static void INLINE ReSchedule(register tTask *task)
 {
 #ifdef DEBUG
   printf("ReSchedule task (%d) from state %d\n",task->TaskId,task->state);
@@ -621,8 +625,8 @@ static void inline ReSchedule(register tTask *task)
 }
 /*}}}*/
 
-/*{{{  static int inline ChanIn (register CHAN *chan,register void *data,register long len)*/
-static int inline ChanIn (register CHAN *chan,register void *data,register long len)
+/*{{{  static int INLINE ChanIn (register CHAN *chan,register void *data,register long len)*/
+static int INLINE ChanIn (register CHAN *chan,register void *data,register long len)
 {
   register tTask *task = chan->Task;
 
@@ -655,8 +659,8 @@ static int inline ChanIn (register CHAN *chan,register void *data,register long 
 }
 
 /*}}}*/
-/*{{{  static int inline ChanIn1(register CHAN *chan,register void *data)*/
-static int inline ChanIn1(register CHAN *chan,register void *data)
+/*{{{  static int INLINE ChanIn1(register CHAN *chan,register void *data)*/
+static int INLINE ChanIn1(register CHAN *chan,register void *data)
 {
   register tTask *task = chan->Task;
 
@@ -689,8 +693,8 @@ static int inline ChanIn1(register CHAN *chan,register void *data)
 }
 
 /*}}}*/
-/*{{{  static int inline ChanIn2(register CHAN *chan,register void *data)*/
-static int inline ChanIn2(register CHAN *chan,register void *data)
+/*{{{  static int INLINE ChanIn2(register CHAN *chan,register void *data)*/
+static int INLINE ChanIn2(register CHAN *chan,register void *data)
 {
   register tTask *task = chan->Task;
 
@@ -723,8 +727,8 @@ static int inline ChanIn2(register CHAN *chan,register void *data)
 }
 
 /*}}}*/
-/*{{{  static int inline ChanIn4(register CHAN *chan,register void *data)*/
-static int inline ChanIn4(register CHAN *chan,register void *data)
+/*{{{  static int INLINE ChanIn4(register CHAN *chan,register void *data)*/
+static int INLINE ChanIn4(register CHAN *chan,register void *data)
 {
   register tTask *task = chan->Task;
 
@@ -757,8 +761,8 @@ static int inline ChanIn4(register CHAN *chan,register void *data)
 }
 
 /*}}}*/
-/*{{{  static int inline ChanOut (register CHAN *chan,register void *data,register long len)*/
-static int inline ChanOut (register CHAN *chan,register void *data,register long len)
+/*{{{  static int INLINE ChanOut (register CHAN *chan,register void *data,register long len)*/
+static int INLINE ChanOut (register CHAN *chan,register void *data,register long len)
 {
   register tTask *task = chan->Task;
 
@@ -805,8 +809,8 @@ static int inline ChanOut (register CHAN *chan,register void *data,register long
   return 1;
 }
 /*}}}*/
-/*{{{  static int inline ChanOut1 (register CHAN *chan,register void *data)*/
-static int inline ChanOut1 (register CHAN *chan,register void *data)
+/*{{{  static int INLINE ChanOut1 (register CHAN *chan,register void *data)*/
+static int INLINE ChanOut1 (register CHAN *chan,register void *data)
 {
   register tTask *task = chan->Task;
 
@@ -853,8 +857,8 @@ static int inline ChanOut1 (register CHAN *chan,register void *data)
   return 1;
 }
 /*}}}*/
-/*{{{  static int inline ChanOut2 (register CHAN *chan,register void *data)*/
-static int inline ChanOut2 (register CHAN *chan,register void *data)
+/*{{{  static int INLINE ChanOut2 (register CHAN *chan,register void *data)*/
+static int INLINE ChanOut2 (register CHAN *chan,register void *data)
 {
   register tTask *task = chan->Task;
 
@@ -901,8 +905,8 @@ static int inline ChanOut2 (register CHAN *chan,register void *data)
   return 1;
 }
 /*}}}*/
-/*{{{  static int inline ChanOut4 (register CHAN *chan,register void *data)*/
-static int inline ChanOut4 (register CHAN *chan,register void *data)
+/*{{{  static int INLINE ChanOut4 (register CHAN *chan,register void *data)*/
+static int INLINE ChanOut4 (register CHAN *chan,register void *data)
 {
   register tTask *task = chan->Task;
 
@@ -950,8 +954,8 @@ static int inline ChanOut4 (register CHAN *chan,register void *data)
 }
 /*}}}*/
 
-/*{{{  static void inline TimerWait(tTimer when)*/
-static void inline TimerWait(tTimer when)
+/*{{{  static void INLINE TimerWait(tTimer when)*/
+static void INLINE TimerWait(tTimer when)
 {
 #ifdef USESIGTIMER
   tTask *prev = NoTask;
@@ -981,8 +985,8 @@ static void inline TimerWait(tTimer when)
 }
 /*}}}*/
 
-/*{{{  static void inline AltStart (void)*/
-static void inline AltStart (void)
+/*{{{  static void INLINE AltStart (void)*/
+static void INLINE AltStart (void)
 {
 #ifdef DEBUG
   printf("Alt start\n");
@@ -1001,8 +1005,8 @@ static void inline AltStart (void)
   CURTASK->comms.timer.TimerMode = TimeNotSet_p;
 }
 /*}}}*/
-/*{{{  static void inline EnableChannel (register CHAN *chan)*/
-static void inline EnableChannel (register CHAN *chan)
+/*{{{  static void INLINE EnableChannel (register CHAN *chan)*/
+static void INLINE EnableChannel (register CHAN *chan)
 {
 #ifdef DEBUG
   printf("Enable channel %x\n",chan);
@@ -1029,8 +1033,8 @@ static void inline EnableChannel (register CHAN *chan)
   }
 }
 /*}}}*/
-/*{{{  static void inline EnableSkip (void)*/
-static void inline EnableSkip (void)
+/*{{{  static void INLINE EnableSkip (void)*/
+static void INLINE EnableSkip (void)
 {
 #ifdef DEBUG
   printf("Enable skip\n");
@@ -1039,8 +1043,8 @@ static void inline EnableSkip (void)
   CURTASK->AltMode = Ready_p;
 }
 /*}}}*/
-/*{{{  static void inline EnableTimer (register long t)*/
-static void inline EnableTimer (register long t)
+/*{{{  static void INLINE EnableTimer (register long t)*/
+static void INLINE EnableTimer (register long t)
 {
 #ifdef DEBUG
   printf("Enable timer for %d\n",t);
@@ -1069,8 +1073,8 @@ static void inline EnableTimer (register long t)
 
 }
 /*}}}*/
-/*{{{  static int  inline AltWait (void)*/
-static int  inline AltWait (void)
+/*{{{  static int  INLINE AltWait (void)*/
+static int  INLINE AltWait (void)
 {
 #ifdef DEBUG
   printf("Alt wait\n");
@@ -1114,8 +1118,8 @@ static int  inline AltWait (void)
   return 0;
 }
 /*}}}*/
-/*{{{  static BOOL inline DisableChannel (register int label, register CHAN *chan)*/
-static BOOL inline DisableChannel (register int label, register CHAN *chan)
+/*{{{  static BOOL INLINE DisableChannel (register int label, register CHAN *chan)*/
+static BOOL INLINE DisableChannel (register int label, register CHAN *chan)
 {
 #ifdef DEBUG
   printf("Disable channel %x with label %d\n",chan,label);
@@ -1152,8 +1156,8 @@ static BOOL inline DisableChannel (register int label, register CHAN *chan)
   return(false);
 }
 /*}}}*/
-/*{{{  static BOOL inline DisableSkip (register int label)*/
-static BOOL inline DisableSkip (register int label)
+/*{{{  static BOOL INLINE DisableSkip (register int label)*/
+static BOOL INLINE DisableSkip (register int label)
 {
 #ifdef DEBUG
   printf("Disable skip with label %d\n",label);
@@ -1177,8 +1181,8 @@ static BOOL inline DisableSkip (register int label)
   return(false);
 }
 /*}}}*/
-/*{{{  static BOOL inline DisableTimer (register int label, register long t)*/
-static BOOL inline DisableTimer (register int label, register long t)
+/*{{{  static BOOL INLINE DisableTimer (register int label, register long t)*/
+static BOOL INLINE DisableTimer (register int label, register long t)
 {
 #ifdef DEBUG
   printf("Disable timer for %x with label %d\n",t,label);
@@ -1201,8 +1205,8 @@ static BOOL inline DisableTimer (register int label, register long t)
   return(false);
 }
 /*}}}*/
-/*{{{  static int  inline AltFinish (void)*/
-static int  inline AltFinish (void)
+/*{{{  static int  INLINE AltFinish (void)*/
+static int  INLINE AltFinish (void)
 {
   tAltMode mode = CURTASK->AltMode;
   
@@ -1236,10 +1240,10 @@ static void WaitOnTimer(tTimer when)
 #endif
 }
 /*}}}*/
-/*{{{  static clock_t inline ReadTimer(void)*/
+/*{{{  static clock_t INLINE ReadTimer(void)*/
 #ifdef USESIGTIMER
-/*{{{  static tTimer inline ReadTimer(void)*/
-static tTimer inline ReadTimer(void)
+/*{{{  static tTimer INLINE ReadTimer(void)*/
+static tTimer INLINE ReadTimer(void)
 {
   register tTask *task = CURTASK;
 
@@ -1247,8 +1251,8 @@ static tTimer inline ReadTimer(void)
 }
 /*}}}*/
 #else
-/*{{{  static tTimer inline ReadTimer(void)*/
-static tTimer inline ReadTimer(void)
+/*{{{  static tTimer INLINE ReadTimer(void)*/
+static tTimer INLINE ReadTimer(void)
 {
 #ifndef CLOCKS_PER_SEC
 #define CLOCKS_PER_SEC 1000000
@@ -1273,7 +1277,7 @@ extern void Start_Placed(register tTask *task, register tFuncPtr Func, register 
 /*{{{  heap management*/
 static char *MSG_HEAP = "Error- Out of heap storage\n"; 
 
-static inline void *ALLOCVEC(int s)
+static INLINE void *ALLOCVEC(int s)
 {
   void *vec = malloc(s);
   if (!vec) SETERR(MSG_HEAP);
@@ -1281,7 +1285,7 @@ static inline void *ALLOCVEC(int s)
   return vec;
 }
 
-static inline void FREEVEC(void *vec)
+static INLINE void FREEVEC(void *vec)
 {
   free(vec);
 }
@@ -1291,7 +1295,7 @@ static inline void FREEVEC(void *vec)
 #define FREERETYPE(s)          FREEVEC(s)
 
 #if (defined BIG_AND_LITTLE || defined LITTLE_AND_BIG)
-static inline void RETYPE(int swap,int l,void *d,void *s)
+static INLINE void RETYPE(int swap,int l,void *d,void *s)
 {
   int i;
   char *from=(char *)s;
@@ -1341,19 +1345,19 @@ static char *MSG_EUBCF = "Error- Upper bound check (0<=%d,%d<=%d) failed\n";
 #define RNGCHKUB(b,f,s) ((((f)<0)||(((b)+(f))>(s)))?(fprintf(stderr,MSG_EUBCF,f,(b)+(f),s),seterr(MSG_NULL,__LINE__,__FILE__),b):b)
 #else
 #define RNGCHK(v,s) rngchk(v,s,__LINE__,__FILE__)
-static INT inline rngchk(INT v, INT s, int line, char *file)
+static INT INLINE rngchk(INT v, INT s, int line, char *file)
 {
   if ((unsigned INT) v >= (unsigned INT)s) { fprintf(stderr,MSG_ERCF,v,s); seterr(MSG_NULL,line,file); }
   return v;
 }
 #define RNGCHKLB(v) rngchklb(v,__LINE__,__FILE__)
-static INT inline rngchklb(INT v, int line, char *file)
+static INT INLINE rngchklb(INT v, int line, char *file)
 {
   if (v<0) { fprintf(stderr,MSG_ELBCF,v); seterr(MSG_NULL,line,file); }
   return v;
 }
 #define RNGCHKUB(b,f,s) rngchkub(b,f,s,__LINE__,__FILE__)
-static INT inline rngchkub(INT b, INT f, INT s, int line, char *file)
+static INT INLINE rngchkub(INT b, INT f, INT s, int line, char *file)
 {
   if ((f<0)||((b+f)>s)) { fprintf(stderr,MSG_EUBCF,f,(b)+(f),s); seterr(MSG_NULL,line,file); }
   return b;

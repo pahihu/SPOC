@@ -12,6 +12,8 @@
   #include "Scanner.h"
   #include "Errors.h"
 
+# include <stdint.h>
+
 
 # ifndef bool
 # define bool char
@@ -814,7 +816,7 @@ union Tree_Node {
 };
 
 extern tTree TreeRoot;
-extern unsigned long Tree_HeapUsed;
+extern uint32_t Tree_HeapUsed;
 extern char * Tree_PoolFreePtr, * Tree_PoolMaxPtr;
 extern unsigned short Tree_NodeSize [222 + 1];
 extern char * Tree_NodeName [222 + 1];

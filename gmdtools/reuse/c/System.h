@@ -8,6 +8,8 @@
 
 /* Ich, Doktor Josef Grosch, Informatiker, Jan. 1992 */
 
+# include <stdint.h>
+
 # ifdef __STDC__
 # define ARGS(parameters)	parameters
 # else
@@ -54,12 +56,12 @@ extern bool IsCharacterSpecial	ARGS((tFile File));
 
 /* calls other than IO */
 
-extern char *	SysAlloc	ARGS((long ByteCount));
+extern char *	SysAlloc	ARGS((int32_t ByteCount));
 			/* Returns a pointer to dynamically allocated	*/
 			/* memory space of size 'ByteCount' bytes.	*/
 			/* Returns NIL if space is exhausted.		*/
 
-extern long	Time		();
+extern int32_t	Time		();
 			/* Returns consumed cpu-time in milliseconds.	*/
 
 extern int	GetArgCount	();

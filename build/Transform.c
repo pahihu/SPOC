@@ -2,6 +2,7 @@
 # include "yyTransform.w"
 # include "System.h"
 # include <stdio.h>
+# include <string.h>
 # include "Tree.h"
 
 # define yyInline

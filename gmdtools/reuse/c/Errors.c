@@ -13,6 +13,9 @@
 
 static char rcsid [] = "$Id: Errors.c,v 1.1 1992/08/13 12:29:12 grosch rel $";
 
+# include <stdlib.h>
+# include <string.h>
+
 # include "Errors.h"
 
 # ifdef __cplusplus
@@ -45,7 +48,7 @@ typedef struct {
    union {
       int	vInteger;
       short	vShort;
-      long	vLong;
+      int32_t	vLong;
       float	vReal;
       bool	vBoolean;
       char	vCharacter;
@@ -167,7 +170,7 @@ static void WriteInfo
    switch (InfoClass) {
    case xxInteger	: (void) fprintf (Out, "%d", * (int *) Info); break;
    case xxShort		: i =  * (short *) Info; (void) fprintf (Out, "%d", i); break;
-   case xxLong		: (void) fprintf (Out, "%ld", * (long *) Info); break;
+   case xxLong		: (void) fprintf (Out, "%ld", * (int32_t *) Info); break;
    case xxReal		: (void) fprintf (Out, "%e", * (float *) Info); break;
    case xxBoolean	: (void) fprintf (Out, "%c", * (bool *) Info ? 'T' : 'F'); break;
    case xxCharacter	: (void) fprintf (Out, "%c", * Info); break;
@@ -248,12 +251,12 @@ bool IsErrorCode; int ErrorCode, ErrorClass; tPosition Position; int InfoClass; 
       switch (With->InfoClass) {
       case xxInteger	: With->Info.vInteger	= * (int	*) Info; break;
       case xxShort	: With->Info.vShort	= * (short	*) Info; break;
-      case xxLong	: With->Info.vLong	= * (long	*) Info; break;
+      case xxLong	: With->Info.vLong	= * (int32_t	*) Info; break;
       case xxReal	: With->Info.vReal	= * (float	*) Info; break;
       case xxBoolean	: With->Info.vBoolean	= * (bool	*) Info; break;
       case xxCharacter	: With->Info.vCharacter	= * (char	*) Info; break;
       case xxString	: With->Info.vString	= PutString (Info, strlen (Info)); break;
-      case xxSet	: With->Info.vSet = (tSet *) Alloc ((unsigned long) sizeof (tSet));
+      case xxSet	: With->Info.vSet = (tSet *) Alloc ((uint32_t) sizeof (tSet));
         		  MakeSet (With->Info.vSet, Size ((tSet *) Info));
         		  Assign (With->Info.vSet, (tSet *) Info); break;
       case xxIdent	: With->Info.vIdent	= * (tIdent	*) Info; break;

@@ -29,16 +29,16 @@
 # define ARGS(parameters)	()
 # endif
 
-extern void MakeArray    ARGS((char * * ArrayPtr, unsigned long * ElmtCount, unsigned long ElmtSize));
+extern void MakeArray    ARGS((char * * ArrayPtr, uint32_t * ElmtCount, uint32_t ElmtSize));
 			/* 'ArrayPtr' is set to the start address of a	*/
 			/* memory space to hold an array of 'ElmtCount' */
 			/* elements each of size 'ElmtSize' bytes.	*/
 
-extern void ExtendArray  ARGS((char * * ArrayPtr, unsigned long * ElmtCount, unsigned long ElmtSize));
+extern void ExtendArray  ARGS((char * * ArrayPtr, uint32_t * ElmtCount, uint32_t ElmtSize));
 			/* The memory space for the array is increased	*/
 			/* by doubling the number of elements.		*/
 
-extern void ReleaseArray ARGS((char * * ArrayPtr, unsigned long * ElmtCount, unsigned long ElmtSize));
+extern void ReleaseArray ARGS((char * * ArrayPtr, uint32_t * ElmtCount, uint32_t ElmtSize));
 			/* The memory space for the array is released.	*/
 
 # endif

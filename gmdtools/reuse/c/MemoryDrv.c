@@ -33,11 +33,11 @@ static char rcsid [] = "$Id: MemoryDrv.c,v 1.6 1992/05/05 13:19:05 grosch rel $"
 # include <stdio.h>
 
 static	char		* p1, * p2, * p3, * p4;
-static	unsigned long	i;
-static	unsigned long	small, best, notbest, large;
+static	uint32_t	i;
+static	uint32_t	small, best, notbest, large;
 
 char * AllocPrint (n)
-   unsigned long	n;
+   uint32_t	n;
    {
       char *	a = Alloc (n);
 

@@ -65,10 +65,10 @@ void MakeSet
    cardinal	MaxSize	;
 # endif
    {
-      unsigned long	ElmtCount	;
+      uint32_t	ElmtCount	;
 
       ElmtCount = (MaxSize + BitsPerBitset - (MaxSize & MaskBitsPerBitset)) >> LdBitsPerBitset;
-      MakeArray ((char * *) & Set->BitsetPtr, & ElmtCount, (unsigned long) BytesPerBitset);
+      MakeArray ((char * *) & Set->BitsetPtr, & ElmtCount, (uint32_t) BytesPerBitset);
       Set->MaxElmt = MaxSize;
       Set->LastBitset = ElmtCount - 1;
       AssignEmpty (Set);
@@ -77,10 +77,10 @@ void MakeSet
 void ReleaseSet (Set)
    tSet *	Set;
    {
-      unsigned long	ElmtCount	;
+      uint32_t	ElmtCount	;
 
       ElmtCount = Set->LastBitset + 1;
-      ReleaseArray ((char * *) & Set->BitsetPtr, & ElmtCount, (unsigned long) BytesPerBitset);
+      ReleaseArray ((char * *) & Set->BitsetPtr, & ElmtCount, (uint32_t) BytesPerBitset);
    }
 
 void Union (Set1, Set2)
@@ -152,7 +152,7 @@ void Complement (Set)
       register BITSET *	s1	= rSet->BitsetPtr;
 
       while (i --) {* s1 = ~ * s1; s1 ++;}
-      * s1 = ((long) ONE >> (rSet->MaxElmt & MaskBitsPerBitset)) & ~ * s1;
+      * s1 = ((int32_t) ONE >> (rSet->MaxElmt & MaskBitsPerBitset)) & ~ * s1;
       if (rSet->Card != NoCard) rSet->Card = (short) rSet->MaxElmt + 1 - rSet->Card;
       rSet->FirstElmt = 0;
       rSet->LastElmt  = rSet->MaxElmt;
@@ -170,7 +170,7 @@ void Include
       register tSet *	rSet	= Set;
       register cardinal	rElmt	= Elmt;
 
-      rSet->BitsetPtr [rElmt >> LdBitsPerBitset] |= (unsigned long) ONE >> (rElmt & MaskBitsPerBitset);
+      rSet->BitsetPtr [rElmt >> LdBitsPerBitset] |= (uint32_t) ONE >> (rElmt & MaskBitsPerBitset);
       rSet->Card      = NoCard;
       rSet->FirstElmt = Min (rSet->FirstElmt, rElmt);
       rSet->LastElmt  = Max (rSet->LastElmt , rElmt);
@@ -188,7 +188,7 @@ void Exclude
       register tSet *	rSet	= Set;
       register cardinal	rElmt	= Elmt;
 
-      rSet->BitsetPtr [rElmt >> LdBitsPerBitset] &= ~ ((unsigned long) ONE >> (rElmt & MaskBitsPerBitset));
+      rSet->BitsetPtr [rElmt >> LdBitsPerBitset] &= ~ ((uint32_t) ONE >> (rElmt & MaskBitsPerBitset));
       rSet->Card = NoCard;
       if (rElmt == rSet->FirstElmt && rElmt < rSet->MaxElmt) rSet->FirstElmt ++;
       if (rElmt == rSet->LastElmt && rElmt > 0) rSet->LastElmt --;
@@ -441,5 +441,5 @@ void WriteSet (File, Set)
 void InitSets ()
    {
       if (sizeof (BITSET) != BytesPerBitset)
-	 (void) fprintf (stderr, "Sets: sizeof (BITSET) = %d\n", sizeof (BITSET));
+	 (void) fprintf (stderr, "Sets: sizeof (BITSET) = %lu\n", sizeof (BITSET));
    }

@@ -39,12 +39,12 @@
 # define Max(a,b) ((a >= b) ? a : b)
 			/* Returns the maximum of 'a' and 'b'.		*/
 
-extern cardinal		Log2 ARGS((register unsigned long x));
+extern cardinal		Log2 ARGS((register uint32_t x));
 			/* Returns the logarithm to the base 2 of 'x'.	*/
-extern unsigned long	Exp2 ARGS((register cardinal x));
+extern uint32_t	Exp2 ARGS((register cardinal x));
 			/* Returns 2 to the power of 'x'.		*/
 
 extern short	yyMaxAlign;
-extern long	yyAlignMasks [];
+extern int32_t	yyAlignMasks [];
 
 # endif

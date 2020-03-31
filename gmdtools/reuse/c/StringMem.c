@@ -62,7 +62,7 @@ struct lBlock {
 };
 
 static	tBlock *	BlockList	= NULL;
-static	unsigned long	MemorySpaceLeft	= 0;
+static	uint32_t	MemorySpaceLeft	= 0;
 static	tStringRef	MemoryFreePtr;
 
 tStringRef PutString
@@ -75,7 +75,7 @@ tStringRef PutString
 # endif
    {
       register char *	stringReg;
-      register long	NeededSpace	= (length + 3) & 0xfffffffe;
+      register int32_t	NeededSpace	= (length + 3) & 0xfffffffe;
       register tStringRef StartPtr;
 
       if (MemorySpaceLeft < NeededSpace) {
@@ -83,7 +83,7 @@ tStringRef PutString
 	 if (BlockList != NULL) {
 
 	    char * FreePtr = (char *) (((long) MemoryFreePtr + yyMaxAlign - 1) & yyAlignMasks [yyMaxAlign]);
-	    unsigned long Rest = MemorySpaceLeft - (FreePtr - (char *) MemoryFreePtr);
+	    uint32_t Rest = MemorySpaceLeft - (FreePtr - (char *) MemoryFreePtr);
 	    if (Rest >= yyMaxAlign) Free (Rest, FreePtr);
 	    BlockList->Last = MemoryFreePtr;
 	 }
@@ -138,10 +138,10 @@ void WriteString (file, stringref)
 	 StGetString (stringref, string);
 	 (void) fputs (string, file);
       } else {
-	 char * string = (char *) Alloc ((unsigned long) ++ length);
+	 char * string = (char *) Alloc ((uint32_t) ++ length);
 	 StGetString (stringref, string);
 	 (void) fputs ((char *) string, file);
-	 Free ((unsigned long) length, (char *) string);
+	 Free ((uint32_t) length, (char *) string);
       }
    }
 
@@ -157,7 +157,7 @@ void WriteStringMemory ()
 
 	 while (StringPtr < BlockPtr->Last) {
 	    int length = LengthSt (StringPtr) + 2;
-	    (void) printf ("%8x ", StringPtr);
+	    (void) printf ("%p ", StringPtr);
 	    WriteString (stdout, StringPtr);
 	    (void) fputc ('\n', stdout);
 	    if (length & 1) length ++;
@@ -165,7 +165,7 @@ void WriteStringMemory ()
 	 }
 	 BlockPtr = BlockPtr->Next;
       }
-      (void) printf ("\n%5ld Bytes\n", Size);
+      (void) printf ("\n%5d Bytes\n", Size);
    }
 
 void InitStringMemory ()

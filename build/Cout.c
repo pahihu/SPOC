@@ -47,8 +47,8 @@ extern bool cgdebug;
 
 static bool NL = false;
 static tPosition POS= {0,0,NULL};
-static indent = 0;
-static line_count = 0;
+static int indent = 0;
+static int line_count = 0;
 static char *outname;                  /* base name of generated file */
 static tTree CurProc;
 extern FILE* yyf;
@@ -113,7 +113,7 @@ static void ShowPosition()
 /*}}}*/
 /*{{{  output control*/
 #undef yyWrite
-static output_text=true;
+static int output_text=true;
 /*{{{  static void DoNL()*/
 static void DoNL()
 {
@@ -346,7 +346,7 @@ typedef struct
   bool newSpec;
 } tSpec;
 
-static unsigned long SpecExtent = 0;
+static uint32_t SpecExtent = 0;
 static tSpec *SpecTable = NULL;
 static int SpecLevel;
 
@@ -423,7 +423,7 @@ void CloseSpec()
 }
 /*}}}*/
 /*{{{  Blocks*/
-static unsigned long BlockExtent = 0;
+static uint32_t BlockExtent = 0;
 static bool *BlockTable = NULL;
 static int BlockLevel;
 
@@ -711,7 +711,7 @@ static void DoSubstitutions(FILE *inf,tTree Root)
     Message("Error reading template file",xxFatal,NoPosition);
 }
 
-DoGenCodeOnly(tTree Root)
+void DoGenCodeOnly(tTree Root)
 {
   tTree T;
 

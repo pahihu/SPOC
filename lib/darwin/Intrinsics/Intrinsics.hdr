@@ -50,6 +50,6 @@ INT F_BITREVWORD_Intrinsics(INT x_256);
 void P_ASSERT_Intrinsics (BOOL test_261);
 void P_CAUSEERROR_Intrinsics (void);
 typedef struct SF_P_RESCHEDULE_Intrinsics tSF_P_RESCHEDULE_Intrinsics;
-#define WS_P_RESCHEDULE_Intrinsics (116)
+#define WS_P_RESCHEDULE_Intrinsics (200)
 void P_RESCHEDULE_Intrinsics (tSF_P_RESCHEDULE_Intrinsics *FP);
 #endif

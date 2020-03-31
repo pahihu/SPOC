@@ -27,25 +27,25 @@ static char rcsid [] = "$Id: DynArrDrv.c,v 1.4 1992/05/05 13:19:05 grosch rel $"
 # include "Memory.h"
 # include <stdio.h>
 
-static	long		i;
+static	int32_t		i;
 static	cardinal	j;
-static	long *		p;
-static	unsigned long	s;
+static	int32_t *		p;
+static	uint32_t	s;
 
 main ()
 {
    InitMemory ();
    s = 10;
 
-   MakeArray ((char * *) & p, & s, (long) sizeof (long));
+   MakeArray ((char * *) & p, & s, (int32_t) sizeof (int32_t));
    for (i = 0; i < s; i ++) {
       p [i] = i;
    }
 
    for (j = 1; j <= 13; j ++) {
-      ExtendArray ((char * *) & p, & s, (long) sizeof (long));
+      ExtendArray ((char * *) & p, & s, (int32_t) sizeof (int32_t));
 
-      if (p == (long *) NULL) {
+      if (p == (int32_t *) NULL) {
 	 (void) printf ("Extend Error\n");
       }
 

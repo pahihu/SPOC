@@ -51,7 +51,7 @@
 # define IsNotEqual(Set1, Set2)	    (! IsEqual (Set1, Set2))
 # define IsStrictSubset(Set1, Set2) (IsSubset (Set1, Set2) && IsNotEqual (Set1, Set2))
 
-typedef long	BITSET		;
+typedef int32_t	BITSET		;
 
 typedef struct	{
       cardinal	MaxElmt		;

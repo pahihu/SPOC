@@ -57,6 +57,8 @@ static FILE * IntToFile (File)
 # include <fcntl.h>
 # include <sys/types.h>
 # include <sys/stat.h>
+# include <unistd.h>
+# include <stdlib.h>
 
 bool IsCharacterSpecial (File) tFile File;
 {
@@ -130,11 +132,11 @@ void Close (File)
 
 /* # include <malloc.h> */
 
-char * SysAlloc (ByteCount) long ByteCount; { return (char *) malloc ((unsigned) ByteCount); }
+char * SysAlloc (ByteCount) int32_t ByteCount; { return (char *) malloc ((unsigned) ByteCount); }
 
 # include <sys/times.h>
 
-long Time ()
+int32_t Time ()
 {
    struct tms	buffer;
    (void) times (& buffer);

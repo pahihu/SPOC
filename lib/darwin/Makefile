@@ -32,6 +32,7 @@ top: deflibs spoclibs
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
+MAKE=gnumake
 deflibs: Intrinsics.lib convert.lib snglmath.lib dblmath.lib mathvals.inc spserver.lib
 
 #{{{  Intrinsics
@@ -41,7 +42,7 @@ Intrinsics.lib: Intrinsics/Intrinsics.lib
 	cp Intrinsics/Intrinsics.a libIntrinsics.a
 
 Intrinsics/Intrinsics.lib: Intrinsics/Intrinsics.mkf
-	cd Intrinsics ; make -f Intrinsics.mkf
+	cd Intrinsics ; $(MAKE) -f Intrinsics.mkf
 
 Intrinsics/Intrinsics.mkf: Intrinsics/Intrinsics.occ
 	cd Intrinsics ; $(OMAKEF) Intrinsics.lib -i -d -mn $(OCCOPTIONS) 
@@ -56,7 +57,7 @@ convert.lib: convert/convert.lib
 	cp convert/convert.a libconvert.a
 
 convert/convert.lib: convert/convert.mkf Intrinsics.lib
-	cd convert ; make -f convert.mkf
+	cd convert ; $(MAKE) -f convert.mkf
 
 convert/convert.mkf: convert/convert.occ
 	cd convert ; $(OMAKEF) convert.lib -d -mn $(OCCOPTIONS) 
@@ -71,7 +72,7 @@ snglmath.lib: snglmath/snglmath.lib
 	cp snglmath/snglmath.a libsnglmath.a
 
 snglmath/snglmath.lib: snglmath/snglmath.mkf Intrinsics.lib
-	cd snglmath ; make -f snglmath.mkf
+	cd snglmath ; $(MAKE) -f snglmath.mkf
 
 snglmath/snglmath.mkf: snglmath/snglmath.occ
 	cd snglmath ; $(OMAKEF) snglmath.lib -d -mn $(OCCOPTIONS) 
@@ -86,7 +87,7 @@ dblmath.lib: dblmath/dblmath.lib
 	cp dblmath/dblmath.a libdblmath.a
 
 dblmath/dblmath.lib: dblmath/dblmath.mkf Intrinsics.lib
-	cd dblmath ; make -f dblmath.mkf
+	cd dblmath ; $(MAKE) -f dblmath.mkf
 
 dblmath/dblmath.mkf: dblmath/dblmath.occ
 	cd dblmath ; $(OMAKEF) dblmath.lib -d -mn $(OCCOPTIONS) 
@@ -104,12 +105,12 @@ spserver.lib: spserver/spserver.lib $(ISERVER)
 	ranlib libspserver.a
 
 spserver/spserver.lib: spserver/spserver.mkf
-	cd spserver ; make -f spserver.mkf
+	cd spserver ; $(MAKE) -f spserver.mkf
 
 spserver/spserver.mkf: spserver/spserver.occ hostio.inc
 	cd spserver ; $(OMAKEF) spserver.lib -d $(OCCOPTIONS)
 
-CC=gcc -m32
+CC=gcc -std=c89 -Wno-return-type
 CFLAGS=-DSUN -DBOARD_ID=B011 -D$(ARCH) -c
 
 spserver/iserver.o: $(LIBSRC)/spserver/iserver.c $(LIBSRC)/spserver/inmos.h $(LIBSRC)/spserver/iserver.h
@@ -136,6 +137,7 @@ spserver/filec.o: $(LIBSRC)/spserver/filec.c $(LIBSRC)/spserver/inmos.h $(LIBSRC
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
+MAKE=gnumake
 spoclibs: hostio.lib string.lib
 
 #{{{  hostio
@@ -146,7 +148,7 @@ hostio.lib: hostio/hostio.lib
 	cp hostio/hostio.a libhostio.a
 
 hostio/hostio.lib: hostio/hostio.mkf convert.lib Intrinsics.lib
-	cd hostio ; make -f hostio.mkf
+	cd hostio ; $(MAKE) -f hostio.mkf
 
 hostio/hostio.mkf: hostio/hostio.occ
 	cd hostio ; $(OMAKEF) hostio.lib  -d -mn $(OCCOPTIONS)
@@ -161,7 +163,7 @@ string.lib: string/string.lib
 	cp string/string.a libstring.a
 
 string/string.lib: string/string.mkf convert.lib Intrinsics.lib
-	cd string ; make -f string.mkf
+	cd string ; $(MAKE) -f string.mkf
 
 string/string.mkf: string/string.occ
 	cd string ; $(OMAKEF) string.lib -d -mn $(OCCOPTIONS)

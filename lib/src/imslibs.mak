@@ -11,6 +11,7 @@
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
+MAKE=gnumake
 imslibs: hostio.lib streamio.lib string.lib
 
 #{{{  hostio
@@ -21,25 +22,25 @@ hostio.lib: hostio/hostio.lib
 	cp hostio/hostio.a libhostio.a
 
 hostio/hostio.lib: hostio/hostio.mkf convert.lib Intrinsics.lib
-	cd hostio ; make -f hostio.mkf
+	cd hostio ; $(MAKE) -f hostio.mkf
 
 hostio/hostio.mkf: hostio/hostio.occ hostio/solib.lib
 	cd hostio ; $(OMAKEF) hostio.lib $(OCCOPTIONS)
 
 hostio/solib.lib: hostio/solib.mkf
-	cd hostio ; make -f solib.mkf
+	cd hostio ; $(MAKE) -f solib.mkf
 
 hostio/solib.mkf: hostio/hostio.occ hostio/splib.lib
 	cd hostio ; $(OMAKEF) solib.lib $(OCCOPTIONS) 
 
 hostio/splib.lib: hostio/splib.mkf
-	cd hostio ; make -f splib.mkf
+	cd hostio ; $(MAKE) -f splib.mkf
 
 hostio/splib.mkf: hostio/hostio.occ hostio/readwrit.lib
 	cd hostio ; $(OMAKEF) splib.lib $(OCCOPTIONS) 
 
 hostio/readwrit.lib: hostio/readwrit.mkf
-	cd hostio ; make -f readwrit.mkf
+	cd hostio ; $(MAKE) -f readwrit.mkf
 
 hostio/readwrit.mkf: hostio/hostio.occ
 	cd hostio ; $(OMAKEF) readwrit.lib $(OCCOPTIONS) 
@@ -54,7 +55,7 @@ streamio.lib: streamio/streamio.lib
 	cp streamio/streamio.a libstreamio.a
 
 streamio/streamio.lib: streamio/streamio.mkf hostio.lib convert.lib Intrinsics.lib
-	cd streamio ; make -f streamio.mkf
+	cd streamio ; $(MAKE) -f streamio.mkf
 
 streamio/streamio.mkf: streamio/streamio.occ streamio.inc
 	cd streamio ; $(OMAKEF) streamio.lib -s $(OCCOPTIONS)
@@ -69,7 +70,7 @@ string.lib: string/string.lib
 	cp string/string.a libstring.a
 
 string/string.lib: string/string.mkf convert.lib Intrinsics.lib
-	cd string ; make -f string.mkf
+	cd string ; $(MAKE) -f string.mkf
 
 string/string.mkf: string/string.occ
 	cd string ; $(OMAKEF) string.lib -d $(OCCOPTIONS) 

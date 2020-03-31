@@ -745,12 +745,12 @@ int main(int argc, char **argv)
   
   if (MAINFP==NULL)
   {
-    fprintf(stderr,"Error - Malloc of %s bytes for occam workspace failed\n",sizeof(tSF_<<MAIN>>));
+    fprintf(stderr,"Error - Malloc of %lu bytes for occam workspace failed\n",sizeof(tSF_<<MAIN>>));
     exit(-1);
   }
   if (mem_size>0 && mem==NULL)
   {
-    fprintf(stderr,"Error - Malloc of %s INTs for occam memory array failed\n",mem_size);
+    fprintf(stderr,"Error - Malloc of %d INTs for occam memory array failed\n",mem_size);
     exit(-1);
   }
   (void) clock();

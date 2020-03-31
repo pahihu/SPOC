@@ -2,6 +2,7 @@
 # include "yyParUsage.w"
 # include "System.h"
 # include <stdio.h>
+# include <stdlib.h>
 # include "Tree.h"
 
 # define yyInline
@@ -32,7 +33,7 @@
 
   typedef tSet *pSet;
 
-  static UEMode = xxError; 
+  static int UEMode = xxError; 
   #define IsLVExprList(EL) EL->ExprList.LV
   #define IsSimpEl(S) S->Element.SE
   #define IsParAssigned(E) E->ElementalExpr.PAR

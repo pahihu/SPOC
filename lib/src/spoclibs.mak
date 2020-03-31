@@ -11,6 +11,7 @@
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
+MAKE=gnumake
 spoclibs: hostio.lib string.lib
 
 #{{{  hostio
@@ -21,7 +22,7 @@ hostio.lib: hostio/hostio.lib
 	cp hostio/hostio.a libhostio.a
 
 hostio/hostio.lib: hostio/hostio.mkf convert.lib Intrinsics.lib
-	cd hostio ; make -f hostio.mkf
+	cd hostio ; $(MAKE) -f hostio.mkf
 
 hostio/hostio.mkf: hostio/hostio.occ
 	cd hostio ; $(OMAKEF) hostio.lib  -d -mn $(OCCOPTIONS)
@@ -36,7 +37,7 @@ string.lib: string/string.lib
 	cp string/string.a libstring.a
 
 string/string.lib: string/string.mkf convert.lib Intrinsics.lib
-	cd string ; make -f string.mkf
+	cd string ; $(MAKE) -f string.mkf
 
 string/string.mkf: string/string.occ
 	cd string ; $(OMAKEF) string.lib -d -mn $(OCCOPTIONS)

@@ -19,7 +19,7 @@ static char rcsid [] = "$Id: ErrorsDrv.c,v 1.0 1992/08/07 14:31:41 grosch rel $"
 
 int	Integer		= 1;
 short	Short		= 2;
-long	Long		= 3;
+int32_t	Long		= 3;
 float	Real		= 4.0;
 bool	Boolean		= false;
 char	Character	= 'a';

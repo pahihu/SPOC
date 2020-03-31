@@ -187,7 +187,7 @@ static struct
   int mode;
 } file[MAXINCS];
 
-static inclevel = 0;
+static int inclevel = 0;
 
 /*{{{  int LUIncludeLevel(f) */
 int LUIncludeLevel(f)

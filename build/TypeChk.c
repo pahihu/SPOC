@@ -2,6 +2,8 @@
 # include "yyTypeChk.w"
 # include "System.h"
 # include <stdio.h>
+# include <string.h>
+# include "Cout.h"
 # include "Tree.h"
 
 # define yyInline
@@ -5913,7 +5915,7 @@ tConstArray ConstArrayFromString
 /* line 1211 "/home/hpcc/SPOC/spoc.1.3/source/gmd/typechk.trafo" */
    CA = NewConstArray (LengthSt (yyP213));
 /* line 1212 "/home/hpcc/SPOC/spoc.1.3/source/gmd/typechk.trafo" */
- StGetString(yyP213,CA); 
+ StGetString(yyP213,(char *)CA); 
   }
    return CA;
 

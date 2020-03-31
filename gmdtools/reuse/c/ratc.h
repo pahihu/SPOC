@@ -38,4 +38,6 @@
 
 typedef char * tString;
 
+# include <stdint.h>
+
 # endif

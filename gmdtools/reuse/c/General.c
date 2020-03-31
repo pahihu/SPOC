@@ -30,9 +30,9 @@ static char rcsid [] = "$Id: General.c,v 1.5 1992/05/05 13:19:05 grosch rel $";
 
 cardinal Log2		/* Returns the logarithm to the base 2 of 'x'.	*/
 # ifdef __STDC__
-   (register unsigned long x)
+   (register uint32_t x)
 # else
-   (x) register unsigned long x;
+   (x) register uint32_t x;
 # endif
    {
       register cardinal y = 0;
@@ -45,14 +45,14 @@ cardinal Log2		/* Returns the logarithm to the base 2 of 'x'.	*/
       return y;
    }
 
-unsigned long Exp2	/* Returns 2 to the power of 'x'.		*/
+uint32_t Exp2	/* Returns 2 to the power of 'x'.		*/
 # ifdef __STDC__
    (register cardinal x)
 # else
    (x) register cardinal x;
 # endif
    {
-      register long y = 1;
+      register int32_t y = 1;
 
       if (x >= 16) { x -= 16; y <<= 16; }
       if (x >=  8) { x -=  8; y <<=  8; }
@@ -64,6 +64,6 @@ unsigned long Exp2	/* Returns 2 to the power of 'x'.		*/
 
 static struct { char yychar; double yydouble; } yyForAlign;
 short	yyMaxAlign	= sizeof (yyForAlign) - sizeof (double);
-long	yyAlignMasks []	= { 0,
+int32_t	yyAlignMasks []	= { 0,
    0xffffffff, 0xfffffffe, 0xffffffff, 0xfffffffc,
    0xffffffff, 0xffffffff, 0xffffffff, 0xfffffff8 };

@@ -40,4 +40,5 @@ extern bool TestLinExprInRange(pLinExpr E, pLinExpr FROME, pLinExpr FORE);
 extern bool TestLinExprsDistinctWrtRep(pLinExpr LE1, pLinExpr LE2, tSymbol R);
 extern bool TestLinExprsDistinctWrtRepOverRange(pLinExpr LE1, pLinExpr LE2, tSymbol R, pLinExpr J, pLinExpr K);
 extern bool TestLinExprUsesSym(pLinExpr LE, tSymbol R);
+extern void WriteLinExpr(FILE *F, pLinExpr LE);
 #endif

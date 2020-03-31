@@ -32,18 +32,18 @@
 # define ARGS(parameters)	()
 # endif
 
-extern unsigned long MemoryUsed	;
+extern uint32_t MemoryUsed	;
 			/* Holds the total amount of memory managed by	*/
 			/* this module.					*/
 
 extern void	InitMemory	();
 			/* The memory module is initialized.		*/
 
-extern char *	Alloc		ARGS((register unsigned long ByteCount));
+extern char *	Alloc		ARGS((register uint32_t ByteCount));
 			/* Returns a pointer to dynamically allocated	*/
 			/* space of size 'ByteCount' bytes.		*/
 
-extern void	Free		ARGS((unsigned long ByteCount, char * a));
+extern void	Free		ARGS((uint32_t ByteCount, char * a));
 			/* The dynamically allocated space starting at	*/
 			/* address 'a' of size 'ByteCount' bytes is	*/
 			/* released.					*/

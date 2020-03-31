@@ -2,6 +2,7 @@
 # include "yyOccamOut.w"
 # include "System.h"
 # include <stdio.h>
+# include <string.h>
 # include "Tree.h"
 
 # define yyInline
@@ -35,8 +36,8 @@
   #include <TypeChk.h>
 
   /*{{{  statics*/
-  static indent = 0;
-  static col = 0;   
+  static int indent = 0;
+  static int col = 0;   
   static bool NL = false;  
   extern FILE* yyf;
   static void yyAbort(char *);
@@ -1309,7 +1310,7 @@ static void CodeDecl
 /* line 339 "/home/hpcc/SPOC/spoc.1.3/source/gmd/occam.trafo" */
    WriteSym (yyP3);
 /* line 339 "/home/hpcc/SPOC/spoc.1.3/source/gmd/occam.trafo" */
-   WriteFields (yyP3);
+   WriteFields (/*yyP3*/);
 /* line 339 "/home/hpcc/SPOC/spoc.1.3/source/gmd/occam.trafo" */
    yyWrite (":");
 /* line 339 "/home/hpcc/SPOC/spoc.1.3/source/gmd/occam.trafo" */

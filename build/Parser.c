@@ -21,7 +21,7 @@ extern "C" {
 #    include "DynArray.h"
 #    include "Sets.h"
 #    ifndef BCOPY
-#       include <memory.h>
+#       include <strings.h>
 #    endif
 # endif
 
@@ -72,7 +72,7 @@ extern "C" {
 
   static tSymbol S;
   static tTree T;
-  static last_type_was_chan = false;
+  static int last_type_was_chan = false;
   static tValue Vtrue,Vfalse;
 
 
@@ -11397,22 +11397,22 @@ static	unsigned short	yyFinalToProd	[yyLastReadNontermState - yyFirstReadTermSta
 739,
 };
 
-static	void	yyErrorRecovery		ARGS((yySymbolRange * yyTerminal, yyStateRange * yyStateStack, unsigned long yyStackSize, short yyStackPtr));
-static	void	yyComputeContinuation	ARGS((yyStateRange * yyStack, unsigned long yyStackSize, short yyStackPtr, tSet * yyContinueSet));
-static	bool	yyIsContinuation	ARGS((yySymbolRange yyTerminal, yyStateRange * yyStateStack, unsigned long yyStackSize, short yyStackPtr));
-static	void	yyComputeRestartPoints	ARGS((yyStateRange * yyStateStack, unsigned long yyStackSize, short yyStackPtr, tSet * yyRestartSet));
+static	void	yyErrorRecovery		ARGS((yySymbolRange * yyTerminal, yyStateRange * yyStateStack, uint32_t yyStackSize, short yyStackPtr));
+static	void	yyComputeContinuation	ARGS((yyStateRange * yyStack, uint32_t yyStackSize, short yyStackPtr, tSet * yyContinueSet));
+static	bool	yyIsContinuation	ARGS((yySymbolRange yyTerminal, yyStateRange * yyStateStack, uint32_t yyStackSize, short yyStackPtr));
+static	void	yyComputeRestartPoints	ARGS((yyStateRange * yyStateStack, uint32_t yyStackSize, short yyStackPtr, tSet * yyRestartSet));
 static	yyStateRange yyNext		ARGS((yyStateRange yyState, yySymbolRange yySymbol));
 static	void	BeginParser		();
 
 int Parser ()
    {
       register	yyStateRange	yyState		;
-      register	long		yyTerminal	;
+      register	int32_t		yyTerminal	;
       register	yyStateRange *	yyStateStackPtr ;
       register	tParsAttribute *yyAttrStackPtr	;
       register	bool		yyIsRepairing	;
-		unsigned long	yyStateStackSize= yyInitStackSize;
-		unsigned long	yyAttrStackSize = yyInitStackSize;
+		uint32_t	yyStateStackSize= yyInitStackSize;
+		uint32_t	yyAttrStackSize = yyInitStackSize;
 		yyStateRange *	yyStateStack	;
 		tParsAttribute* yyAttributeStack;
 		tParsAttribute	yySynAttribute	;	/* synthesized attribute */
@@ -11428,7 +11428,7 @@ int Parser ()
 #ifdef YYDEBUG
 if (yydebug)  /* SMW */
 {
-           printf("Reading a token: Next token is %d (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
+           printf("Reading a token: Next token is %ld (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
 }
 #endif
 
@@ -11515,7 +11515,7 @@ if (yydebug)  /* SMW */
 #ifdef YYDEBUG
 if (yydebug)        /* SMW */
 {
-  printf("Reading a token: Next token is %d (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
+  printf("Reading a token: Next token is %ld (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
 }
 #endif
 
@@ -11523,14 +11523,14 @@ if (yydebug)        /* SMW */
 	    }
 
 	    for (;;) {
-	       /* register long yyNonterminal;		/* left-hand side */
+	       /* register int32_t yyNonterminal;		/* left-hand side */
 # define yyNonterminal yyState
 
 switch (yyState) {
 case 732: /* _0000_ : __START__ _EndOfFile .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 0), ");  printf("__START__ _EndOfFile  -> _0000_ \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 0), ");  printf("__START__ _EndOfFile  -> _0000_ \n");
 }
 #endif
   ReleaseArray ((char * *) & yyStateStack, & yyStateStackSize, sizeof (yyStateRange));
@@ -11541,7 +11541,7 @@ case 733:
 case 726: /* __START__ : program .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 156), ");  printf("program  -> __START__ \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 156), ");  printf("program  -> __START__ \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 114; {
@@ -11553,7 +11553,7 @@ case 734:
 case 727: /* program : proc .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 160), ");  printf("proc  -> program \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 160), ");  printf("proc  -> program \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 113; {
@@ -11564,7 +11564,7 @@ if (yydebug) {
 case 735: /* program : outerspec sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 161), ");  printf("outerspec sep  -> program \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 161), ");  printf("outerspec sep  -> program \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 113; {
@@ -11576,7 +11576,7 @@ case 736:
 case 728: /* program : outerspec sep program .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 163), ");  printf("outerspec sep program  -> program \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 163), ");  printf("outerspec sep program  -> program \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 113; {
@@ -11588,7 +11588,7 @@ case 737:
 case 729: /* outerspec : definition .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 166), ");  printf("definition  -> outerspec \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 166), ");  printf("definition  -> outerspec \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 116; {
@@ -11600,7 +11600,7 @@ case 738:
 case 730: /* outerspec : abbreviation .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 169), ");  printf("abbreviation  -> outerspec \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 169), ");  printf("abbreviation  -> outerspec \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 116; {
@@ -11612,7 +11612,7 @@ case 739:
 case 731: /* outerspec : declaration .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 171), ");  printf("declaration  -> outerspec \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 171), ");  printf("declaration  -> outerspec \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 116; {
@@ -11624,7 +11624,7 @@ case 740:
 case 606: /* outerspec : HASHH CSTR .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 172), ");  printf("HASHH CSTR  -> outerspec \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 172), ");  printf("HASHH CSTR  -> outerspec \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 116; {
@@ -11636,7 +11636,7 @@ case 741:
 case 529: /* case : CASE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 175), ");  printf("CASE  -> case \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 175), ");  printf("CASE  -> case \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 121; {
@@ -11647,7 +11647,7 @@ if (yydebug) {
 case 742: /* proc : action sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 178), ");  printf("action sep  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 178), ");  printf("action sep  -> proc \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 115; {
@@ -11658,7 +11658,7 @@ if (yydebug) {
 case 743: /* proc : SKIP sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 180), ");  printf("SKIP sep  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 180), ");  printf("SKIP sep  -> proc \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 115; {
@@ -11669,7 +11669,7 @@ if (yydebug) {
 case 744: /* proc : STOP sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 182), ");  printf("STOP sep  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 182), ");  printf("STOP sep  -> proc \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 115; {
@@ -11681,7 +11681,7 @@ case 745:
 case 588: /* proc : case selector sep BEGIN selectlist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 184), ");  printf("case selector sep BEGIN selectlist END  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 184), ");  printf("case selector sep BEGIN selectlist END  -> proc \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 115; {
@@ -11693,7 +11693,7 @@ case 746:
 case 650: /* proc : construct .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 186), ");  printf("construct  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 186), ");  printf("construct  -> proc \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 115; {
@@ -11705,7 +11705,7 @@ case 747:
 case 651: /* proc : instance .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 188), ");  printf("instance  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 188), ");  printf("instance  -> proc \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 115; {
@@ -11717,7 +11717,7 @@ case 748:
 case 652: /* proc : caseinput .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 190), ");  printf("caseinput  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 190), ");  printf("caseinput  -> proc \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 115; {
@@ -11729,7 +11729,7 @@ case 749:
 case 653: /* proc : casesingle .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 192), ");  printf("casesingle  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 192), ");  printf("casesingle  -> proc \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 115; {
@@ -11740,7 +11740,7 @@ if (yydebug) {
 case 750: /* proc : HASHC CSTR sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 194), ");  printf("HASHC CSTR sep  -> proc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 194), ");  printf("HASHC CSTR sep  -> proc \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 115; {
@@ -11752,7 +11752,7 @@ case 751:
 case 646: /* process : proc .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 197), ");  printf("proc  -> process \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 197), ");  printf("proc  -> process \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 129; {
@@ -11764,7 +11764,7 @@ case 752:
 case 654: /* process : specification sep process .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 199), ");  printf("specification sep process  -> process \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 199), ");  printf("specification sep process  -> process \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 129; {
@@ -11776,7 +11776,7 @@ case 753:
 case 655: /* action : assignment .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 202), ");  printf("assignment  -> action \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 202), ");  printf("assignment  -> action \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 122; {
@@ -11788,7 +11788,7 @@ case 754:
 case 656: /* action : input .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 204), ");  printf("input  -> action \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 204), ");  printf("input  -> action \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 122; {
@@ -11800,7 +11800,7 @@ case 755:
 case 657: /* action : after .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 206), ");  printf("after  -> action \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 206), ");  printf("after  -> action \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 122; {
@@ -11812,7 +11812,7 @@ case 756:
 case 658: /* action : output .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 208), ");  printf("output  -> action \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 208), ");  printf("output  -> action \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 122; {
@@ -11824,7 +11824,7 @@ case 757:
 case 715: /* selectlist : select .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 211), ");  printf("select  -> selectlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 211), ");  printf("select  -> selectlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 124; {
@@ -11836,7 +11836,7 @@ case 758:
 case 714: /* selectlist : selectlist select .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 213), ");  printf("selectlist select  -> selectlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 213), ");  printf("selectlist select  -> selectlist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 124; {
@@ -11848,7 +11848,7 @@ case 759:
 case 589: /* select : explist sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 216), ");  printf("explist sep BEGIN process END  -> select \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 216), ");  printf("explist sep BEGIN process END  -> select \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 135; {
@@ -11860,7 +11860,7 @@ case 760:
 case 554: /* select : ELSE sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 218), ");  printf("ELSE sep BEGIN process END  -> select \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 218), ");  printf("ELSE sep BEGIN process END  -> select \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 135; {
@@ -11872,7 +11872,7 @@ case 761:
 case 713: /* select : specification sep select .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 220), ");  printf("specification sep select  -> select \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 220), ");  printf("specification sep select  -> select \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 135; {
@@ -11884,7 +11884,7 @@ case 762:
 case 716: /* selector : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 223), ");  printf("expr  -> selector \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 223), ");  printf("expr  -> selector \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 123; {
@@ -11896,7 +11896,7 @@ case 763:
 case 659: /* construct : sequence .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 226), ");  printf("sequence  -> construct \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 226), ");  printf("sequence  -> construct \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 125; {
@@ -11908,7 +11908,7 @@ case 764:
 case 660: /* construct : parallel .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 228), ");  printf("parallel  -> construct \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 228), ");  printf("parallel  -> construct \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 125; {
@@ -11920,7 +11920,7 @@ case 765:
 case 661: /* construct : conditional .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 230), ");  printf("conditional  -> construct \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 230), ");  printf("conditional  -> construct \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 125; {
@@ -11932,7 +11932,7 @@ case 766:
 case 662: /* construct : alternation .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 232), ");  printf("alternation  -> construct \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 232), ");  printf("alternation  -> construct \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 125; {
@@ -11944,7 +11944,7 @@ case 767:
 case 663: /* construct : loop .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 234), ");  printf("loop  -> construct \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 234), ");  printf("loop  -> construct \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 125; {
@@ -11955,7 +11955,7 @@ if (yydebug) {
 case 768: /* instance : ID LP explist RP sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 237), ");  printf("ID LP explist RP sep  -> instance \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 237), ");  printf("ID LP explist RP sep  -> instance \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 126; {
@@ -11966,7 +11966,7 @@ if (yydebug) {
 case 769: /* instance : ID LP RP sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 239), ");  printf("ID LP RP sep  -> instance \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 239), ");  printf("ID LP RP sep  -> instance \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 126; {
@@ -11978,7 +11978,7 @@ case 770:
 case 535: /* seq : SEQ .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 242), ");  printf("SEQ  -> seq \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 242), ");  printf("SEQ  -> seq \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 143; {
@@ -11990,7 +11990,7 @@ case 771:
 case 555: /* sequence : seq sep BEGIN proclist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 245), ");  printf("seq sep BEGIN proclist END  -> sequence \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 245), ");  printf("seq sep BEGIN proclist END  -> sequence \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 138; {
@@ -12001,7 +12001,7 @@ if (yydebug) {
 case 772: /* sequence : seq sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 247), ");  printf("seq sep  -> sequence \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 247), ");  printf("seq sep  -> sequence \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 138; {
@@ -12013,7 +12013,7 @@ case 773:
 case 587: /* sequence : seq replic sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 249), ");  printf("seq replic sep BEGIN process END  -> sequence \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 249), ");  printf("seq replic sep BEGIN process END  -> sequence \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 138; {
@@ -12025,7 +12025,7 @@ case 774:
 case 664: /* proclist : process .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 252), ");  printf("process  -> proclist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 252), ");  printf("process  -> proclist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 144; {
@@ -12037,7 +12037,7 @@ case 775:
 case 665: /* proclist : proclist process .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 254), ");  printf("proclist process  -> proclist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 254), ");  printf("proclist process  -> proclist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 144; {
@@ -12049,7 +12049,7 @@ case 776:
 case 531: /* par : PAR .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 257), ");  printf("PAR  -> par \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 257), ");  printf("PAR  -> par \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 146; {
@@ -12061,7 +12061,7 @@ case 777:
 case 666: /* parallel : partype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 260), ");  printf("partype  -> parallel \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 260), ");  printf("partype  -> parallel \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 139; {
@@ -12073,7 +12073,7 @@ case 778:
 case 720: /* parallel : PRI partype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 262), ");  printf("PRI partype  -> parallel \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 262), ");  printf("PRI partype  -> parallel \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 139; {
@@ -12085,7 +12085,7 @@ case 779:
 case 667: /* parallel : placedpar .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 264), ");  printf("placedpar  -> parallel \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 264), ");  printf("placedpar  -> parallel \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 139; {
@@ -12097,7 +12097,7 @@ case 780:
 case 592: /* partype : par sep BEGIN parproclist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 267), ");  printf("par sep BEGIN parproclist END  -> partype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 267), ");  printf("par sep BEGIN parproclist END  -> partype \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 147; {
@@ -12108,7 +12108,7 @@ if (yydebug) {
 case 781: /* partype : par sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 269), ");  printf("par sep  -> partype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 269), ");  printf("par sep  -> partype \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 147; {
@@ -12120,7 +12120,7 @@ case 782:
 case 556: /* partype : parrep sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 271), ");  printf("parrep sep BEGIN process END  -> partype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 271), ");  printf("parrep sep BEGIN process END  -> partype \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 147; {
@@ -12132,7 +12132,7 @@ case 783:
 case 717: /* parproclist : process .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 274), ");  printf("process  -> parproclist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 274), ");  printf("process  -> parproclist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 149; {
@@ -12144,7 +12144,7 @@ case 784:
 case 718: /* parproclist : parproclist process .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 276), ");  printf("parproclist process  -> parproclist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 276), ");  printf("parproclist process  -> parproclist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 149; {
@@ -12156,7 +12156,7 @@ case 785:
 case 719: /* parrep : par replic .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 279), ");  printf("par replic  -> parrep \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 279), ");  printf("par replic  -> parrep \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 150; {
@@ -12168,7 +12168,7 @@ case 786:
 case 594: /* placedpar : PLACED par sep BEGIN placedlist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 282), ");  printf("PLACED par sep BEGIN placedlist END  -> placedpar \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 282), ");  printf("PLACED par sep BEGIN placedlist END  -> placedpar \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 148; {
@@ -12179,7 +12179,7 @@ if (yydebug) {
 case 787: /* placedpar : PLACED par sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 284), ");  printf("PLACED par sep  -> placedpar \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 284), ");  printf("PLACED par sep  -> placedpar \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 148; {
@@ -12191,7 +12191,7 @@ case 788:
 case 595: /* placedpar : PLACED parrep sep BEGIN placedpar END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 286), ");  printf("PLACED parrep sep BEGIN placedpar END  -> placedpar \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 286), ");  printf("PLACED parrep sep BEGIN placedpar END  -> placedpar \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 148; {
@@ -12203,7 +12203,7 @@ case 789:
 case 593: /* placedpar : PROCESSOR expr ID sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 288), ");  printf("PROCESSOR expr ID sep BEGIN process END  -> placedpar \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 288), ");  printf("PROCESSOR expr ID sep BEGIN process END  -> placedpar \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 148; {
@@ -12215,7 +12215,7 @@ case 790:
 case 721: /* placedlist : placedpar .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 291), ");  printf("placedpar  -> placedlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 291), ");  printf("placedpar  -> placedlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 151; {
@@ -12227,7 +12227,7 @@ case 791:
 case 722: /* placedlist : placedlist placedpar .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 293), ");  printf("placedlist placedpar  -> placedlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 293), ");  printf("placedlist placedpar  -> placedlist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 151; {
@@ -12239,7 +12239,7 @@ case 792:
 case 530: /* if : IF .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 296), ");  printf("IF  -> if \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 296), ");  printf("IF  -> if \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 152; {
@@ -12251,7 +12251,7 @@ case 793:
 case 585: /* conditional : if sep BEGIN choicelist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 299), ");  printf("if sep BEGIN choicelist END  -> conditional \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 299), ");  printf("if sep BEGIN choicelist END  -> conditional \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 140; {
@@ -12263,7 +12263,7 @@ case 794:
 case 586: /* conditional : if replic sep BEGIN choice END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 301), ");  printf("if replic sep BEGIN choice END  -> conditional \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 301), ");  printf("if replic sep BEGIN choice END  -> conditional \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 140; {
@@ -12274,7 +12274,7 @@ if (yydebug) {
 case 795: /* conditional : if sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 303), ");  printf("if sep  -> conditional \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 303), ");  printf("if sep  -> conditional \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 140; {
@@ -12286,7 +12286,7 @@ case 796:
 case 528: /* alt : ALT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 306), ");  printf("ALT  -> alt \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 306), ");  printf("ALT  -> alt \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 155; {
@@ -12298,7 +12298,7 @@ case 797:
 case 673: /* alternation : alttype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 309), ");  printf("alttype  -> alternation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 309), ");  printf("alttype  -> alternation \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 141; {
@@ -12310,7 +12310,7 @@ case 798:
 case 671: /* alternation : PRI alttype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 311), ");  printf("PRI alttype  -> alternation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 311), ");  printf("PRI alttype  -> alternation \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 141; {
@@ -12322,7 +12322,7 @@ case 799:
 case 583: /* alttype : alt sep BEGIN alternativelist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 314), ");  printf("alt sep BEGIN alternativelist END  -> alttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 314), ");  printf("alt sep BEGIN alternativelist END  -> alttype \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 156; {
@@ -12334,7 +12334,7 @@ case 800:
 case 584: /* alttype : alt replic sep BEGIN alternative END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 316), ");  printf("alt replic sep BEGIN alternative END  -> alttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 316), ");  printf("alt replic sep BEGIN alternative END  -> alttype \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 156; {
@@ -12345,7 +12345,7 @@ if (yydebug) {
 case 801: /* alttype : alt sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 318), ");  printf("alt sep  -> alttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 318), ");  printf("alt sep  -> alttype \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 156; {
@@ -12357,7 +12357,7 @@ case 802:
 case 591: /* loop : WHILE expr sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 321), ");  printf("WHILE expr sep BEGIN process END  -> loop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 321), ");  printf("WHILE expr sep BEGIN process END  -> loop \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 142; {
@@ -12369,7 +12369,7 @@ case 803:
 case 520: /* sep : EOL .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 324), ");  printf("EOL  -> sep \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 324), ");  printf("EOL  -> sep \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 117; {
@@ -12381,7 +12381,7 @@ case 804:
 case 521: /* sep : sep EOL .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 326), ");  printf("sep EOL  -> sep \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 326), ");  printf("sep EOL  -> sep \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 117; {
@@ -12393,7 +12393,7 @@ case 805:
 case 712: /* choicelist : choice .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 329), ");  printf("choice  -> choicelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 329), ");  printf("choice  -> choicelist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 153; {
@@ -12405,7 +12405,7 @@ case 806:
 case 711: /* choicelist : choicelist choice .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 331), ");  printf("choicelist choice  -> choicelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 331), ");  printf("choicelist choice  -> choicelist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 153; {
@@ -12417,7 +12417,7 @@ case 807:
 case 710: /* alternativelist : alternative .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 334), ");  printf("alternative  -> alternativelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 334), ");  printf("alternative  -> alternativelist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 157; {
@@ -12429,7 +12429,7 @@ case 808:
 case 709: /* alternativelist : alternativelist alternative .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 336), ");  printf("alternativelist alternative  -> alternativelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 336), ");  printf("alternativelist alternative  -> alternativelist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 157; {
@@ -12441,7 +12441,7 @@ case 809:
 case 639: /* replic : ID EQ base FOR count .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 339), ");  printf("ID EQ base FOR count  -> replic \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 339), ");  printf("ID EQ base FOR count  -> replic \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 145; {
@@ -12453,7 +12453,7 @@ case 810:
 case 637: /* base : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 342), ");  printf("expr  -> base \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 342), ");  printf("expr  -> base \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 159; {
@@ -12465,7 +12465,7 @@ case 811:
 case 638: /* count : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 345), ");  printf("expr  -> count \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 345), ");  printf("expr  -> count \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 160; {
@@ -12477,7 +12477,7 @@ case 812:
 case 557: /* choice : boolean sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 348), ");  printf("boolean sep BEGIN process END  -> choice \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 348), ");  printf("boolean sep BEGIN process END  -> choice \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 154; {
@@ -12489,7 +12489,7 @@ case 813:
 case 669: /* choice : conditional .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 350), ");  printf("conditional  -> choice \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 350), ");  printf("conditional  -> choice \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 154; {
@@ -12501,7 +12501,7 @@ case 814:
 case 670: /* choice : specification sep choice .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 352), ");  printf("specification sep choice  -> choice \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 352), ");  printf("specification sep choice  -> choice \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 154; {
@@ -12513,7 +12513,7 @@ case 815:
 case 705: /* alternative : guard .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 355), ");  printf("guard  -> alternative \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 355), ");  printf("guard  -> alternative \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 158; {
@@ -12525,7 +12525,7 @@ case 816:
 case 702: /* alternative : specification sep alternative .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 357), ");  printf("specification sep alternative  -> alternative \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 357), ");  printf("specification sep alternative  -> alternative \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 158; {
@@ -12537,7 +12537,7 @@ case 817:
 case 701: /* alternative : alternation .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 359), ");  printf("alternation  -> alternative \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 359), ");  printf("alternation  -> alternative \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 158; {
@@ -12549,7 +12549,7 @@ case 818:
 case 580: /* guard : boolean AMPERSAND input sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 362), ");  printf("boolean AMPERSAND input sep BEGIN process END  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 362), ");  printf("boolean AMPERSAND input sep BEGIN process END  -> guard \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 162; {
@@ -12561,7 +12561,7 @@ case 819:
 case 558: /* guard : input sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 364), ");  printf("input sep BEGIN process END  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 364), ");  printf("input sep BEGIN process END  -> guard \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 162; {
@@ -12573,7 +12573,7 @@ case 820:
 case 581: /* guard : boolean AMPERSAND after sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 366), ");  printf("boolean AMPERSAND after sep BEGIN process END  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 366), ");  printf("boolean AMPERSAND after sep BEGIN process END  -> guard \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 162; {
@@ -12585,7 +12585,7 @@ case 821:
 case 578: /* guard : after sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 368), ");  printf("after sep BEGIN process END  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 368), ");  printf("after sep BEGIN process END  -> guard \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 162; {
@@ -12597,7 +12597,7 @@ case 822:
 case 579: /* guard : boolean AMPERSAND SKIP sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 370), ");  printf("boolean AMPERSAND SKIP sep BEGIN process END  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 370), ");  printf("boolean AMPERSAND SKIP sep BEGIN process END  -> guard \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 162; {
@@ -12609,7 +12609,7 @@ case 823:
 case 703: /* guard : boolean AMPERSAND caseguard .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 372), ");  printf("boolean AMPERSAND caseguard  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 372), ");  printf("boolean AMPERSAND caseguard  -> guard \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 162; {
@@ -12621,7 +12621,7 @@ case 824:
 case 706: /* guard : caseguard .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 374), ");  printf("caseguard  -> guard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 374), ");  printf("caseguard  -> guard \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 162; {
@@ -12633,7 +12633,7 @@ case 825:
 case 672: /* caseguard : caseinput .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 377), ");  printf("caseinput  -> caseguard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 377), ");  printf("caseinput  -> caseguard \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 163; {
@@ -12645,7 +12645,7 @@ case 826:
 case 704: /* caseguard : casesingleproc .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 379), ");  printf("casesingleproc  -> caseguard \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 379), ");  printf("casesingleproc  -> caseguard \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 163; {
@@ -12657,7 +12657,7 @@ case 827:
 case 649: /* specification : declaration .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 382), ");  printf("declaration  -> specification \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 382), ");  printf("declaration  -> specification \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 130; {
@@ -12669,7 +12669,7 @@ case 828:
 case 648: /* specification : abbreviation .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 384), ");  printf("abbreviation  -> specification \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 384), ");  printf("abbreviation  -> specification \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 130; {
@@ -12681,7 +12681,7 @@ case 829:
 case 647: /* specification : definition .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 386), ");  printf("definition  -> specification \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 386), ");  printf("definition  -> specification \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 130; {
@@ -12693,7 +12693,7 @@ case 830:
 case 561: /* declaration : primtype namelist COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 389), ");  printf("primtype namelist COLON  -> declaration \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 389), ");  printf("primtype namelist COLON  -> declaration \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 120; {
@@ -12705,7 +12705,7 @@ case 831:
 case 565: /* declaration : arrtype namelist COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 391), ");  printf("arrtype namelist COLON  -> declaration \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 391), ");  printf("arrtype namelist COLON  -> declaration \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 120; {
@@ -12717,7 +12717,7 @@ case 832:
 case 551: /* declaration : PLACE ID AT expr COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 394), ");  printf("PLACE ID AT expr COLON  -> declaration \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 394), ");  printf("PLACE ID AT expr COLON  -> declaration \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 120; {
@@ -12729,7 +12729,7 @@ case 833:
 case 550: /* declaration : PLACE ID AT WORKSPACE expr COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 396), ");  printf("PLACE ID AT WORKSPACE expr COLON  -> declaration \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 396), ");  printf("PLACE ID AT WORKSPACE expr COLON  -> declaration \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 120; {
@@ -12741,7 +12741,7 @@ case 834:
 case 553: /* declaration : PLACE ID IN VECSPACE COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 398), ");  printf("PLACE ID IN VECSPACE COLON  -> declaration \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 398), ");  printf("PLACE ID IN VECSPACE COLON  -> declaration \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 120; {
@@ -12753,7 +12753,7 @@ case 835:
 case 552: /* declaration : PLACE ID IN WORKSPACE COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 400), ");  printf("PLACE ID IN WORKSPACE COLON  -> declaration \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 400), ");  printf("PLACE ID IN WORKSPACE COLON  -> declaration \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 120; {
@@ -12765,7 +12765,7 @@ case 836:
 case 522: /* name : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 402), ");  printf("ID  -> name \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 402), ");  printf("ID  -> name \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 168; {
@@ -12777,7 +12777,7 @@ case 837:
 case 523: /* name : TYPEID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 404), ");  printf("TYPEID  -> name \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 404), ");  printf("TYPEID  -> name \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 168; {
@@ -12789,7 +12789,7 @@ case 838:
 case 675: /* namelist : name .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 407), ");  printf("name  -> namelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 407), ");  printf("name  -> namelist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 166; {
@@ -12801,7 +12801,7 @@ case 839:
 case 674: /* namelist : namelist DECLCOMMA name .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 409), ");  printf("namelist DECLCOMMA name  -> namelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 409), ");  printf("namelist DECLCOMMA name  -> namelist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 166; {
@@ -12813,7 +12813,7 @@ case 840:
 case 488: /* is : IS .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 412), ");  printf("IS  -> is \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 412), ");  printf("IS  -> is \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 169; {
@@ -12825,7 +12825,7 @@ case 841:
 case 537: /* retypes : RETYPES .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 415), ");  printf("RETYPES  -> retypes \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 415), ");  printf("RETYPES  -> retypes \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 170; {
@@ -12837,7 +12837,7 @@ case 842:
 case 538: /* reshapes : RESHAPES .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 418), ");  printf("RESHAPES  -> reshapes \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 418), ");  printf("RESHAPES  -> reshapes \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 171; {
@@ -12849,7 +12849,7 @@ case 843:
 case 559: /* abbreviation : primtype ID is elemental COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 421), ");  printf("primtype ID is elemental COLON  -> abbreviation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 421), ");  printf("primtype ID is elemental COLON  -> abbreviation \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 119; {
@@ -12861,7 +12861,7 @@ case 844:
 case 562: /* abbreviation : arrtype ID is elemental COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 423), ");  printf("arrtype ID is elemental COLON  -> abbreviation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 423), ");  printf("arrtype ID is elemental COLON  -> abbreviation \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 119; {
@@ -12873,7 +12873,7 @@ case 845:
 case 517: /* abbreviation : ID is elemental COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 425), ");  printf("ID is elemental COLON  -> abbreviation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 425), ");  printf("ID is elemental COLON  -> abbreviation \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 119; {
@@ -12885,7 +12885,7 @@ case 846:
 case 560: /* abbreviation : primtype ID retypes elemental COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 427), ");  printf("primtype ID retypes elemental COLON  -> abbreviation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 427), ");  printf("primtype ID retypes elemental COLON  -> abbreviation \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 119; {
@@ -12897,7 +12897,7 @@ case 847:
 case 563: /* abbreviation : arrtype ID retypes elemental COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 429), ");  printf("arrtype ID retypes elemental COLON  -> abbreviation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 429), ");  printf("arrtype ID retypes elemental COLON  -> abbreviation \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 119; {
@@ -12909,7 +12909,7 @@ case 848:
 case 564: /* abbreviation : arrtype ID reshapes elemental COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 431), ");  printf("arrtype ID reshapes elemental COLON  -> abbreviation \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 431), ");  printf("arrtype ID reshapes elemental COLON  -> abbreviation \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 119; {
@@ -12921,7 +12921,7 @@ case 849:
 case 526: /* id : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 434), ");  printf("ID  -> id \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 434), ");  printf("ID  -> id \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 173; {
@@ -12932,7 +12932,7 @@ if (yydebug) {
 case 850: /* pushtok : .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 437), ");  printf(" -> pushtok \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 437), ");  printf(" -> pushtok \n");
 }
 #endif
   yyStateStackPtr -=0; yyAttrStackPtr -=0; yyNonterminal = 174; {
@@ -12944,7 +12944,7 @@ case 851:
 case 532: /* definition : PROTOCOL ID IS seqproto COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 440), ");  printf("PROTOCOL ID IS seqproto COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 440), ");  printf("PROTOCOL ID IS seqproto COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 118; {
@@ -12956,7 +12956,7 @@ case 852:
 case 534: /* definition : PROTOCOL ID sep BEGIN CASE sep END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 442), ");  printf("PROTOCOL ID sep BEGIN CASE sep END COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 442), ");  printf("PROTOCOL ID sep BEGIN CASE sep END COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 118; {
@@ -12968,7 +12968,7 @@ case 853:
 case 533: /* definition : PROTOCOL ID sep BEGIN CASE sep BEGIN tagprotolist sep END END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 444), ");  printf("PROTOCOL ID sep BEGIN CASE sep BEGIN tagprotolist sep END END COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 444), ");  printf("PROTOCOL ID sep BEGIN CASE sep BEGIN tagprotolist sep END END COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=12; yyAttrStackPtr -=12; yyNonterminal = 118; {
@@ -12980,7 +12980,7 @@ case 854:
 case 596: /* definition : PROC id LP O_fparmlist RP sep BEGIN process END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 446), ");  printf("PROC id LP O_fparmlist RP sep BEGIN process END COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 446), ");  printf("PROC id LP O_fparmlist RP sep BEGIN process END COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=10; yyAttrStackPtr -=10; yyNonterminal = 118; {
@@ -12992,7 +12992,7 @@ case 855:
 case 575: /* definition : typelist FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 448), ");  printf("typelist FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 448), ");  printf("typelist FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=12; yyAttrStackPtr -=12; yyNonterminal = 118; {
@@ -13004,7 +13004,7 @@ case 856:
 case 566: /* definition : typelist FUNCTION id LP O_fparmlist RP IS isexplist COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 450), ");  printf("typelist FUNCTION id LP O_fparmlist RP IS isexplist COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 450), ");  printf("typelist FUNCTION id LP O_fparmlist RP IS isexplist COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=9; yyAttrStackPtr -=9; yyNonterminal = 118; {
@@ -13016,7 +13016,7 @@ case 857:
 case 590: /* definition : INLINE PROC id LP O_fparmlist RP sep BEGIN process END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 452), ");  printf("INLINE PROC id LP O_fparmlist RP sep BEGIN process END COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 452), ");  printf("INLINE PROC id LP O_fparmlist RP sep BEGIN process END COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=11; yyAttrStackPtr -=11; yyNonterminal = 118; {
@@ -13028,7 +13028,7 @@ case 858:
 case 577: /* definition : typelist INLINE FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 454), ");  printf("typelist INLINE FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 454), ");  printf("typelist INLINE FUNCTION id LP O_fparmlist RP sep BEGIN pushtok valof END COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=13; yyAttrStackPtr -=13; yyNonterminal = 118; {
@@ -13040,7 +13040,7 @@ case 859:
 case 576: /* definition : typelist INLINE FUNCTION id LP O_fparmlist RP IS isexplist COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 456), ");  printf("typelist INLINE FUNCTION id LP O_fparmlist RP IS isexplist COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 456), ");  printf("typelist INLINE FUNCTION id LP O_fparmlist RP IS isexplist COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=10; yyAttrStackPtr -=10; yyNonterminal = 118; {
@@ -13052,7 +13052,7 @@ case 860:
 case 536: /* definition : VAL ID is expr COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 458), ");  printf("VAL ID is expr COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 458), ");  printf("VAL ID is expr COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 118; {
@@ -13064,7 +13064,7 @@ case 861:
 case 539: /* definition : VAL spectype ID is expr COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 460), ");  printf("VAL spectype ID is expr COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 460), ");  printf("VAL spectype ID is expr COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 118; {
@@ -13076,7 +13076,7 @@ case 862:
 case 540: /* definition : VAL spectype ID retypes expr COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 462), ");  printf("VAL spectype ID retypes expr COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 462), ");  printf("VAL spectype ID retypes expr COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 118; {
@@ -13088,7 +13088,7 @@ case 863:
 case 541: /* definition : VAL spectype ID reshapes expr COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 464), ");  printf("VAL spectype ID reshapes expr COLON  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 464), ");  printf("VAL spectype ID reshapes expr COLON  -> definition \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 118; {
@@ -13100,7 +13100,7 @@ case 864:
 case 679: /* definition : prototype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 466), ");  printf("prototype  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 466), ");  printf("prototype  -> definition \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 118; {
@@ -13112,7 +13112,7 @@ case 865:
 case 680: /* definition : userdatatype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 468), ");  printf("userdatatype  -> definition \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 468), ");  printf("userdatatype  -> definition \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 118; {
@@ -13124,7 +13124,7 @@ case 866:
 case 547: /* userdatatype : DATA TYPE typeid IS datatype COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 472), ");  printf("DATA TYPE typeid IS datatype COLON  -> userdatatype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 472), ");  printf("DATA TYPE typeid IS datatype COLON  -> userdatatype \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 183; {
@@ -13142,7 +13142,7 @@ case 867:
 case 549: /* userdatatype : DATA TYPE typeid sep BEGIN structuredtype END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 482), ");  printf("DATA TYPE typeid sep BEGIN structuredtype END COLON  -> userdatatype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 482), ");  printf("DATA TYPE typeid sep BEGIN structuredtype END COLON  -> userdatatype \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 183; {
@@ -13160,7 +13160,7 @@ case 868:
 case 548: /* userdatatype : DATA TYPE typeid sep BEGIN PACKED structuredtype END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 492), ");  printf("DATA TYPE typeid sep BEGIN PACKED structuredtype END COLON  -> userdatatype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 492), ");  printf("DATA TYPE typeid sep BEGIN PACKED structuredtype END COLON  -> userdatatype \n");
 }
 #endif
   yyStateStackPtr -=9; yyAttrStackPtr -=9; yyNonterminal = 183; {
@@ -13178,7 +13178,7 @@ case 869:
 case 525: /* userdatatype : CHAN TYPE typeid sep BEGIN structuredtype END COLON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 502), ");  printf("CHAN TYPE typeid sep BEGIN structuredtype END COLON  -> userdatatype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 502), ");  printf("CHAN TYPE typeid sep BEGIN structuredtype END COLON  -> userdatatype \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 183; {
@@ -13196,7 +13196,7 @@ case 870:
 case 524: /* structuredtype : RECORD sep BEGIN fieldlist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 512), ");  printf("RECORD sep BEGIN fieldlist END  -> structuredtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 512), ");  printf("RECORD sep BEGIN fieldlist END  -> structuredtype \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 186; {
@@ -13207,7 +13207,7 @@ if (yydebug) {
 case 871: /* structuredtype : RECORD sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 514), ");  printf("RECORD sep  -> structuredtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 514), ");  printf("RECORD sep  -> structuredtype \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 186; {
@@ -13218,7 +13218,7 @@ if (yydebug) {
 case 872: /* fieldlist : fielddecl COLON sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 517), ");  printf("fielddecl COLON sep  -> fieldlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 517), ");  printf("fielddecl COLON sep  -> fieldlist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 187; {
@@ -13229,7 +13229,7 @@ if (yydebug) {
 case 873: /* fieldlist : fieldlist fielddecl COLON sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 519), ");  printf("fieldlist fielddecl COLON sep  -> fieldlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 519), ");  printf("fieldlist fielddecl COLON sep  -> fieldlist \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 187; {
@@ -13241,7 +13241,7 @@ case 874:
 case 634: /* fielddecl : spectype name .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 523), ");  printf("spectype name  -> fielddecl \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 523), ");  printf("spectype name  -> fielddecl \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 188; {
@@ -13257,7 +13257,7 @@ case 875:
 case 635: /* fielddecl : fielddecl DECLCOMMA name .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 531), ");  printf("fielddecl DECLCOMMA name  -> fielddecl \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 531), ");  printf("fielddecl DECLCOMMA name  -> fielddecl \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 188; {
@@ -13274,7 +13274,7 @@ case 876:
 case 518: /* typeid : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 540), ");  printf("ID  -> typeid \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 540), ");  printf("ID  -> typeid \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 184; {
@@ -13286,7 +13286,7 @@ case 877:
 case 519: /* typeid : TYPEID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 542), ");  printf("TYPEID  -> typeid \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 542), ");  printf("TYPEID  -> typeid \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 184; {
@@ -13298,7 +13298,7 @@ case 878:
 case 542: /* LANG : EXTERN_OCCAM .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 545), ");  printf("EXTERN_OCCAM  -> LANG \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 545), ");  printf("EXTERN_OCCAM  -> LANG \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 189; {
@@ -13310,7 +13310,7 @@ case 879:
 case 544: /* LANG : EXTERN_F90 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 547), ");  printf("EXTERN_F90  -> LANG \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 547), ");  printf("EXTERN_F90  -> LANG \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 189; {
@@ -13322,7 +13322,7 @@ case 880:
 case 545: /* LANG : EXTERN_F77 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 549), ");  printf("EXTERN_F77  -> LANG \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 549), ");  printf("EXTERN_F77  -> LANG \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 189; {
@@ -13334,7 +13334,7 @@ case 881:
 case 546: /* LANG : EXTERN_C .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 551), ");  printf("EXTERN_C  -> LANG \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 551), ");  printf("EXTERN_C  -> LANG \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 189; {
@@ -13346,7 +13346,7 @@ case 882:
 case 543: /* LANG : EXTERN_ATOMIC .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 553), ");  printf("EXTERN_ATOMIC  -> LANG \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 553), ");  printf("EXTERN_ATOMIC  -> LANG \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 189; {
@@ -13358,7 +13358,7 @@ case 883:
 case 681: /* prototype : LANG PROC id LP O_fparmlist RP COLON proto_id .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 556), ");  printf("LANG PROC id LP O_fparmlist RP COLON proto_id  -> prototype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 556), ");  printf("LANG PROC id LP O_fparmlist RP COLON proto_id  -> prototype \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 182; {
@@ -13370,7 +13370,7 @@ case 884:
 case 690: /* prototype : LANG typelist FUNCTION id LP O_fparmlist RP COLON proto_id .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 558), ");  printf("LANG typelist FUNCTION id LP O_fparmlist RP COLON proto_id  -> prototype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 558), ");  printf("LANG typelist FUNCTION id LP O_fparmlist RP COLON proto_id  -> prototype \n");
 }
 #endif
   yyStateStackPtr -=9; yyAttrStackPtr -=9; yyNonterminal = 182; {
@@ -13381,7 +13381,7 @@ if (yydebug) {
 case 885: /* proto_id : .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 561), ");  printf(" -> proto_id \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 561), ");  printf(" -> proto_id \n");
 }
 #endif
   yyStateStackPtr -=0; yyAttrStackPtr -=0; yyNonterminal = 190; {
@@ -13393,7 +13393,7 @@ case 886:
 case 568: /* proto_id : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 563), ");  printf("ID  -> proto_id \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 563), ");  printf("ID  -> proto_id \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 190; {
@@ -13405,7 +13405,7 @@ case 887:
 case 616: /* simpleproto : spectype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 566), ");  printf("spectype  -> simpleproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 566), ");  printf("spectype  -> simpleproto \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 191; {
@@ -13417,7 +13417,7 @@ case 888:
 case 618: /* simpleproto : numerictype DCOLON LSB RSB spectype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 568), ");  printf("numerictype DCOLON LSB RSB spectype  -> simpleproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 568), ");  printf("numerictype DCOLON LSB RSB spectype  -> simpleproto \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 191; {
@@ -13429,7 +13429,7 @@ case 889:
 case 467: /* simpleproto : ANY .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 570), ");  printf("ANY  -> simpleproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 570), ");  printf("ANY  -> simpleproto \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 191; {
@@ -13441,7 +13441,7 @@ case 890:
 case 641: /* seqproto : simpleproto .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 573), ");  printf("simpleproto  -> seqproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 573), ");  printf("simpleproto  -> seqproto \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 175; {
@@ -13453,7 +13453,7 @@ case 891:
 case 640: /* seqproto : seqproto SEMICOLON simpleproto .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 575), ");  printf("seqproto SEMICOLON simpleproto  -> seqproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 575), ");  printf("seqproto SEMICOLON simpleproto  -> seqproto \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 175; {
@@ -13465,7 +13465,7 @@ case 892:
 case 643: /* tagprotolist : tagproto .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 578), ");  printf("tagproto  -> tagprotolist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 578), ");  printf("tagproto  -> tagprotolist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 176; {
@@ -13477,7 +13477,7 @@ case 893:
 case 642: /* tagprotolist : tagprotolist sep tagproto .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 580), ");  printf("tagprotolist sep tagproto  -> tagprotolist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 580), ");  printf("tagprotolist sep tagproto  -> tagprotolist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 176; {
@@ -13488,7 +13488,7 @@ if (yydebug) {
 case 894: /* tagproto : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 583), ");  printf("ID  -> tagproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 583), ");  printf("ID  -> tagproto \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 193; {
@@ -13499,7 +13499,7 @@ if (yydebug) {
 case 895: /* tagproto : ID SEMICOLON seqproto .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 585), ");  printf("ID SEMICOLON seqproto  -> tagproto \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 585), ");  printf("ID SEMICOLON seqproto  -> tagproto \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 193; {
@@ -13511,7 +13511,7 @@ case 896:
 case 466: /* protocol : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 588), ");  printf("ID  -> protocol \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 588), ");  printf("ID  -> protocol \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 194; {
@@ -13523,7 +13523,7 @@ case 897:
 case 617: /* protocol : simpleproto .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 590), ");  printf("simpleproto  -> protocol \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 590), ");  printf("simpleproto  -> protocol \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 194; {
@@ -13534,7 +13534,7 @@ if (yydebug) {
 case 898: /* assignment : varlist ASSIGN explist .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 593), ");  printf("varlist ASSIGN explist  -> assignment \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 593), ");  printf("varlist ASSIGN explist  -> assignment \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 131; {
@@ -13545,7 +13545,7 @@ if (yydebug) {
 case 899: /* input : element QUERY ilist .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 596), ");  printf("element QUERY ilist  -> input \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 596), ");  printf("element QUERY ilist  -> input \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 132; {
@@ -13557,7 +13557,7 @@ case 900:
 case 692: /* after : element QUERY AFTER expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 599), ");  printf("element QUERY AFTER expr  -> after \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 599), ");  printf("element QUERY AFTER expr  -> after \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 133; {
@@ -13568,7 +13568,7 @@ if (yydebug) {
 case 901: /* caseinput : element QUERY case sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 602), ");  printf("element QUERY case sep  -> caseinput \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 602), ");  printf("element QUERY case sep  -> caseinput \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 127; {
@@ -13580,7 +13580,7 @@ case 902:
 case 574: /* caseinput : element QUERY case sep BEGIN variantlist END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 604), ");  printf("element QUERY case sep BEGIN variantlist END  -> caseinput \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 604), ");  printf("element QUERY case sep BEGIN variantlist END  -> caseinput \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 127; {
@@ -13591,7 +13591,7 @@ if (yydebug) {
 case 903: /* casesingle : element QUERY case ilist sep .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 607), ");  printf("element QUERY case ilist sep  -> casesingle \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 607), ");  printf("element QUERY case ilist sep  -> casesingle \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 128; {
@@ -13603,7 +13603,7 @@ case 904:
 case 582: /* casesingleproc : element QUERY case ilist sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 610), ");  printf("element QUERY case ilist sep BEGIN process END  -> casesingleproc \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 610), ");  printf("element QUERY case ilist sep BEGIN process END  -> casesingleproc \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 164; {
@@ -13615,7 +13615,7 @@ case 905:
 case 697: /* variantlist : variant .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 613), ");  printf("variant  -> variantlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 613), ");  printf("variant  -> variantlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 198; {
@@ -13627,7 +13627,7 @@ case 906:
 case 696: /* variantlist : variantlist variant .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 615), ");  printf("variantlist variant  -> variantlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 615), ");  printf("variantlist variant  -> variantlist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 198; {
@@ -13639,7 +13639,7 @@ case 907:
 case 573: /* variant : ilist sep BEGIN process END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 618), ");  printf("ilist sep BEGIN process END  -> variant \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 618), ");  printf("ilist sep BEGIN process END  -> variant \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 199; {
@@ -13651,7 +13651,7 @@ case 908:
 case 694: /* variant : specification sep variant .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 620), ");  printf("specification sep variant  -> variant \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 620), ");  printf("specification sep variant  -> variant \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 199; {
@@ -13662,7 +13662,7 @@ if (yydebug) {
 case 909: /* output : element PLING olist .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 623), ");  printf("element PLING olist  -> output \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 623), ");  printf("element PLING olist  -> output \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 134; {
@@ -13674,7 +13674,7 @@ case 910:
 case 700: /* olist : oitem .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 626), ");  printf("oitem  -> olist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 626), ");  printf("oitem  -> olist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 200; {
@@ -13686,7 +13686,7 @@ case 911:
 case 699: /* olist : olist SEMICOLON oitem .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 628), ");  printf("olist SEMICOLON oitem  -> olist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 628), ");  printf("olist SEMICOLON oitem  -> olist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 200; {
@@ -13697,7 +13697,7 @@ if (yydebug) {
 case 912: /* oitem : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 631), ");  printf("expr  -> oitem \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 631), ");  printf("expr  -> oitem \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 201; {
@@ -13709,7 +13709,7 @@ case 913:
 case 698: /* oitem : expr DCOLON expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 633), ");  printf("expr DCOLON expr  -> oitem \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 633), ");  printf("expr DCOLON expr  -> oitem \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 201; {
@@ -13721,7 +13721,7 @@ case 914:
 case 695: /* ilist : iitem .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 636), ");  printf("iitem  -> ilist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 636), ");  printf("iitem  -> ilist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 197; {
@@ -13733,7 +13733,7 @@ case 915:
 case 693: /* ilist : ilist SEMICOLON iitem .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 638), ");  printf("ilist SEMICOLON iitem  -> ilist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 638), ");  printf("ilist SEMICOLON iitem  -> ilist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 197; {
@@ -13744,7 +13744,7 @@ if (yydebug) {
 case 916: /* iitem : element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 641), ");  printf("element  -> iitem \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 641), ");  printf("element  -> iitem \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 202; {
@@ -13755,7 +13755,7 @@ if (yydebug) {
 case 917: /* iitem : element DCOLON element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 643), ");  printf("element DCOLON element  -> iitem \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 643), ");  printf("element DCOLON element  -> iitem \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 202; {
@@ -13767,7 +13767,7 @@ case 918:
 case 627: /* explist : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 646), ");  printf("expr  -> explist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 646), ");  printf("expr  -> explist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 136; {
@@ -13779,7 +13779,7 @@ case 919:
 case 622: /* explist : explist COMMA expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 648), ");  printf("explist COMMA expr  -> explist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 648), ");  printf("explist COMMA expr  -> explist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 136; {
@@ -13791,7 +13791,7 @@ case 920:
 case 676: /* isexplist : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 651), ");  printf("expr  -> isexplist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 651), ");  printf("expr  -> isexplist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 180; {
@@ -13803,7 +13803,7 @@ case 921:
 case 677: /* isexplist : isexplist comma expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 653), ");  printf("isexplist comma expr  -> isexplist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 653), ");  printf("isexplist comma expr  -> isexplist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 180; {
@@ -13814,7 +13814,7 @@ if (yydebug) {
 case 922: /* varlist : element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 656), ");  printf("element  -> varlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 656), ");  printf("element  -> varlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 195; {
@@ -13825,7 +13825,7 @@ if (yydebug) {
 case 923: /* varlist : varlist comma element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 658), ");  printf("varlist comma element  -> varlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 658), ");  printf("varlist comma element  -> varlist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 195; {
@@ -13837,7 +13837,7 @@ case 924:
 case 688: /* typelist : primtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 661), ");  printf("primtype  -> typelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 661), ");  printf("primtype  -> typelist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 178; {
@@ -13849,7 +13849,7 @@ case 925:
 case 689: /* typelist : arrtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 663), ");  printf("arrtype  -> typelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 663), ");  printf("arrtype  -> typelist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 178; {
@@ -13861,7 +13861,7 @@ case 926:
 case 691: /* typelist : typelist comma spectype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 665), ");  printf("typelist comma spectype  -> typelist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 665), ");  printf("typelist comma spectype  -> typelist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 178; {
@@ -13872,7 +13872,7 @@ if (yydebug) {
 case 927: /* O_fparmlist : .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 668), ");  printf(" -> O_fparmlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 668), ");  printf(" -> O_fparmlist \n");
 }
 #endif
   yyStateStackPtr -=0; yyAttrStackPtr -=0; yyNonterminal = 177; {
@@ -13884,7 +13884,7 @@ case 928:
 case 683: /* O_fparmlist : fparmlist .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 670), ");  printf("fparmlist  -> O_fparmlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 670), ");  printf("fparmlist  -> O_fparmlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 177; {
@@ -13895,7 +13895,7 @@ if (yydebug) {
 case 929: /* fparmlist : firstparm .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 673), ");  printf("firstparm  -> fparmlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 673), ");  printf("firstparm  -> fparmlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 204; {
@@ -13907,7 +13907,7 @@ case 930:
 case 686: /* fparmlist : firstparm comma fparmrest .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 675), ");  printf("firstparm comma fparmrest  -> fparmlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 675), ");  printf("firstparm comma fparmrest  -> fparmlist \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 204; {
@@ -13918,7 +13918,7 @@ if (yydebug) {
 case 931: /* fparmrest : fparm .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 678), ");  printf("fparm  -> fparmrest \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 678), ");  printf("fparm  -> fparmrest \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 206; {
@@ -13930,7 +13930,7 @@ case 932:
 case 687: /* fparmrest : fparm comma fparmrest .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 680), ");  printf("fparm comma fparmrest  -> fparmrest \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 680), ");  printf("fparm comma fparmrest  -> fparmrest \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 206; {
@@ -13942,7 +13942,7 @@ case 933:
 case 682: /* firstparm : spectype O_id .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 683), ");  printf("spectype O_id  -> firstparm \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 683), ");  printf("spectype O_id  -> firstparm \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 205; {
@@ -13954,7 +13954,7 @@ case 934:
 case 636: /* firstparm : VAL spectype O_id .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 685), ");  printf("VAL spectype O_id  -> firstparm \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 685), ");  printf("VAL spectype O_id  -> firstparm \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 205; {
@@ -13966,7 +13966,7 @@ case 935:
 case 685: /* fparm : spectype O_id .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 688), ");  printf("spectype O_id  -> fparm \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 688), ");  printf("spectype O_id  -> fparm \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 207; {
@@ -13978,7 +13978,7 @@ case 936:
 case 684: /* fparm : VAL spectype O_id .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 690), ");  printf("VAL spectype O_id  -> fparm \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 690), ");  printf("VAL spectype O_id  -> fparm \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 207; {
@@ -13990,7 +13990,7 @@ case 937:
 case 569: /* fparm : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 692), ");  printf("ID  -> fparm \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 692), ");  printf("ID  -> fparm \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 207; {
@@ -14001,7 +14001,7 @@ if (yydebug) {
 case 938: /* O_id : .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 695), ");  printf(" -> O_id \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 695), ");  printf(" -> O_id \n");
 }
 #endif
   yyStateStackPtr -=0; yyAttrStackPtr -=0; yyNonterminal = 208; {
@@ -14013,7 +14013,7 @@ case 939:
 case 527: /* O_id : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 697), ");  printf("ID  -> O_id \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 697), ");  printf("ID  -> O_id \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 208; {
@@ -14025,7 +14025,7 @@ case 940:
 case 572: /* element : ID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 700), ");  printf("ID  -> element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 700), ");  printf("ID  -> element \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 196; {
@@ -14037,7 +14037,7 @@ case 941:
 case 483: /* element : element LSB subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 702), ");  printf("element LSB subscript RSB  -> element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 702), ");  printf("element LSB subscript RSB  -> element \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 196; {
@@ -14049,7 +14049,7 @@ case 942:
 case 515: /* element : LSB element FROM subscript FOR subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 704), ");  printf("LSB element FROM subscript FOR subscript RSB  -> element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 704), ");  printf("LSB element FROM subscript FOR subscript RSB  -> element \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 196; {
@@ -14061,7 +14061,7 @@ case 943:
 case 513: /* element : LSB element FOR subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 707), ");  printf("LSB element FOR subscript RSB  -> element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 707), ");  printf("LSB element FOR subscript RSB  -> element \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 196; {
@@ -14079,7 +14079,7 @@ case 944:
 case 514: /* element : LSB element FROM subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 717), ");  printf("LSB element FROM subscript RSB  -> element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 717), ");  printf("LSB element FROM subscript RSB  -> element \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 196; {
@@ -14093,7 +14093,7 @@ if (yydebug) {
 case 945: /* elemental : element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 724), ");  printf("element  -> elemental \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 724), ");  printf("element  -> elemental \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 172; {
@@ -14105,7 +14105,7 @@ case 946:
 case 633: /* elemental : table_element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 726), ");  printf("table_element  -> elemental \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 726), ");  printf("table_element  -> elemental \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 172; {
@@ -14117,7 +14117,7 @@ case 947:
 case 623: /* subscript : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 729), ");  printf("expr  -> subscript \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 729), ");  printf("expr  -> subscript \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 209; {
@@ -14129,7 +14129,7 @@ case 948:
 case 489: /* table : LSB expr COMMA explist RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 732), ");  printf("LSB expr COMMA explist RSB  -> table \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 732), ");  printf("LSB expr COMMA explist RSB  -> table \n");
 }
 #endif
   yyStateStackPtr -=5; yyAttrStackPtr -=5; yyNonterminal = 211; {
@@ -14141,7 +14141,7 @@ case 949:
 case 484: /* table : table LSB subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 734), ");  printf("table LSB subscript RSB  -> table \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 734), ");  printf("table LSB subscript RSB  -> table \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 211; {
@@ -14153,7 +14153,7 @@ case 950:
 case 485: /* table : funccall LSB subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 736), ");  printf("funccall LSB subscript RSB  -> table \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 736), ");  printf("funccall LSB subscript RSB  -> table \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 211; {
@@ -14165,7 +14165,7 @@ case 951:
 case 516: /* table : LSB table_element FROM subscript FOR subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 738), ");  printf("LSB table_element FROM subscript FOR subscript RSB  -> table \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 738), ");  printf("LSB table_element FROM subscript FOR subscript RSB  -> table \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 211; {
@@ -14177,7 +14177,7 @@ case 952:
 case 599: /* litrecord : LSB expr COMMA explist RSB LP TYPEID RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 741), ");  printf("LSB expr COMMA explist RSB LP TYPEID RP  -> litrecord \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 741), ");  printf("LSB expr COMMA explist RSB LP TYPEID RP  -> litrecord \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 213; {
@@ -14189,7 +14189,7 @@ case 953:
 case 486: /* litrecord : sbexprlist LP TYPEID RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 743), ");  printf("sbexprlist LP TYPEID RP  -> litrecord \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 743), ");  printf("sbexprlist LP TYPEID RP  -> litrecord \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 213; {
@@ -14200,7 +14200,7 @@ if (yydebug) {
 case 954: /* table_element : table .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 746), ");  printf("table  -> table_element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 746), ");  printf("table  -> table_element \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 210; {
@@ -14211,7 +14211,7 @@ if (yydebug) {
 case 955: /* table_element : sbexprlist .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 748), ");  printf("sbexprlist  -> table_element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 748), ");  printf("sbexprlist  -> table_element \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 210; {
@@ -14222,7 +14222,7 @@ if (yydebug) {
 case 956: /* string_element : STR .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 751), ");  printf("STR  -> string_element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 751), ");  printf("STR  -> string_element \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 215; {
@@ -14234,7 +14234,7 @@ case 957:
 case 603: /* string_element : STR LP datatype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 753), ");  printf("STR LP datatype RP  -> string_element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 753), ");  printf("STR LP datatype RP  -> string_element \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 215; {
@@ -14246,7 +14246,7 @@ case 958:
 case 487: /* string_element : string_element LSB subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 755), ");  printf("string_element LSB subscript RSB  -> string_element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 755), ");  printf("string_element LSB subscript RSB  -> string_element \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 215; {
@@ -14258,7 +14258,7 @@ case 959:
 case 600: /* string_element : LSB string_element FROM subscript FOR subscript RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 757), ");  printf("LSB string_element FROM subscript FOR subscript RSB  -> string_element \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 757), ");  printf("LSB string_element FROM subscript FOR subscript RSB  -> string_element \n");
 }
 #endif
   yyStateStackPtr -=7; yyAttrStackPtr -=7; yyNonterminal = 215; {
@@ -14270,7 +14270,7 @@ case 960:
 case 626: /* expr : monop operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 760), ");  printf("monop operand  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 760), ");  printf("monop operand  -> expr \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 137; {
@@ -14282,7 +14282,7 @@ case 961:
 case 725: /* expr : SIZE operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 762), ");  printf("SIZE operand  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 762), ");  printf("SIZE operand  -> expr \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 137; {
@@ -14294,7 +14294,7 @@ case 962:
 case 724: /* expr : SIZE spectype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 764), ");  printf("SIZE spectype  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 764), ");  printf("SIZE spectype  -> expr \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 137; {
@@ -14306,7 +14306,7 @@ case 963:
 case 628: /* expr : operand dyop operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 766), ");  printf("operand dyop operand  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 766), ");  printf("operand dyop operand  -> expr \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 137; {
@@ -14317,7 +14317,7 @@ if (yydebug) {
 case 964: /* expr : operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 768), ");  printf("operand  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 768), ");  printf("operand  -> expr \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 137; {
@@ -14329,7 +14329,7 @@ case 965:
 case 631: /* expr : conversion .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 770), ");  printf("conversion  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 770), ");  printf("conversion  -> expr \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 137; {
@@ -14340,7 +14340,7 @@ if (yydebug) {
 case 966: /* expr : boolexpr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 772), ");  printf("boolexpr  -> expr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 772), ");  printf("boolexpr  -> expr \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 137; {
@@ -14352,7 +14352,7 @@ case 967:
 case 472: /* lp : LP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 775), ");  printf("LP  -> lp \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 775), ");  printf("LP  -> lp \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 221; {
@@ -14364,7 +14364,7 @@ case 968:
 case 630: /* boolexpr : operand boolop operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 778), ");  printf("operand boolop operand  -> boolexpr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 778), ");  printf("operand boolop operand  -> boolexpr \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 220; {
@@ -14376,7 +14376,7 @@ case 969:
 case 632: /* boolexpr : boolexpr boolop operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 780), ");  printf("boolexpr boolop operand  -> boolexpr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 780), ");  printf("boolexpr boolop operand  -> boolexpr \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 220; {
@@ -14388,7 +14388,7 @@ case 970:
 case 605: /* funccall : ID LP explist RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 783), ");  printf("ID LP explist RP  -> funccall \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 783), ");  printf("ID LP explist RP  -> funccall \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 212; {
@@ -14400,7 +14400,7 @@ case 971:
 case 604: /* funccall : ID LP RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 785), ");  printf("ID LP RP  -> funccall \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 785), ");  printf("ID LP RP  -> funccall \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 212; {
@@ -14411,7 +14411,7 @@ if (yydebug) {
 case 972: /* operand : element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 788), ");  printf("element  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 788), ");  printf("element  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14423,7 +14423,7 @@ case 973:
 case 624: /* operand : table_element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 790), ");  printf("table_element  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 790), ");  printf("table_element  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14434,7 +14434,7 @@ if (yydebug) {
 case 974: /* operand : string_element .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 792), ");  printf("string_element  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 792), ");  printf("string_element  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14446,7 +14446,7 @@ case 975:
 case 629: /* operand : intliteral .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 794), ");  printf("intliteral  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 794), ");  printf("intliteral  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14458,7 +14458,7 @@ case 976:
 case 469: /* operand : RNUMBER LP primtype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 797), ");  printf("RNUMBER LP primtype RP  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 797), ");  printf("RNUMBER LP primtype RP  -> operand \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 217; {
@@ -14469,7 +14469,7 @@ if (yydebug) {
 case 977: /* operand : RNUMBER .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 798), ");  printf("RNUMBER  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 798), ");  printf("RNUMBER  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14481,7 +14481,7 @@ case 978:
 case 597: /* operand : lp expr RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 800), ");  printf("lp expr RP  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 800), ");  printf("lp expr RP  -> operand \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 217; {
@@ -14493,7 +14493,7 @@ case 979:
 case 598: /* operand : lp valof RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 802), ");  printf("lp valof RP  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 802), ");  printf("lp valof RP  -> operand \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 217; {
@@ -14505,7 +14505,7 @@ case 980:
 case 621: /* operand : MOSTPOS numerictype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 804), ");  printf("MOSTPOS numerictype  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 804), ");  printf("MOSTPOS numerictype  -> operand \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 217; {
@@ -14517,7 +14517,7 @@ case 981:
 case 620: /* operand : MOSTNEG numerictype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 806), ");  printf("MOSTNEG numerictype  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 806), ");  printf("MOSTNEG numerictype  -> operand \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 217; {
@@ -14529,7 +14529,7 @@ case 982:
 case 625: /* operand : litrecord .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 808), ");  printf("litrecord  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 808), ");  printf("litrecord  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14541,7 +14541,7 @@ case 983:
 case 602: /* operand : BYTESIN LP datatype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 810), ");  printf("BYTESIN LP datatype RP  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 810), ");  printf("BYTESIN LP datatype RP  -> operand \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 217; {
@@ -14553,7 +14553,7 @@ case 984:
 case 601: /* operand : BYTESIN LP expr RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 812), ");  printf("BYTESIN LP expr RP  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 812), ");  printf("BYTESIN LP expr RP  -> operand \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 217; {
@@ -14565,7 +14565,7 @@ case 985:
 case 482: /* operand : OFFSETOF LP TYPEID comma ID RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 814), ");  printf("OFFSETOF LP TYPEID comma ID RP  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 814), ");  printf("OFFSETOF LP TYPEID comma ID RP  -> operand \n");
 }
 #endif
   yyStateStackPtr -=6; yyAttrStackPtr -=6; yyNonterminal = 217; {
@@ -14576,7 +14576,7 @@ if (yydebug) {
 case 986: /* operand : funccall .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 816), ");  printf("funccall  -> operand \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 816), ");  printf("funccall  -> operand \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 217; {
@@ -14588,7 +14588,7 @@ case 987:
 case 471: /* monop : SUBTRACT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 819), ");  printf("SUBTRACT  -> monop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 819), ");  printf("SUBTRACT  -> monop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 216; {
@@ -14600,7 +14600,7 @@ case 988:
 case 477: /* monop : NOT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 821), ");  printf("NOT  -> monop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 821), ");  printf("NOT  -> monop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 216; {
@@ -14612,7 +14612,7 @@ case 989:
 case 474: /* monop : BITNOT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 823), ");  printf("BITNOT  -> monop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 823), ");  printf("BITNOT  -> monop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 216; {
@@ -14624,7 +14624,7 @@ case 990:
 case 470: /* monop : ADD .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 825), ");  printf("ADD  -> monop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 825), ");  printf("ADD  -> monop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 216; {
@@ -14636,7 +14636,7 @@ case 991:
 case 476: /* monop : MINUS .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 827), ");  printf("MINUS  -> monop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 827), ");  printf("MINUS  -> monop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 216; {
@@ -14648,7 +14648,7 @@ case 992:
 case 478: /* monop : PLUS .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 829), ");  printf("PLUS  -> monop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 829), ");  printf("PLUS  -> monop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 216; {
@@ -14660,7 +14660,7 @@ case 993:
 case 490: /* dyop : LT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 832), ");  printf("LT  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 832), ");  printf("LT  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14672,7 +14672,7 @@ case 994:
 case 491: /* dyop : GT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 834), ");  printf("GT  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 834), ");  printf("GT  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14684,7 +14684,7 @@ case 995:
 case 492: /* dyop : LE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 836), ");  printf("LE  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 836), ");  printf("LE  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14696,7 +14696,7 @@ case 996:
 case 493: /* dyop : GE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 838), ");  printf("GE  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 838), ");  printf("GE  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14708,7 +14708,7 @@ case 997:
 case 494: /* dyop : EQ .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 840), ");  printf("EQ  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 840), ");  printf("EQ  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14720,7 +14720,7 @@ case 998:
 case 495: /* dyop : NE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 842), ");  printf("NE  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 842), ");  printf("NE  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14732,7 +14732,7 @@ case 999:
 case 496: /* dyop : ADD .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 844), ");  printf("ADD  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 844), ");  printf("ADD  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14744,7 +14744,7 @@ case 1000:
 case 497: /* dyop : SUBTRACT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 846), ");  printf("SUBTRACT  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 846), ");  printf("SUBTRACT  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14756,7 +14756,7 @@ case 1001:
 case 498: /* dyop : MULTIPLY .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 848), ");  printf("MULTIPLY  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 848), ");  printf("MULTIPLY  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14768,7 +14768,7 @@ case 1002:
 case 499: /* dyop : DIVIDE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 850), ");  printf("DIVIDE  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 850), ");  printf("DIVIDE  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14780,7 +14780,7 @@ case 1003:
 case 505: /* dyop : BITAND .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 852), ");  printf("BITAND  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 852), ");  printf("BITAND  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14792,7 +14792,7 @@ case 1004:
 case 506: /* dyop : BITOR .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 854), ");  printf("BITOR  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 854), ");  printf("BITOR  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14804,7 +14804,7 @@ case 1005:
 case 500: /* dyop : BITEOR .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 856), ");  printf("BITEOR  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 856), ");  printf("BITEOR  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14816,7 +14816,7 @@ case 1006:
 case 501: /* dyop : LSHIFT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 858), ");  printf("LSHIFT  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 858), ");  printf("LSHIFT  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14828,7 +14828,7 @@ case 1007:
 case 502: /* dyop : RSHIFT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 860), ");  printf("RSHIFT  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 860), ");  printf("RSHIFT  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14840,7 +14840,7 @@ case 1008:
 case 510: /* dyop : REM .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 862), ");  printf("REM  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 862), ");  printf("REM  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14852,7 +14852,7 @@ case 1009:
 case 507: /* dyop : MINUS .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 864), ");  printf("MINUS  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 864), ");  printf("MINUS  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14864,7 +14864,7 @@ case 1010:
 case 509: /* dyop : PLUS .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 866), ");  printf("PLUS  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 866), ");  printf("PLUS  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14876,7 +14876,7 @@ case 1011:
 case 511: /* dyop : TIMES .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 868), ");  printf("TIMES  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 868), ");  printf("TIMES  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14888,7 +14888,7 @@ case 1012:
 case 503: /* dyop : AFTER .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 870), ");  printf("AFTER  -> dyop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 870), ");  printf("AFTER  -> dyop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 218; {
@@ -14900,7 +14900,7 @@ case 1013:
 case 504: /* boolop : AND .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 873), ");  printf("AND  -> boolop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 873), ");  printf("AND  -> boolop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 222; {
@@ -14912,7 +14912,7 @@ case 1014:
 case 508: /* boolop : OR .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 875), ");  printf("OR  -> boolop \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 875), ");  printf("OR  -> boolop \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 222; {
@@ -14924,7 +14924,7 @@ case 1015:
 case 708: /* conversion : primtype operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 878), ");  printf("primtype operand  -> conversion \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 878), ");  printf("primtype operand  -> conversion \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 219; {
@@ -14936,7 +14936,7 @@ case 1016:
 case 723: /* conversion : primtype ROUND operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 880), ");  printf("primtype ROUND operand  -> conversion \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 880), ");  printf("primtype ROUND operand  -> conversion \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 219; {
@@ -14948,7 +14948,7 @@ case 1017:
 case 707: /* conversion : primtype TRUNC operand .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 882), ");  printf("primtype TRUNC operand  -> conversion \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 882), ");  printf("primtype TRUNC operand  -> conversion \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 219; {
@@ -14959,7 +14959,7 @@ if (yydebug) {
 case 1018: /* intliteral : NUMBER .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 885), ");  printf("NUMBER  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 885), ");  printf("NUMBER  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 223; {
@@ -14970,7 +14970,7 @@ if (yydebug) {
 case 1019: /* intliteral : HEXNUMBER .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 887), ");  printf("HEXNUMBER  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 887), ");  printf("HEXNUMBER  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 223; {
@@ -14981,7 +14981,7 @@ if (yydebug) {
 case 1020: /* intliteral : TRUE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 889), ");  printf("TRUE  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 889), ");  printf("TRUE  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 223; {
@@ -14992,7 +14992,7 @@ if (yydebug) {
 case 1021: /* intliteral : FALSE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 891), ");  printf("FALSE  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 891), ");  printf("FALSE  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 223; {
@@ -15003,7 +15003,7 @@ if (yydebug) {
 case 1022: /* intliteral : CHCON .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 893), ");  printf("CHCON  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 893), ");  printf("CHCON  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 223; {
@@ -15015,7 +15015,7 @@ case 1023:
 case 463: /* intliteral : NUMBER LP numerictype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 895), ");  printf("NUMBER LP numerictype RP  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 895), ");  printf("NUMBER LP numerictype RP  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 223; {
@@ -15027,7 +15027,7 @@ case 1024:
 case 464: /* intliteral : HEXNUMBER LP numerictype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 897), ");  printf("HEXNUMBER LP numerictype RP  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 897), ");  printf("HEXNUMBER LP numerictype RP  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 223; {
@@ -15039,7 +15039,7 @@ case 1025:
 case 465: /* intliteral : CHCON LP numerictype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 899), ");  printf("CHCON LP numerictype RP  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 899), ");  printf("CHCON LP numerictype RP  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 223; {
@@ -15051,7 +15051,7 @@ case 1026:
 case 479: /* intliteral : TRUE LP numerictype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 901), ");  printf("TRUE LP numerictype RP  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 901), ");  printf("TRUE LP numerictype RP  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 223; {
@@ -15063,7 +15063,7 @@ case 1027:
 case 475: /* intliteral : FALSE LP numerictype RP .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 903), ");  printf("FALSE LP numerictype RP  -> intliteral \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 903), ");  printf("FALSE LP numerictype RP  -> intliteral \n");
 }
 #endif
   yyStateStackPtr -=4; yyAttrStackPtr -=4; yyNonterminal = 223; {
@@ -15075,7 +15075,7 @@ case 1028:
 case 567: /* valoftok : VALOF .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 906), ");  printf("VALOF  -> valoftok \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 906), ");  printf("VALOF  -> valoftok \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 224; {
@@ -15087,7 +15087,7 @@ case 1029:
 case 570: /* result : RESULT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 909), ");  printf("RESULT  -> result \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 909), ");  printf("RESULT  -> result \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 225; {
@@ -15099,7 +15099,7 @@ case 1030:
 case 571: /* valof : valoftok sep BEGIN process result explist sep END .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 912), ");  printf("valoftok sep BEGIN process result explist sep END  -> valof \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 912), ");  printf("valoftok sep BEGIN process result explist sep END  -> valof \n");
 }
 #endif
   yyStateStackPtr -=8; yyAttrStackPtr -=8; yyNonterminal = 179; {
@@ -15111,7 +15111,7 @@ case 1031:
 case 678: /* valof : specification sep valof .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 914), ");  printf("specification sep valof  -> valof \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 914), ");  printf("specification sep valof  -> valof \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 179; {
@@ -15123,7 +15123,7 @@ case 1032:
 case 609: /* spectype : primtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 917), ");  printf("primtype  -> spectype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 917), ");  printf("primtype  -> spectype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 181; {
@@ -15135,7 +15135,7 @@ case 1033:
 case 610: /* spectype : arrtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 919), ");  printf("arrtype  -> spectype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 919), ");  printf("arrtype  -> spectype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 181; {
@@ -15147,7 +15147,7 @@ case 1034:
 case 645: /* datatype : numerictype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 922), ");  printf("numerictype  -> datatype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 922), ");  printf("numerictype  -> datatype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 185; {
@@ -15159,7 +15159,7 @@ case 1035:
 case 644: /* datatype : arrtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 924), ");  printf("arrtype  -> datatype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 924), ");  printf("arrtype  -> datatype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 185; {
@@ -15171,7 +15171,7 @@ case 1036:
 case 619: /* primtype : CHAN OF protocol .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 927), ");  printf("CHAN OF protocol  -> primtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 927), ");  printf("CHAN OF protocol  -> primtype \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 165; {
@@ -15183,7 +15183,7 @@ case 1037:
 case 611: /* primtype : PORT OF spectype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 930), ");  printf("PORT OF spectype  -> primtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 930), ");  printf("PORT OF spectype  -> primtype \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 165; {
@@ -15195,7 +15195,7 @@ case 1038:
 case 468: /* primtype : TIMER .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 931), ");  printf("TIMER  -> primtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 931), ");  printf("TIMER  -> primtype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 165; {
@@ -15207,7 +15207,7 @@ case 1039:
 case 612: /* primtype : numerictype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 933), ");  printf("numerictype  -> primtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 933), ");  printf("numerictype  -> primtype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 165; {
@@ -15219,7 +15219,7 @@ case 1040:
 case 607: /* numerictype : inttype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 936), ");  printf("inttype  -> numerictype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 936), ");  printf("inttype  -> numerictype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 192; {
@@ -15231,7 +15231,7 @@ case 1041:
 case 608: /* numerictype : realtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 938), ");  printf("realtype  -> numerictype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 938), ");  printf("realtype  -> numerictype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 192; {
@@ -15243,7 +15243,7 @@ case 1042:
 case 454: /* numerictype : TYPEID .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 940), ");  printf("TYPEID  -> numerictype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 940), ");  printf("TYPEID  -> numerictype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 192; {
@@ -15255,7 +15255,7 @@ case 1043:
 case 455: /* inttype : BOOL .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 943), ");  printf("BOOL  -> inttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 943), ");  printf("BOOL  -> inttype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 226; {
@@ -15267,7 +15267,7 @@ case 1044:
 case 456: /* inttype : BYTE .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 945), ");  printf("BYTE  -> inttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 945), ");  printf("BYTE  -> inttype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 226; {
@@ -15279,7 +15279,7 @@ case 1045:
 case 457: /* inttype : INT .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 947), ");  printf("INT  -> inttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 947), ");  printf("INT  -> inttype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 226; {
@@ -15291,7 +15291,7 @@ case 1046:
 case 458: /* inttype : INT16 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 949), ");  printf("INT16  -> inttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 949), ");  printf("INT16  -> inttype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 226; {
@@ -15303,7 +15303,7 @@ case 1047:
 case 459: /* inttype : INT32 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 951), ");  printf("INT32  -> inttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 951), ");  printf("INT32  -> inttype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 226; {
@@ -15315,7 +15315,7 @@ case 1048:
 case 460: /* inttype : INT64 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 954), ");  printf("INT64  -> inttype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 954), ");  printf("INT64  -> inttype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 226; {
@@ -15327,7 +15327,7 @@ case 1049:
 case 461: /* realtype : REAL32 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 956), ");  printf("REAL32  -> realtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 956), ");  printf("REAL32  -> realtype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 227; {
@@ -15339,7 +15339,7 @@ case 1050:
 case 462: /* realtype : REAL64 .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 958), ");  printf("REAL64  -> realtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 958), ");  printf("REAL64  -> realtype \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 227; {
@@ -15351,7 +15351,7 @@ case 1051:
 case 613: /* arrtype : sbexprlist primtype .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 961), ");  printf("sbexprlist primtype  -> arrtype \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 961), ");  printf("sbexprlist primtype  -> arrtype \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 167; {
@@ -15363,7 +15363,7 @@ case 1052:
 case 473: /* sbexpr : LSB RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 964), ");  printf("LSB RSB  -> sbexpr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 964), ");  printf("LSB RSB  -> sbexpr \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 228; {
@@ -15375,7 +15375,7 @@ case 1053:
 case 512: /* sbexpr : LSB expr RSB .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 966), ");  printf("LSB expr RSB  -> sbexpr \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 966), ");  printf("LSB expr RSB  -> sbexpr \n");
 }
 #endif
   yyStateStackPtr -=3; yyAttrStackPtr -=3; yyNonterminal = 228; {
@@ -15387,7 +15387,7 @@ case 1054:
 case 615: /* sbexprlist : sbexpr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 969), ");  printf("sbexpr  -> sbexprlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 969), ");  printf("sbexpr  -> sbexprlist \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 214; {
@@ -15399,7 +15399,7 @@ case 1055:
 case 614: /* sbexprlist : sbexprlist sbexpr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 971), ");  printf("sbexprlist sbexpr  -> sbexprlist \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 971), ");  printf("sbexprlist sbexpr  -> sbexprlist \n");
 }
 #endif
   yyStateStackPtr -=2; yyAttrStackPtr -=2; yyNonterminal = 214; {
@@ -15411,7 +15411,7 @@ case 1056:
 case 668: /* boolean : expr .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 974), ");  printf("expr  -> boolean \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 974), ");  printf("expr  -> boolean \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 161; {
@@ -15423,7 +15423,7 @@ case 1057:
 case 481: /* comma : COMMA .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 0), ");  printf("COMMA  -> comma \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 0), ");  printf("COMMA  -> comma \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 203; {
@@ -15433,7 +15433,7 @@ case 1058:
 case 480: /* comma : DECLCOMMA .*/
 #ifdef YYDEBUG
 if (yydebug) {
-  printf("Reducing via rule %ld ",yyState);  printf("(line 0), ");  printf("DECLCOMMA  -> comma \n");
+  printf("Reducing via rule %hu ",yyState);  printf("(line 0), ");  printf("DECLCOMMA  -> comma \n");
 }
 #endif
   yyStateStackPtr -=1; yyAttrStackPtr -=1; yyNonterminal = 203; {
@@ -15455,7 +15455,7 @@ if (yydebug) {
 #ifdef YYDEBUG
 if (yydebug)  /* SMW */
 {
-  printf("Reading a token: Next token is %d (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
+  printf("Reading a token: Next token is %ld (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
 }
 #endif
 
@@ -15466,12 +15466,12 @@ if (yydebug)  /* SMW */
 
 static void yyErrorRecovery
 # if defined __STDC__ | defined __cplusplus
-   (yySymbolRange * yyTerminal, yyStateRange * yyStateStack, unsigned long yyStackSize, short yyStackPtr)
+   (yySymbolRange * yyTerminal, yyStateRange * yyStateStack, uint32_t yyStackSize, short yyStackPtr)
 # else
    (yyTerminal, yyStateStack, yyStackSize, yyStackPtr)
    yySymbolRange *	yyTerminal	;
    yyStateRange *	yyStateStack	;
-   unsigned long	yyStackSize	;
+   uint32_t	yyStackSize	;
    short		yyStackPtr	;
 # endif
    {
@@ -15523,11 +15523,11 @@ static void yyErrorRecovery
 
 static void yyComputeContinuation
 # if defined __STDC__ | defined __cplusplus
-   (yyStateRange * yyStack, unsigned long yyStackSize, short yyStackPtr, tSet * yyContinueSet)
+   (yyStateRange * yyStack, uint32_t yyStackSize, short yyStackPtr, tSet * yyContinueSet)
 # else
    (yyStack, yyStackSize, yyStackPtr, yyContinueSet)
    yyStateRange *	yyStack		;
-   unsigned long	yyStackSize	;
+   uint32_t	yyStackSize	;
    short		yyStackPtr	;
    tSet *		yyContinueSet	;
 # endif
@@ -15551,12 +15551,12 @@ static void yyComputeContinuation
 
 static bool yyIsContinuation
 # if defined __STDC__ | defined __cplusplus
-   (yySymbolRange yyTerminal, yyStateRange * yyStateStack, unsigned long yyStackSize, short yyStackPtr)
+   (yySymbolRange yyTerminal, yyStateRange * yyStateStack, uint32_t yyStackSize, short yyStackPtr)
 # else
    (yyTerminal, yyStateStack, yyStackSize, yyStackPtr)
    yySymbolRange	yyTerminal	;
    yyStateRange *	yyStateStack	;
-   unsigned long	yyStackSize	;
+   uint32_t	yyStackSize	;
    short		yyStackPtr	;
 # endif
    {
@@ -15614,11 +15614,11 @@ static bool yyIsContinuation
 
 static void yyComputeRestartPoints
 # if defined __STDC__ | defined __cplusplus
-   (yyStateRange * yyStateStack, unsigned long yyStackSize, short yyStackPtr, tSet * yyRestartSet)
+   (yyStateRange * yyStateStack, uint32_t yyStackSize, short yyStackPtr, tSet * yyRestartSet)
 # else
    (yyStateStack, yyStackSize, yyStackPtr, yyRestartSet)
    yyStateRange *	yyStateStack	;
-   unsigned long	yyStackSize	;
+   uint32_t	yyStackSize	;
    short		yyStackPtr	;
    tSet *		yyRestartSet	;
 # endif

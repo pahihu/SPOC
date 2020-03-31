@@ -2,9 +2,9 @@ LIB	= $(HOME)/lib
 INCDIR	= $(LIB)/include
 TARGET	= SUN
 REUSE	= libreuse.a
-OPT	= -O
+OPT	= -g #-O
 UNIX	= UNIX
-CFLAGS	= $(OPT) -D$(UNIX) -D$(TARGET) -m32
+CFLAGS	= $(OPT) -D$(UNIX) -D$(TARGET) -Wno-return-type -std=c89
 CC	= cc
 OBJS	= System.o General.o Memory.o DynArray.o StringMem.o Idents.o Sets.o Time.o \
 	  Errors.o Positions.o Source.o
