@@ -20,7 +20,6 @@
 #define CHECK_RANGES
 #define NO_DEBUG
 #define FASTGOTOS
-#define USE_SPOC_ISERVER
 #define SOURCE LITTLE
 
 /*}}}*/
@@ -65,51 +64,17 @@
 /*}}}*/
 /*{{{  Insert HEADER*/
 #include "hostio.hdr"
-struct SF_P_so_write_string_nl_wstring
-{
-  tHeader _Header;
-  void *Chain;
-  CHAN *Param0;
-  CHAN *Param1;
-  BYTE *Param2;
-  INT Param2_Dim0;
-  char WS[WS_P_so_write_string_nl_wstring];
-};
-struct SF_P_so_exit_exit
-{
-  tHeader _Header;
-  void *Chain;
-  CHAN *Param0;
-  CHAN *Param1;
-  INT32 Param2;
-  char WS[WS_P_so_exit_exit];
-};
 typedef struct SF_P_Main_hello tSF_P_Main_hello;
 void P_Main_hello (tSF_P_Main_hello *FP);
 struct SF_P_Main_hello
 {
   tHeader _Header;
   void *Chain;
-  CHAN *fs_495;
-  CHAN *ts_496;
+  CHAN *fs_212;
+  CHAN *ts_213;
   union
   {
-    struct
-    {
-      BYTE *_V0_497;
-      tSF_P_so_write_string_nl_wstring _C0;
-    } _S0;
-    struct
-    {
-      BYTE *_V1_498;
-      tSF_P_so_write_string_nl_wstring _C1;
-    } _S1;
-    struct
-    {
-      BYTE *_V2_499;
-      tSF_P_so_write_string_nl_wstring _C2;
-    } _S2;
-    tSF_P_so_exit_exit _C3;
+    INT _P_dummy;
   } _U0;
 };
 
@@ -820,8 +785,8 @@ int main(int argc, char **argv)
   INITCH(&ts);
   Init_Scheduler();
   
-MAINFP->fs_495=&fs;
-MAINFP->ts_496=&ts;
+MAINFP->fs_212=&fs;
+MAINFP->ts_213=&ts;
 
   STARTP(&main_t,P_Main_hello,MAINFP,"P_Main_hello",LowPriority);
 
@@ -876,102 +841,62 @@ MAINFP->ts_496=&ts;
 void P_Main_hello (tSF_P_Main_hello *FP)
 #line    4 "hello.occ"
 {
-#line    4 "hello.occ"
-  while(true)
-#line    4 "hello.occ"
+#line    5 "hello.occ"
   {
-#line    4 "hello.occ"
-    switch(FP->_Header.IP)
-#line    4 "hello.occ"
+#line    6 "hello.occ"
     {
-#line    4 "hello.occ"
-      CASE(0):  
 #line    6 "hello.occ"
-        {
+      BYTE *_V0_214;
 #line    6 "hello.occ"
-          static BYTE TMP[11] = {104,101,108,108,111,32,119,111,114,108,100};
+      {
 #line    6 "hello.occ"
-          FP->_U0._S0._V0_497 = TMP;
+        static BYTE TMP[11] = {104,101,108,108,111,32,119,111,114,108,100};
 #line    6 "hello.occ"
-        }
+        _V0_214 = TMP;
 #line    6 "hello.occ"
-        FP->_U0._S0._C0.Param0=FP->fs_495;
+      }
 #line    6 "hello.occ"
-        FP->_U0._S0._C0.Param1=FP->ts_496;
+      P_so_write_string_nl_hostio(FP->fs_212,FP->ts_213,11,(BYTE*)_V0_214);
 #line    6 "hello.occ"
-        FP->_U0._S0._C0.Param2_Dim0=11;
-#line    6 "hello.occ"
-        FP->_U0._S0._C0.Param2= (BYTE*)FP->_U0._S0._V0_497;
-#line    6 "hello.occ"
-        FP->_U0._S0._C0.Chain = NULL;
-#line    6 "hello.occ"
-        CALL(P_so_write_string_nl_wstring,&FP->_U0._S0._C0,1,"P_so_write_string_nl_wstring");
-#line    6 "hello.occ"
-      CASE(1):  
+    }
 #line    7 "hello.occ"
-        {
+    {
 #line    7 "hello.occ"
-          static BYTE TMP[11] = {104,101,108,108,111,32,119,111,114,108,100};
+      BYTE *_V1_215;
 #line    7 "hello.occ"
-          FP->_U0._S1._V1_498 = TMP;
+      {
 #line    7 "hello.occ"
-        }
+        static BYTE TMP[11] = {104,101,108,108,111,32,119,111,114,108,100};
 #line    7 "hello.occ"
-        FP->_U0._S1._C1.Param0=FP->fs_495;
+        _V1_215 = TMP;
 #line    7 "hello.occ"
-        FP->_U0._S1._C1.Param1=FP->ts_496;
+      }
 #line    7 "hello.occ"
-        FP->_U0._S1._C1.Param2_Dim0=11;
+      P_so_write_string_nl_hostio(FP->fs_212,FP->ts_213,11,(BYTE*)_V1_215);
 #line    7 "hello.occ"
-        FP->_U0._S1._C1.Param2= (BYTE*)FP->_U0._S1._V1_498;
-#line    7 "hello.occ"
-        FP->_U0._S1._C1.Chain = NULL;
-#line    7 "hello.occ"
-        CALL(P_so_write_string_nl_wstring,&FP->_U0._S1._C1,2,"P_so_write_string_nl_wstring");
-#line    7 "hello.occ"
-      CASE(2):  
+    }
 #line    8 "hello.occ"
-        {
+    {
 #line    8 "hello.occ"
-          static BYTE TMP[11] = {104,101,108,108,111,32,119,111,114,108,100};
+      BYTE *_V2_216;
 #line    8 "hello.occ"
-          FP->_U0._S2._V2_499 = TMP;
+      {
 #line    8 "hello.occ"
-        }
+        static BYTE TMP[11] = {104,101,108,108,111,32,119,111,114,108,100};
 #line    8 "hello.occ"
-        FP->_U0._S2._C2.Param0=FP->fs_495;
+        _V2_216 = TMP;
 #line    8 "hello.occ"
-        FP->_U0._S2._C2.Param1=FP->ts_496;
+      }
 #line    8 "hello.occ"
-        FP->_U0._S2._C2.Param2_Dim0=11;
+      P_so_write_string_nl_hostio(FP->fs_212,FP->ts_213,11,(BYTE*)_V2_216);
 #line    8 "hello.occ"
-        FP->_U0._S2._C2.Param2= (BYTE*)FP->_U0._S2._V2_499;
-#line    8 "hello.occ"
-        FP->_U0._S2._C2.Chain = NULL;
-#line    8 "hello.occ"
-        CALL(P_so_write_string_nl_wstring,&FP->_U0._S2._C2,3,"P_so_write_string_nl_wstring");
-#line    8 "hello.occ"
-      CASE(3):  
-#line    9 "hello.occ"
-        FP->_U0._C3.Param0=FP->fs_495;
-#line    9 "hello.occ"
-        FP->_U0._C3.Param1=FP->ts_496;
-#line    9 "hello.occ"
-        FP->_U0._C3.Param2=0x3B9AC9FF;
-#line    9 "hello.occ"
-        FP->_U0._C3.Chain = NULL;
-#line    9 "hello.occ"
-        CALL(P_so_exit_exit,&FP->_U0._C3,4,"P_so_exit_exit");
-#line    9 "hello.occ"
-      CASE(4):  
-#line    9 "hello.occ"
-        ENDP();
-#line    9 "hello.occ"
-      default: SETERR(MSG_IP);
-#line    9 "hello.occ"
     }
 #line    9 "hello.occ"
+    P_so_exit_hostio(FP->fs_212,FP->ts_213,0x3B9AC9FF);
+#line    9 "hello.occ"
   }
+#line    9 "hello.occ"
+  ENDP();
 #line    9 "hello.occ"
 }
 

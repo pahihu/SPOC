@@ -200,7 +200,7 @@ static void WriteStrRef(tStringRef r)
   int len = LengthSt(r) ;
 
   DoNL();
-  if ((temp = (char*) malloc((len==0)?1:len)) == NULL)
+  if ((temp = (char*) malloc((len==0)?1:len+1)) == NULL)
     yyAbort("Out of heap") ;
   else
     {
@@ -244,7 +244,7 @@ void WriteStaticSym(tSymbol sym)
 
   DoNL() ;
 
-  if ((temp = (char*) malloc((len==0)?1:len)) == NULL)
+  if ((temp = (char*) malloc((len==0)?1:len+1)) == NULL)
     yyAbort("Out of heap") ;
   else
     {
@@ -814,7 +814,7 @@ void WriteCCode(tStringRef S, tPosition P, int scope)
 {
   int l = LengthSt(S);
   int i=0;
-  char *str = (char*) malloc((l==0)?1:l);
+  char *str = (char*) malloc((l==0)?1:l+1);
   StGetString(S,str);
   while (i<l)
   {
@@ -838,7 +838,7 @@ void MarkCCodeUsage(tStringRef S, tPosition P, int scope)
 {
   int l = LengthSt(S);
   int i=0;
-  char *str = (char*) malloc((l==0)?1:l);
+  char *str = (char*) malloc((l==0)?1:l+1);
   StGetString(S,str);
   while (i<l)
   {
@@ -898,7 +898,7 @@ static bool IsDuplicatedHeader(tSymbol ThisSym)
 static void WriteModuleHeaderName(tStringRef St)
 {
   int len = LengthSt(St);
-  char *temp = (char*) malloc(len+4);
+  char *temp = (char*) malloc(len+5);
 
   if (temp==NULL)
       Message("Out of heap",xxFatal,NoPosition) ;

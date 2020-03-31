@@ -1,0 +1,18 @@
+#ifndef __dblmath_INCLUDES__
+#define __dblmath_INCLUDES__
+REAL64 F_DALOG_dblmath(REAL64 x_51);
+REAL64 F_DALOG10_dblmath(REAL64 x_55);
+REAL64 F_DEXP_dblmath(REAL64 x_59);
+REAL64 F_DTAN_dblmath(REAL64 x_63);
+REAL64 F_DSIN_dblmath(REAL64 x_67);
+REAL64 F_DASIN_dblmath(REAL64 x_71);
+REAL64 F_DCOS_dblmath(REAL64 x_75);
+REAL64 F_DACOS_dblmath(REAL64 x_79);
+REAL64 F_DSINH_dblmath(REAL64 x_83);
+REAL64 F_DCOSH_dblmath(REAL64 x_87);
+REAL64 F_DTANH_dblmath(REAL64 x_91);
+REAL64 F_DATAN_dblmath(REAL64 x_95);
+REAL64 F_DATAN2_dblmath(REAL64 x_99,REAL64 y_100);
+void F_DRAN_dblmath(INT32 x_104,REAL64 *Param0,INT32 *Param1);
+REAL64 F_DPOWER_dblmath(REAL64 x_109,REAL64 y_110);
+#endif

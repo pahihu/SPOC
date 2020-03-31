@@ -1,0 +1,79 @@
+# Makefile for dblmath.lib produced by omakef version 1.50
+
+ARCH=darwin
+OCCOPTIONS=-d -mn 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -m32 -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc -m32 $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc -m32 $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+
+# Any command-line definitions:
+
+dblmath=dblmath
+dblmath-LBB=
+$(dblmath).$(LIB): $(dblmath).$(T) $(dblmath).$(A) $(dblmath-LBB) $(dblmath).$(HDR)
+	$(CAT) $(dblmath).$(T) $(dblmath-LBB) > $(dblmath).$(LIB)
+
+dblmath-LDD=
+$(dblmath).$(A): $(dblmath).$(O) $(dblmath-LDD)
+	$(AR) $(dblmath).$(A) $(dblmath).$(O) $(dblmath-LDD)
+	$(RL) $(dblmath).$(A)
+
+dblmath-HDR=$(SPOC)/lib/darwin/Intrinsics.hdr 
+$(dblmath).$(O): $(dblmath).$(C) $(C2OBJ-DEP) $(dblmath-HDR)
+	$(C2OBJ) $(dblmath).$(C) -o $(dblmath).$(O)
+
+dblmath-DEP=$(SPOC)/lib/darwin/Intrinsics.lib 
+$(dblmath).$(C): $(dblmath).$(OCC) $(dblmath-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(dblmath).$(OCC) -o $(dblmath).$(C)
+
+dblmath-LHD=
+$(dblmath).$(HDR): $(dblmath).$(C) $(dblmath-HDR) $(dblmath-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(dblmath).$(C) -o $(dblmath).$(X)
+	$(INVOKE) ./$(dblmath).$(X) $(dblmath-LHD) $(dblmath).$(HDR)
+	$(RM) $(dblmath).$(X)
+
+$(dblmath).$(T): $(dblmath).$(C)
+
+
+
+
+clean:
+	rm -f dblmath.lib dblmath.a dblmath.o dblmath.c dblmath.hdr dblmath.t 

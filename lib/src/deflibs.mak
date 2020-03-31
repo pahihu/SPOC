@@ -88,7 +88,7 @@ spserver/spserver.lib: spserver/spserver.mkf
 spserver/spserver.mkf: spserver/spserver.occ hostio.inc
 	cd spserver ; $(OMAKEF) spserver.lib -d $(OCCOPTIONS)
 
-CC=gcc
+CC=gcc -m32
 CFLAGS=-DSUN -DBOARD_ID=B011 -D$(ARCH) -c
 
 spserver/iserver.o: $(LIBSRC)/spserver/iserver.c $(LIBSRC)/spserver/inmos.h $(LIBSRC)/spserver/iserver.h

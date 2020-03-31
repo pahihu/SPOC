@@ -1,0 +1,79 @@
+# Makefile for convert.lib produced by omakef version 1.50
+
+ARCH=darwin
+OCCOPTIONS=-d -mn 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -m32 -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc -m32 $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc -m32 $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+
+# Any command-line definitions:
+
+convert=convert
+convert-LBB=
+$(convert).$(LIB): $(convert).$(T) $(convert).$(A) $(convert-LBB) $(convert).$(HDR)
+	$(CAT) $(convert).$(T) $(convert-LBB) > $(convert).$(LIB)
+
+convert-LDD=
+$(convert).$(A): $(convert).$(O) $(convert-LDD)
+	$(AR) $(convert).$(A) $(convert).$(O) $(convert-LDD)
+	$(RL) $(convert).$(A)
+
+convert-HDR=$(SPOC)/lib/darwin/Intrinsics.hdr 
+$(convert).$(O): $(convert).$(C) $(C2OBJ-DEP) $(convert-HDR)
+	$(C2OBJ) $(convert).$(C) -o $(convert).$(O)
+
+convert-DEP=$(SPOC)/lib/darwin/Intrinsics.lib 
+$(convert).$(C): $(convert).$(OCC) $(convert-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(convert).$(OCC) -o $(convert).$(C)
+
+convert-LHD=
+$(convert).$(HDR): $(convert).$(C) $(convert-HDR) $(convert-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(convert).$(C) -o $(convert).$(X)
+	$(INVOKE) ./$(convert).$(X) $(convert-LHD) $(convert).$(HDR)
+	$(RM) $(convert).$(X)
+
+$(convert).$(T): $(convert).$(C)
+
+
+
+
+clean:
+	rm -f convert.lib convert.a convert.o convert.c convert.hdr convert.t 

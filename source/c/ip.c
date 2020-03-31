@@ -41,10 +41,15 @@
 #ifdef MSARCH
 /*{{{  Currently, GNU C for win95 does not have a values.h file*/
 #define BITSPERBYTE (8)
-#definr MAXINT (~(1<<(BITSPERBYTE*(int)sizeof(int)-1)))
+#define MAXINT (~(1<<(BITSPERBYTE*(int)sizeof(int)-1)))
 /*}}}*/
 #else
+#ifdef __APPLE__
+#include <limits.h>
+#define	MAXINT INT_MAX
+#else
 #include <values.h>
+#endif
 #endif
 #include "ip.h"
 

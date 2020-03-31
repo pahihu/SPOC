@@ -1,0 +1,79 @@
+# Makefile for string.lib produced by omakef version 1.50
+
+ARCH=darwin
+OCCOPTIONS=-d -mn 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -m32 -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc -m32 $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc -m32 $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+
+# Any command-line definitions:
+
+string=string
+string-LBB=
+$(string).$(LIB): $(string).$(T) $(string).$(A) $(string-LBB) $(string).$(HDR)
+	$(CAT) $(string).$(T) $(string-LBB) > $(string).$(LIB)
+
+string-LDD=
+$(string).$(A): $(string).$(O) $(string-LDD)
+	$(AR) $(string).$(A) $(string).$(O) $(string-LDD)
+	$(RL) $(string).$(A)
+
+string-HDR=$(SPOC)/lib/darwin/convert.hdr $(SPOC)/lib/darwin/Intrinsics.hdr 
+$(string).$(O): $(string).$(C) $(C2OBJ-DEP) $(string-HDR)
+	$(C2OBJ) $(string).$(C) -o $(string).$(O)
+
+string-DEP=$(SPOC)/lib/darwin/convert.lib $(SPOC)/lib/darwin/Intrinsics.lib 
+$(string).$(C): $(string).$(OCC) $(string-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(string).$(OCC) -o $(string).$(C)
+
+string-LHD=
+$(string).$(HDR): $(string).$(C) $(string-HDR) $(string-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(string).$(C) -o $(string).$(X)
+	$(INVOKE) ./$(string).$(X) $(string-LHD) $(string).$(HDR)
+	$(RM) $(string).$(X)
+
+$(string).$(T): $(string).$(C)
+
+
+
+
+clean:
+	rm -f string.lib string.a string.o string.c string.hdr string.t 

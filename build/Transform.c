@@ -52,7 +52,7 @@
           int len = LengthSt(GetStringRef(PId));
           char *str;
         
-          if (!(str = (char *)malloc(len + 10))) Message("Out of Heap",xxFatal,NoPosition);
+          if (!(str = (char *)malloc(len + 12))) Message("Out of Heap",xxFatal,NoPosition);
           GetString(PId,str);
           sprintf(&str[len],"_%d",i);
           /*
@@ -2800,7 +2800,7 @@ char c; char *tmp; tTree TMP; tValue v;
   {
 /* line 1100 "/home/hpcc/SPOC/spoc.1.3/source/gmd/trans.trafo" */
  int len=LengthSt(yyP62->String.Value);
-      if ((tmp = malloc((len==0)?1:len)) == NULL)
+      if ((tmp = malloc((len==0)?1:len+1)) == NULL)
         Message("Out of heap allocating string",xxError,yyP62->String.Pos);
       StGetString(yyP62->String.Value,tmp) ;
       c = tmp[yyP61] ;
@@ -2833,7 +2833,7 @@ static tTree EvalStringConstantSlice
   {
 /* line 1131 "/home/hpcc/SPOC/spoc.1.3/source/gmd/trans.trafo" */
  int len=LengthSt(yyP65->String.Value);
-      if ((tmp = malloc((len==0)?1:len)) == NULL)
+      if ((tmp = malloc((len==0)?1:len+1)) == NULL)
         Message("Out of heap allocating string",xxError,yyP65->String.Pos);
       StGetString(yyP65->String.Value,tmp) ;
       yyP65->String.Value = PutString (&tmp[yyP64],yyP63) ;
@@ -2859,7 +2859,7 @@ static tTree EvalStringVariableSlice
   {
 /* line 1155 "/home/hpcc/SPOC/spoc.1.3/source/gmd/trans.trafo" */
  int len=LengthSt(yyP67->String.Value);
-      if ((tmp = malloc((len==0)?1:len)) == NULL)
+      if ((tmp = malloc((len==0)?1:len+1)) == NULL)
         Message("Out of heap allocating string",xxError,yyP67->String.Pos);
       StGetString(yyP67->String.Value,tmp) ;
       yyP67->String.Value = PutString (&tmp[yyP66],LengthSt(yyP67->String.Value)-yyP66) ;

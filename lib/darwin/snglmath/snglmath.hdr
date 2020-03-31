@@ -1,0 +1,18 @@
+#ifndef __snglmath_INCLUDES__
+#define __snglmath_INCLUDES__
+REAL32 F_ALOG_snglmath(REAL32 x_51);
+REAL32 F_ALOG10_snglmath(REAL32 x_55);
+REAL32 F_EXP_snglmath(REAL32 x_59);
+REAL32 F_TAN_snglmath(REAL32 x_63);
+REAL32 F_SIN_snglmath(REAL32 x_67);
+REAL32 F_ASIN_snglmath(REAL32 x_71);
+REAL32 F_COS_snglmath(REAL32 x_75);
+REAL32 F_ACOS_snglmath(REAL32 x_79);
+REAL32 F_SINH_snglmath(REAL32 x_83);
+REAL32 F_COSH_snglmath(REAL32 x_87);
+REAL32 F_TANH_snglmath(REAL32 x_91);
+REAL32 F_ATAN_snglmath(REAL32 x_95);
+REAL32 F_ATAN2_snglmath(REAL32 x_99,REAL32 y_100);
+void F_RAN_snglmath(INT32 x_104,REAL32 *Param0,INT32 *Param1);
+REAL32 F_POWER_snglmath(REAL32 x_109,REAL32 y_110);
+#endif

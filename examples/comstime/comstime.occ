@@ -46,7 +46,7 @@ PROC eg(CHAN OF SP fs,ts, []INT mem)
             so.write.nl(fs,ts)
             sum := sum PLUS (stop MINUS start)
         so.write.string(fs,ts,"Average = ")
-        so.write.int(fs,ts,((sum *64) / (repeat*runs)),8)
+        so.write.int(fs,ts,((sum * 64) / (repeat*runs)),8)
         so.write.string.nl(fs,ts,"us / iteration")
         so.exit(fs,ts,sps.success)
 :      

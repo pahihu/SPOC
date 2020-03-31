@@ -1280,7 +1280,7 @@ int GetToken()
     {
       char *temp,*t ;
     
-      if ((temp=malloc((yylen==0)?1:yylen)) == NULL)
+      if ((temp=malloc((yylen==0)?1:yylen+1)) == NULL)
 	Message("Out of heap",xxError,Attribute.Position);
       else
       {
@@ -1309,7 +1309,7 @@ int GetToken()
     {
       char *temp,*t ;
     
-      if ((temp=malloc((yylen==0)?1:yylen)) == NULL)
+      if ((temp=malloc((yylen==0)?1:yylen+1)) == NULL)
 	Message("Out of heap",xxError,Attribute.Position);
       else
       {

@@ -1,0 +1,80 @@
+# Makefile for snglmath.lib produced by omakef version 1.50
+
+ARCH=darwin
+OCCOPTIONS=-d -mn 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -m32 -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc -m32 $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc -m32 $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+
+# Any command-line definitions:
+
+snglmath=snglmath
+snglmath-LBB=
+$(snglmath).$(LIB): $(snglmath).$(T) $(snglmath).$(A) $(snglmath-LBB) $(snglmath).$(HDR)
+	$(CAT) $(snglmath).$(T) $(snglmath-LBB) > $(snglmath).$(LIB)
+
+snglmath-LDD=
+$(snglmath).$(A): $(snglmath).$(O) $(snglmath-LDD)
+	$(AR) $(snglmath).$(A) $(snglmath).$(O) $(snglmath-LDD)
+	$(RL) $(snglmath).$(A)
+
+snglmath-HDR=$(SPOC)/lib/darwin/Intrinsics.hdr 
+$(snglmath).$(O): $(snglmath).$(C) $(C2OBJ-DEP) $(snglmath-HDR)
+	$(C2OBJ) $(snglmath).$(C) -o $(snglmath).$(O)
+
+snglmath-DEP=$(SPOC)/lib/darwin/Intrinsics.lib 
+$(snglmath).$(C): $(snglmath).$(OCC) $(snglmath-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(snglmath).$(OCC) -o $(snglmath).$(C)
+
+snglmath-LHD=
+$(snglmath).$(HDR): $(snglmath).$(C) $(snglmath-HDR) $(snglmath-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(snglmath).$(C) -o $(snglmath).$(X)
+	$(INVOKE) ./$(snglmath).$(X) $(snglmath-LHD) $(snglmath).$(HDR)
+	$(RM) $(snglmath).$(X)
+
+$(snglmath).$(T): $(snglmath).$(C)
+
+
+
+
+clean:
+	rm -f snglmath.lib snglmath.a snglmath.o snglmath.c snglmath.hdr       \
+        snglmath.t 

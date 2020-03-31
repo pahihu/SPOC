@@ -1,1 +1,1 @@
-char *VersionDate="Thu Apr 17 17:31:44 BST 1997";char *VersionName="1.3";
+char *VersionDate="Fri Sep  2 23:14:06 CEST 2011";char *VersionName="1.3";

@@ -1,0 +1,9 @@
+#ifndef __spserver_INCLUDES__
+#define __spserver_INCLUDES__
+typedef struct SF_P_spoc_iserver_spserver tSF_P_spoc_iserver_spserver;
+#define WS_P_spoc_iserver_spserver (680)
+void P_spoc_iserver_spserver (tSF_P_spoc_iserver_spserver *FP);
+typedef struct SF_P_spoc_aserver_spserver tSF_P_spoc_aserver_spserver;
+#define WS_P_spoc_aserver_spserver (2380)
+void P_spoc_aserver_spserver (tSF_P_spoc_aserver_spserver *FP);
+#endif

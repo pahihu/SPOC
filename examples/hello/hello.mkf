@@ -1,6 +1,6 @@
 # Makefile for hello produced by omakef version 1.50
 
-ARCH=sun4
+ARCH=darwin
 OCCOPTIONS=
 CCOPTIONS=
 OCCOPT.linux=
@@ -26,13 +26,13 @@ OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
 OCC2MOD=$(OCC2C) $(OCCOPT) -l
 C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
 CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
-C2OBJ=gcc -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2OBJ=gcc -m32 -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
 C2PRO-DEP=$(SPOCLIB)/Occam2C.h
-C2PRO=gcc $(CCOPT) -DGENPROTO
+C2PRO=gcc -m32 $(CCOPT) -DGENPROTO
 CLINK-DEP=$(XCL-DEP)
 CLOPT=
 CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
-CLINK=gcc $(CLOPT) 
+CLINK=gcc -m32 $(CLOPT) 
 INVOKE=exec
 AR=ar r
 RL=ranlib
@@ -43,25 +43,21 @@ GFLAGS=-s -G$@
 .SUFFIXES:
 .KEEP_STATE:
 
-XOCCOPT=-s
-XCCOPT=-DUSE_NONBLOCKING_SOCKETS
-XCL-DEP=$(SPOC)/lib/$(ARCH)/libspserver.a
-
 
 # Any command-line definitions:
 
 hello=hello
-hello-LDD=$(SPOC)/lib/sun4/libhostio.a $(SPOC)/lib/sun4/libconvert.a           \
-          $(SPOC)/lib/sun4/libIntrinsics.a 
+hello-LDD=$(SPOC)/lib/darwin/libhostio.a $(SPOC)/lib/darwin/libconvert.a       \
+          $(SPOC)/lib/darwin/libIntrinsics.a 
 $(hello): $(hello).$(O) $(CLINK-DEP) $(hello-LDD)
 	$(CLINK) $(hello).$(O) -o $(hello) $(hello-LDD) $(CLINK-DEP) $(CLLIB)
 
-hello-HDR=$(SPOC)/lib/sun4/hostio.hdr $(SPOC)/lib/sun4/Intrinsics.hdr 
+hello-HDR=$(SPOC)/lib/darwin/hostio.hdr $(SPOC)/lib/darwin/Intrinsics.hdr 
 $(hello).$(O): $(hello).$(C) $(C2OBJ-DEP) $(hello-HDR)
 	$(C2OBJ) $(hello).$(C) -o $(hello).$(O)
 
-hello-DEP=$(SPOC)/lib/sun4/hostio.lib $(SPOC)/lib/sun4/Intrinsics.lib          \
-          $(SPOC)/lib/sun4/hostio.inc 
+hello-DEP=$(SPOC)/lib/darwin/hostio.lib $(SPOC)/lib/darwin/Intrinsics.lib      \
+          $(SPOC)/lib/darwin/hostio.inc 
 $(hello).$(C): $(hello).$(OCC) $(hello-DEP) $(OCC2C-DEP)
 	$(OCC2PGM) $(hello).$(OCC) -o $(hello).$(C)
 

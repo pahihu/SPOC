@@ -590,7 +590,7 @@ int main (int argc,char **argv)
 	  char *dot = strrchr(filename,'.');
       
 	  if (dot != NULL) *dot = 0;
-	  outfile = malloc(strlen(filename) + 2);
+	  outfile = malloc(strlen(filename) + 3);
 	  strcpy(outfile,filename); strcat(outfile,".c");
 	}    
 	     

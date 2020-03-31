@@ -1,0 +1,55 @@
+#ifndef __Intrinsics_INCLUDES__
+#define __Intrinsics_INCLUDES__
+INT F_LONGADD_Intrinsics(INT left_1,INT right_2,INT carry_in_3);
+INT F_LONGSUB_Intrinsics(INT left_5,INT right_6,INT borrow_in_7);
+INT F_ASHIFTRIGHT_Intrinsics(INT w_9,INT places_10);
+INT F_ASHIFTLEFT_Intrinsics(INT w_14,INT places_15);
+INT F_ROTATERIGHT_Intrinsics(INT w_19,INT places_20);
+INT F_ROTATELEFT_Intrinsics(INT w_27,INT places_28);
+void F_LONGSUM_Intrinsics(INT left_35,INT right_36,INT carry_in_37,INT *Param0,INT *Param1);
+void F_LONGDIFF_Intrinsics(INT left_42,INT right_43,INT borrow_in_44,INT *Param0,INT *Param1);
+void F_LONGPROD_Intrinsics(INT left_56,INT right_57,INT carry_in_58,INT *Param0,INT *Param1);
+void F_LONGDIV_Intrinsics(INT divhi_72,INT divlo_73,INT divisor_74,INT *Param0,INT *Param1);
+void F_SHIFTRIGHT_Intrinsics(INT hi_79,INT lo_80,INT places_81,INT *Param0,INT *Param1);
+void F_SHIFTLEFT_Intrinsics(INT hi_87,INT lo_88,INT places_89,INT *Param0,INT *Param1);
+void F_NORMALISE_Intrinsics(INT hi_in_95,INT lo_in_96,INT *Param0,INT *Param1,INT *Param2);
+REAL32 F_ABS_Intrinsics(REAL32 x_105);
+REAL64 F_DABS_Intrinsics(REAL64 x_109);
+REAL32 F_SCALEB_Intrinsics(REAL32 x_113,INT n_114);
+REAL64 F_DSCALEB_Intrinsics(REAL64 x_118,INT n_119);
+REAL32 F_COPYSIGN_Intrinsics(REAL32 x_123,REAL32 y_124);
+REAL64 F_DCOPYSIGN_Intrinsics(REAL64 x_128,REAL64 y_129);
+REAL32 F_SQRT_Intrinsics(REAL32 x_133);
+REAL64 F_DSQRT_Intrinsics(REAL64 x_137);
+REAL64 F_DNEXTAFTER_Intrinsics(REAL64 x_141,REAL64 y_142);
+REAL32 F_REAL32OP_Intrinsics(REAL32 x_146,INT op_147,REAL32 y_148);
+REAL64 F_REAL64OP_Intrinsics(REAL64 x_152,INT op_153,REAL64 y_154);
+void F_IEEE32OP_Intrinsics(REAL32 x_158,INT Rm_159,INT op_160,REAL32 y_161,BOOL *Param0,REAL32 *Param1);
+void F_IEEE64OP_Intrinsics(REAL64 x_163,INT Rm_164,INT op_165,REAL64 y_166,BOOL *Param0,REAL64 *Param1);
+REAL32 F_REAL32REM_Intrinsics(REAL32 x_168,REAL32 y_169);
+REAL64 F_REAL64REM_Intrinsics(REAL64 x_173,REAL64 y_174);
+void F_IEEE32REM_Intrinsics(REAL32 x_178,REAL32 y_179,BOOL *Param0,REAL32 *Param1);
+void F_IEEE64REM_Intrinsics(REAL64 x_183,REAL64 y_184,BOOL *Param0,REAL64 *Param1);
+BOOL F_REAL32EQ_Intrinsics(REAL32 x_188,REAL32 y_189);
+BOOL F_REAL64EQ_Intrinsics(REAL64 x_191,REAL64 y_192);
+BOOL F_REAL32GT_Intrinsics(REAL32 x_194,REAL32 y_195);
+BOOL F_REAL64GT_Intrinsics(REAL64 x_197,REAL64 y_198);
+INT F_IEEECOMPARE_Intrinsics(REAL32 x_200,REAL32 y_201);
+INT F_DIEEECOMPARE_Intrinsics(REAL64 x_205,REAL64 y_206);
+REAL32 F_LOGB_Intrinsics(REAL32 X_210);
+REAL32 F_DLOGB_Intrinsics(REAL64 X_214);
+BOOL F_ISNAN_Intrinsics(REAL32 X_218);
+BOOL F_DISNAN_Intrinsics(REAL64 X_222);
+BOOL F_NOTFINITE_Intrinsics(REAL32 X_226);
+BOOL F_DNOTFINITE_Intrinsics(REAL64 X_230);
+BOOL F_ORDERED_Intrinsics(REAL32 X_234,REAL32 Y_235);
+BOOL F_DORDERED_Intrinsics(REAL64 X_237,REAL64 Y_238);
+INT F_BITCOUNT_Intrinsics(INT Word_240,INT CountIn_241);
+INT F_BITREVNBITS_Intrinsics(INT x_249,INT n_250);
+INT F_BITREVWORD_Intrinsics(INT x_256);
+void P_ASSERT_Intrinsics (BOOL test_261);
+void P_CAUSEERROR_Intrinsics (void);
+typedef struct SF_P_RESCHEDULE_Intrinsics tSF_P_RESCHEDULE_Intrinsics;
+#define WS_P_RESCHEDULE_Intrinsics (116)
+void P_RESCHEDULE_Intrinsics (tSF_P_RESCHEDULE_Intrinsics *FP);
+#endif

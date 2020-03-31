@@ -1,0 +1,80 @@
+# Makefile for Intrinsics.lib produced by omakef version 1.50
+
+ARCH=darwin
+OCCOPTIONS=-i -d -mn 
+CCOPTIONS=
+OCCOPT.linux=
+OCCOPT.sun4=-mi -me
+OCCOPT.solaris=-mi -me
+A=a
+C=c
+O=o
+T=t
+HDR=hdr
+TMP=tmp
+X=x
+S=/
+OCC=occ
+LIB=lib
+LBB=lbb
+LDD=ldd
+OCC2C=SPOC=$(SPOC) $(SPOC)/bin/$(ARCH)/occ2c
+SPOCLIB=$(SPOC)/lib/$(ARCH)
+OCC2C-DEP=$(SPOCLIB)/Occam2C.c
+OCCOPT=$(OCCOPTIONS) $(OCCOPT.$(ARCH))
+OCC2PGM=$(OCC2C) $(OCCOPT) $(XOCCOPT)
+OCC2MOD=$(OCC2C) $(OCCOPT) -l
+C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
+CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
+C2OBJ=gcc -m32 -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2PRO-DEP=$(SPOCLIB)/Occam2C.h
+C2PRO=gcc -m32 $(CCOPT) -DGENPROTO
+CLINK-DEP=$(XCL-DEP)
+CLOPT=
+CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
+CLINK=gcc -m32 $(CLOPT) 
+INVOKE=exec
+AR=ar r
+RL=ranlib
+COPY=cp
+CAT=cat
+RM=rm -f
+GFLAGS=-s -G$@
+.SUFFIXES:
+.KEEP_STATE:
+
+
+# Any command-line definitions:
+
+Intrinsics=Intrinsics
+Intrinsics-LBB=
+$(Intrinsics).$(LIB): $(Intrinsics).$(T) $(Intrinsics).$(A) $(Intrinsics-LBB) $(Intrinsics).$(HDR)
+	$(CAT) $(Intrinsics).$(T) $(Intrinsics-LBB) > $(Intrinsics).$(LIB)
+
+Intrinsics-LDD=
+$(Intrinsics).$(A): $(Intrinsics).$(O) $(Intrinsics-LDD)
+	$(AR) $(Intrinsics).$(A) $(Intrinsics).$(O) $(Intrinsics-LDD)
+	$(RL) $(Intrinsics).$(A)
+
+Intrinsics-HDR=
+$(Intrinsics).$(O): $(Intrinsics).$(C) $(C2OBJ-DEP) $(Intrinsics-HDR)
+	$(C2OBJ) $(Intrinsics).$(C) -o $(Intrinsics).$(O)
+
+Intrinsics-DEP=
+$(Intrinsics).$(C): $(Intrinsics).$(OCC) $(Intrinsics-DEP) $(OCC2C-DEP)
+	$(OCC2MOD) $(Intrinsics).$(OCC) -o $(Intrinsics).$(C)
+
+Intrinsics-LHD=
+$(Intrinsics).$(HDR): $(Intrinsics).$(C) $(Intrinsics-HDR) $(Intrinsics-LHD) $(C2PRO-DEP) 
+	$(C2PRO) $(Intrinsics).$(C) -o $(Intrinsics).$(X)
+	$(INVOKE) ./$(Intrinsics).$(X) $(Intrinsics-LHD) $(Intrinsics).$(HDR)
+	$(RM) $(Intrinsics).$(X)
+
+$(Intrinsics).$(T): $(Intrinsics).$(C)
+
+
+
+
+clean:
+	rm -f Intrinsics.lib Intrinsics.a Intrinsics.o Intrinsics.c            \
+        Intrinsics.hdr Intrinsics.t 

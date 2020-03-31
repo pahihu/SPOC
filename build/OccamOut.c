@@ -137,7 +137,7 @@
   
     DoNL() ;
   
-    if ((temp = malloc((len==0)?1:len)) == NULL)
+    if ((temp = malloc((len==0)?1:len+1)) == NULL)
       yyAbort("Out of heap") ;
     else
       {

@@ -65,6 +65,10 @@ PRIVATE BOOL TermMode = ORG_MODE;
 
 #ifdef SUN
 PRIVATE struct termios OrgMode, CurMode;
+#ifndef __APPLE__
+#define tcgetattr(fd,ptr)		ioctl(fd,TCGETS,ptr)
+#define tcsetattr(fd,m,ptr)	ioctl(fd,TCSETS,ptr)
+#endif
 #endif
 
 #ifdef HELIOS
@@ -89,7 +93,7 @@ PRIVATE struct IOSB_DESC {
 PUBLIC VOID HostEnd()
 {
 #ifdef SUN
-   ioctl(0,TCSETS,&OrgMode);
+   tcsetattr(0,0,&OrgMode);
 #endif
 #ifdef HELIOS
    SetAttributes( InputStream, &CurAttributes );
@@ -102,7 +106,7 @@ PUBLIC VOID ResetTerminal()
 #ifdef SUN
    if ( TermMode != ORG_MODE )
       {
-	 ioctl(0, TCSETS, &OrgMode);
+	 tcsetattr(0, 0, &OrgMode);
 	 TermMode = ORG_MODE;
       }
 #endif
@@ -119,8 +123,8 @@ PUBLIC VOID ResetTerminal()
 PUBLIC VOID HostBegin()
 {
 #ifdef SUN
-   ioctl(0,TCGETS,&OrgMode);
-   ioctl(0,TCGETS,&CurMode);
+   tcgetattr(0,&OrgMode);
+   tcgetattr(0,&CurMode);
 #endif
 #ifdef HELIOS
    InputStream = fdstream(0);
@@ -154,7 +158,7 @@ PUBLIC BYTE GetAKey()
 	 CurMode.c_lflag &= ~(ICANON | ECHO);
 	 CurMode.c_cc[VTIME] = 0;
 	 CurMode.c_cc[VMIN] = 1;
-	 ioctl( 0, TCSETS, &CurMode );
+	 tcsetattr( 0, 0, &CurMode );
 	 TermMode = GET_MODE;
       }
    else
@@ -162,7 +166,7 @@ PUBLIC BYTE GetAKey()
 	 {
 	 CurMode.c_cc[VTIME] = 0;
 	 CurMode.c_cc[VMIN] = 1;
-	 ioctl( 0, TCSETS, &CurMode );
+	 tcsetattr( 0, 0, &CurMode );
 	 TermMode = GET_MODE;
 	 }
    while(read(0, &c, 1)<=0);
@@ -247,13 +251,13 @@ PUBLIC VOID SpGetkey()
        CurMode.c_lflag &= ~(ICANON | ECHO);
        CurMode.c_cc[VTIME] = 1;
        CurMode.c_cc[VMIN] = 0;
-       ioctl( 0, TCSETS, &CurMode );
+       tcsetattr( 0, 0, &CurMode );
        TermMode = POLL_MODE;
       } else {
 	if ( TermMode == GET_MODE ) {
 	  CurMode.c_cc[VTIME] = 1;
 	  CurMode.c_cc[VMIN] = 0;
-	  ioctl( 0, TCSETS, &CurMode );
+	  tcsetattr( 0, 0, &CurMode );
 	  TermMode = POLL_MODE;
 	};
       };
@@ -347,7 +351,7 @@ PUBLIC VOID SpPollkey()
 	 CurMode.c_lflag &= ~(ICANON | ECHO);
 	 CurMode.c_cc[VTIME] = 1;
 	 CurMode.c_cc[VMIN] = 0;
-	 ioctl( 0, TCSETS, &CurMode );
+	 tcsetattr( 0, 0, &CurMode );
 	 TermMode = POLL_MODE;
       }
    else
@@ -355,7 +359,7 @@ PUBLIC VOID SpPollkey()
 	 {
 	    CurMode.c_cc[VTIME] = 1;
 	    CurMode.c_cc[VMIN] = 0;
-	    ioctl( 0, TCSETS, &CurMode );
+	    tcsetattr( 0, 0, &CurMode );
 	    TermMode = POLL_MODE;
 	 }
 

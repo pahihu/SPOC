@@ -6571,7 +6571,7 @@ static tConstArray NewConstArray
   {
 /* line 1413 "/home/hpcc/SPOC/spoc.1.3/source/gmd/typechk.trafo" */
 
-    if (!(CA = (tConstArray)malloc((yyP238==0)?1:yyP238))) Message("Out of heap allocating array",xxError,NoPosition);
+    if (!(CA = (tConstArray)malloc((yyP238==0)?1:yyP238+1))) Message("Out of heap allocating array",xxError,NoPosition);
   
   }
    return CA;
