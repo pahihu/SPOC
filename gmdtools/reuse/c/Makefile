@@ -2,7 +2,7 @@ LIB	= $(HOME)/lib
 INCDIR	= $(LIB)/include
 TARGET	= SUN
 REUSE	= libreuse.a
-OPT	= -g #-O
+OPT	= -O
 UNIX	= UNIX
 CFLAGS	= $(OPT) -D$(UNIX) -D$(TARGET) -Wno-return-type -std=c89
 CC	= cc

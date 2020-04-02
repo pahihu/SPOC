@@ -1,6 +1,0 @@
-#ifndef __worker_INCLUDES__
-#define __worker_INCLUDES__
-typedef struct SF_P_worker_worker tSF_P_worker_worker;
-#define WS_P_worker_worker (952)
-void P_worker_worker (tSF_P_worker_worker *FP);
-#endif

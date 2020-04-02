@@ -1,6 +1,16 @@
+How to build ?
+==============
+
+Customize `spoc-env.sh`, then source it.
+Change to directory build and run `make select ARCH=<yourarch>`.
+Change back to here, then run `sh ./rebuild-arch.sh`.
+Good luck!
+
+
 Changes
 =======
 
+* added compilation scripts
 * able to build on macOS Mojave 64bit using clang
 * ported GMDTOOLS runtime library to 64bit (the runtime is 32bit though)
 
