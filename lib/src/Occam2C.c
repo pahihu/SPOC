@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <errno.h>
 
+#if defined(darwin)||defined(linux)
+#include <unistd.h>
+#endif
+
 #if  (defined USESIGTIMER) || (defined USE_NONBLOCKING_SOCKETS)
 #include <signal.h>
 #include <sys/time.h>
@@ -33,6 +37,9 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef darwin
+#include <ulimit.h>
+#endif
 #ifdef solaris
 #include <stropts.h>
 #include <sys/file.h>

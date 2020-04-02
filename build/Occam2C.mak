@@ -16,7 +16,7 @@
 S=/
 ARCH=darwin
 CC=gcc
-CFLAGS=-std=c89 -Wno-return-type $(CCOPTIONS) -DFULL -I. -I$(CSRC) -I$(GMDTOOLS)$(S)c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"$(ARCH)\"
+CFLAGS=-Wno-return-type $(CCOPTIONS) -DFULL -I. -I$(CSRC) -I$(GMDTOOLS)$(S)c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"$(ARCH)\"
 MKDIR=mkdir -p
 #}}}
 #{{{  environment

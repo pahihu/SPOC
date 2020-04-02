@@ -7,13 +7,17 @@
 # include "Parser.h"
 # include "Errors.h"
 
+# ifdef __linux__
+# include <string.h>
+# endif
+
 # ifdef __cplusplus
 extern "C" {
 #    include "Memory.h"
 #    include "DynArray.h"
 #    include "Sets.h"
 #    ifndef BCOPY
-#       include <memory.h>
+#       include <strings.h>
 #    endif
 }
 # else

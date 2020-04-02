@@ -15,8 +15,8 @@
 #INCLUDE "hostio.inc"
 
 --{{{  definitions
+#H extern int  ServeBuffer  (char *, short*);
 #H #if (defined USE_SOCKETS || defined USE_NONBLOCKING_SOCKETS)
-#H   extern int  ServeBuffer  (char *, short*);
 #H   extern void ServeSockets (int, int);
 #H   #include <sys/types.h>
 #H   #include <sys/socket.h>

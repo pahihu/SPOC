@@ -21,6 +21,10 @@
 #include <time.h>
 #include <stdlib.h>
 
+#if defined(darwin)||defined(linux)
+#include <unistd.h>
+#endif
+
 #if (BOARD_ID == UDP)
 #include "udplink.h"
 #endif
@@ -29,7 +33,7 @@
 #include <sys/termios.h>
 #endif
 
-#ifdef __linux__
+#if defined(linux)
 #include <sys/ioctl.h>
 #define timezone __timezone
 #endif

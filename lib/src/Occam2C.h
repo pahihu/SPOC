@@ -1308,6 +1308,7 @@ static tTimer INLINE ReadTimer(void)
 extern void WaitSocket (int socket);
 extern void Start_Process(register tTask *task, register tFuncPtr Func, register void *FP, register char *name,int Pri);
 extern void Start_Placed(register tTask *task, register tFuncPtr Func, register void *FP, register char *name,int Processor);
+extern void End_Process(void);
 
 /*}}}*/
 /*{{{  retyping primitives*/

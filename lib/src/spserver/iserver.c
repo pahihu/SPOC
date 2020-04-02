@@ -20,6 +20,10 @@
 #include <string.h> 
 #include <errno.h>
 
+#if defined(darwin)||defined(linux)
+#include <unistd.h>
+#endif
+
 #ifdef MSC
 #include <stdlib.h>
 #include <malloc.h>

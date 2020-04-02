@@ -20,6 +20,10 @@
 #include <errno.h>
 #include <string.h>
 
+#if defined(darwin)||defined(linux)
+#include <unistd.h>
+#endif
+
 #ifdef VMS
 #include <unixio.h>
 #endif
@@ -35,6 +39,8 @@ EXTERN BOOL VerboseSwitch;
 EXTERN int errno;
 
 EXTERN BYTE *Tbuf;
+
+EXTERN VOID ResetTerminal();
 
 PRIVATE BYTE DataBuffer[MAX_SLICE_LENGTH+1];
 PRIVATE int Size;
@@ -347,7 +353,7 @@ PUBLIC VOID SpPutBlock()
    INIT_BUFFERS;
 
    GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
-   switch( (int)Fd )
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -706,9 +712,9 @@ PUBLIC VOID SpRemove()
    else
       {
 #ifdef SUN
-	 if( unlink( Name ) )
+	 if( unlink( (char *)Name ) )
 #else
-	 if( remove( Name ) )
+	 if( remove( (char *)Name ) )
 #endif
 	    {
 	       PUT_BYTE( SP_ERROR );

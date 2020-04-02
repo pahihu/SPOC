@@ -4,7 +4,7 @@ TARGET	= SUN
 REUSE	= libreuse.a
 OPT	= -O
 UNIX	= UNIX
-CFLAGS	= $(OPT) -D$(UNIX) -D$(TARGET) -Wno-return-type -std=c89
+CFLAGS	= $(OPT) -D$(UNIX) -D$(TARGET) -Wno-return-type
 CC	= cc
 OBJS	= System.o General.o Memory.o DynArray.o StringMem.o Idents.o Sets.o Time.o \
 	  Errors.o Positions.o Source.o
