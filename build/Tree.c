@@ -14809,7 +14809,7 @@ static tTree yyMapOldToNew
   if (yyOldToNewStorePtr [yyi].yyOld == yyOld) return yyOldToNewStorePtr [yyi].yyNew;
 }
 
-static tTree yyCopyTree
+static void yyCopyTree
 # if defined __STDC__ | defined __cplusplus
  (tTree yyt, yyPtrtTree yyNew)
 # else

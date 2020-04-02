@@ -10,6 +10,7 @@ Good luck!
 Changes
 =======
 
+* clean build on macOS Mojave 64bit and Ubuntu Linux 18.0.4
 * added compilation scripts
 * able to build on macOS Mojave 64bit using clang
 * ported GMDTOOLS runtime library to 64bit (the runtime is 32bit though)
