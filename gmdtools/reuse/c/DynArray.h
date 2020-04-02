@@ -29,6 +29,8 @@
 # define ARGS(parameters)	()
 # endif
 
+# include <stdint.h>
+
 extern void MakeArray    ARGS((char * * ArrayPtr, uint32_t * ElmtCount, uint32_t ElmtSize));
 			/* 'ArrayPtr' is set to the start address of a	*/
 			/* memory space to hold an array of 'ElmtCount' */

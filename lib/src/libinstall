@@ -13,7 +13,7 @@
 # @(#)====================================================
 #}}}
 INMOS=0
-MAKE=gnumake
+MAKE=$GNUMAKE
 
 if [ ! $SPOC ]; then
   echo Error - You must set SPOC environment variable before installing libraries

@@ -11,7 +11,7 @@
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
-MAKE=gnumake
+MAKE=$(GNUMAKE)
 deflibs: Intrinsics.lib convert.lib snglmath.lib dblmath.lib mathvals.inc spserver.lib
 
 #{{{  Intrinsics

@@ -28,6 +28,11 @@
 #include <sys/termios.h>
 #endif
 
+#ifdef __linux__
+#include <sys/ioctl.h>
+#define timezone __timezone
+#endif
+
 #ifdef VMS
 #include <ssdef.h>
 #include <iodef.h>

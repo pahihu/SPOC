@@ -11,7 +11,7 @@
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
-MAKE=gnumake
+MAKE=$(GNUMAKE)
 spoclibs: hostio.lib string.lib
 
 #{{{  hostio

@@ -11,7 +11,7 @@
 # @(#)     Date : 1/14/94
 # @(#)====================================================
 #}}}
-MAKE=gnumake
+MAKE=$(GNUMAKE)
 imslibs: hostio.lib streamio.lib string.lib
 
 #{{{  hostio
