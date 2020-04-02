@@ -528,7 +528,11 @@ static void DoSubstitutions(FILE *inf,tTree Root)
 	  bp += S_SWITCHES;
 	
 	  if (IS_Mode(xxLibrary)) { WriteStr("#define LIBRARY_UNIT"); NewLine(); }
+#if __SIZEOF_POINTER__==8
+	  WriteStr("#define BYTES_PER_WORD 8"); NewLine();
+#else
 	  WriteStr("#define BYTES_PER_WORD 4"); NewLine();
+#endif
 	
 	  if (!IS_Mode(xxSupportINT64)) { WriteStr("#define NO_INT64"); NewLine(); }
 	

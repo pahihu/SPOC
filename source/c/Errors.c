@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #include "Memory.h"
 #include "System.h"
@@ -47,7 +48,7 @@ static void WriteCode        ARGS((int ErrorCode));
 static void WriteInfo        ARGS((int InfoClass, char * Info));
 static void WriteMessage ARGS((bool IsErrorCode, int ErrorCode, int ErrorClass, tPosition Position, int InfoClass, char * Info));
 static void StoreMessage ARGS((bool IsErrorCode, int ErrorCode, int ErrorClass, tPosition Position, int InfoClass, char * Info));
-static int IsLess        ARGS((tError * i, tError * j));
+static int IsLess        ARGS((const void * pi, const void * pj));
 
 static tError        ErrorTable [MaxError + 1];
 static int        MessageCount;
@@ -243,7 +244,7 @@ static void StoreMessage (bool IsErrorCode, int ErrorCode, int ErrorClass, tPosi
       case xxBoolean	: With->Info.vBoolean	= * (bool	*) Info; break;
       case xxCharacter	: With->Info.vCharacter	= * (char	*) Info; break;
       case xxString	: With->Info.vString	= PutString (Info, strlen (Info)); break;
-      case xxSet	: With->Info.vSet = (tSet *) Alloc ((unsigned long) sizeof (tSet));
+      case xxSet	: With->Info.vSet = (tSet *) Alloc ((uint32_t) sizeof (tSet));
 			  MakeSet (With->Info.vSet, Size ((tSet *) Info));
 			  Assign (With->Info.vSet, (tSet *) Info); break;
       case xxIdent	: With->Info.vIdent	= * (tIdent	*) Info; break;
@@ -264,8 +265,9 @@ static void StoreMessage (bool IsErrorCode, int ErrorCode, int ErrorClass, tPosi
   if (ErrorClass == xxFatal) { WriteMessages (stderr); (* Errors_Exit) (); }
 }
 
-static int IsLess (tError * i, tError * j)
+static int IsLess (const void * pi, const void * pj)
 {
+  tError * i = (tError *) pi, * j = (tError *) pj;
   register int r = Compare (i->Position, j->Position);
   return r != 0 ? r : i->ErrorNumber - j->ErrorNumber;
 }

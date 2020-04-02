@@ -59,7 +59,7 @@ PUBLIC VOID SpCommand()
       Cl = DoctoredCommandLine;
 
    PUT_BYTE( SP_SUCCESS );
-   Size = strlen( Cl );
+   Size = strlen( (char *)Cl );
    PUT_SLICE( Size, Cl );
    REPLY;
 }
@@ -88,7 +88,7 @@ PUBLIC VOID SpCore()
       }
    else
       {
-         GET_INT32( Offset ); DEBUG(( "offset %ld", Offset ));
+         GET_INT32( Offset ); DEBUG(( "offset %d", Offset ));
          GET_INT16( Length ); DEBUG(( "length %d", Length ));
          Off = (int)Offset;
          if ( (Off >= CoreSize) || (Off < 0) || (Length < 0) )

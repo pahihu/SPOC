@@ -11428,7 +11428,7 @@ int Parser ()
 #ifdef YYDEBUG
 if (yydebug)  /* SMW */
 {
-           printf("Reading a token: Next token is %ld (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
+           printf("Reading a token: Next token is %d (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
 }
 #endif
 
@@ -11515,7 +11515,7 @@ if (yydebug)  /* SMW */
 #ifdef YYDEBUG
 if (yydebug)        /* SMW */
 {
-  printf("Reading a token: Next token is %ld (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
+  printf("Reading a token: Next token is %d (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
 }
 #endif
 
@@ -11523,7 +11523,7 @@ if (yydebug)        /* SMW */
 	    }
 
 	    for (;;) {
-	       /* register int32_t yyNonterminal;		/* left-hand side */
+	       /* register int32_t yyNonterminal; */		/* left-hand side */
 # define yyNonterminal yyState
 
 switch (yyState) {
@@ -15455,7 +15455,7 @@ if (yydebug) {
 #ifdef YYDEBUG
 if (yydebug)  /* SMW */
 {
-  printf("Reading a token: Next token is %ld (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
+  printf("Reading a token: Next token is %d (%s)\n",yyTerminal,Parser_TokenName[yyTerminal]);
 }
 #endif
 

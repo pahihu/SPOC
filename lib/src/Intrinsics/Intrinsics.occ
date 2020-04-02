@@ -13,6 +13,11 @@
 
 --}}}
 #H #include <math.h>
+#H #if defined(sun4)||defined(solaris)||defined(darwin)||defined(linux)
+#H   #define have_mathfuncs 1
+#H #else
+#H   #define have_mathfuncs 0
+#H #endif
 INT FUNCTION LONGADD(VAL INT left, VAL INT right, VAL INT carry.in) IS (left+right) + (carry.in /\ 1) :
 INT FUNCTION LONGSUB(VAL INT left, VAL INT right, VAL INT borrow.in) IS (left-right) - (borrow.in /\ 1) :
 
@@ -279,7 +284,7 @@ REAL64 FUNCTION DNEXTAFTER(VAL REAL64 x, VAL REAL64 y)
   REAL64 next :
   VALOF
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C   $next = nextafter($x,$y);
       #C #else
       #C   SETERR("No nextafter function");
@@ -327,7 +332,7 @@ REAL32 FUNCTION REAL32REM(VAL REAL32 x, VAL REAL32 y)
   REAL32 res :
   VALOF 
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C   $res = remainder($x,$y);
       #C #else
       #C   SETERR("remainder function");
@@ -340,7 +345,7 @@ REAL64 FUNCTION REAL64REM(VAL REAL64 x, VAL REAL64 y)
   REAL64 res :
   VALOF 
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C   $res = remainder($x,$y);
       #C #else
       #C   SETERR("remainder function");
@@ -353,7 +358,7 @@ BOOL,REAL32 FUNCTION IEEE32REM(VAL REAL32 x, VAL REAL32 y)
   REAL32 res :
   VALOF 
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C   $res = remainder($x,$y);
       #C #else
       #C   SETERR("remainder function");
@@ -366,7 +371,7 @@ BOOL,REAL64 FUNCTION IEEE64REM(VAL REAL64 x, VAL REAL64 y)
   REAL64 res :
   VALOF 
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C   $res = remainder($x,$y);
       #C #else
       #C   SETERR("remainder function");
@@ -412,7 +417,7 @@ REAL32 FUNCTION LOGB (VAL REAL32 X)
   REAL32 result :
   VALOF
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C $result = (REAL32) ilogb ((double) $X);
       #C #else
       #C SETERR("LOGB not implemented");
@@ -425,7 +430,7 @@ REAL32 FUNCTION DLOGB (VAL REAL64 X)
   REAL32 result :
   VALOF
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C $result = (REAL64) ilogb ($X);
       #C #else
       #C SETERR("LOGB not implemented");
@@ -443,7 +448,7 @@ BOOL FUNCTION ISNAN (VAL REAL32 X)
   BOOL result :
   VALOF
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C $result = isnan ((double) $X);
       #C #else
       #C SETERR("ISNAN not implemented");
@@ -456,7 +461,7 @@ BOOL FUNCTION DISNAN (VAL REAL64 X)
   BOOL result :
   VALOF
     SEQ
-      #C #if (defined sun4)||(defined solaris)
+      #C #if have_mathfuncs
       #C $result = isnan ($X);
       #C #else
       #C SETERR("DISNAN not implemented");

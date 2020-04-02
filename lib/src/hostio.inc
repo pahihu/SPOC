@@ -115,9 +115,9 @@ VAL sps.success IS  999999999(INT32) :
 VAL sps.failure IS -999999999(INT32) :
 --}}}
 --{{{  Seek origins          (spo.)
-VAL spo.start   IS 1(INT32) :
-VAL spo.current IS 2(INT32) :
-VAL spo.end     IS 3(INT32) :
+VAL spo.start   IS 1(INT) :
+VAL spo.current IS 2(INT) :
+VAL spo.end     IS 3(INT) :
 --}}}
 --{{{  Version information   (sph., spo., spb.)
 --{{{  Host types            (sph.)

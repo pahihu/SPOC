@@ -739,7 +739,7 @@ int main(int argc, char **argv)
   void *FP=NULL;
   tSF_<<MAIN>> *MAINFP=(tSF_<<MAIN>> *)malloc(sizeof(tSF_<<MAIN>>));
   tTask main_t;
-  INT mem_size = (argc>1 && atoi(argv[1])>0)?atoi(argv[1]):DEFAULT_MEMSIZE_IN_INTS;
+  INT32 mem_size = (argc>1 && atoi(argv[1])>0)?atoi(argv[1]):DEFAULT_MEMSIZE_IN_INTS;
   INT *mem=(INT*)malloc(mem_size*sizeof(INT));
   CHAN fs,ts;
   

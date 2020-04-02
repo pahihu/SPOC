@@ -61,7 +61,7 @@ PUBLIC VOID SpOpen()
    GET_BYTE( Type ); DEBUG(( "type %d", Type ));
    GET_BYTE( Mode ); DEBUG(( "mode %d", Mode ));
 
-   if ( strlen( Name ) == 0 )
+   if ( strlen( (char *)Name ) == 0 )
       {
 	 PUT_BYTE( SP_ERROR );
 	 REPLY;
@@ -142,22 +142,22 @@ PUBLIC VOID SpOpen()
    if( Type == 1 )
       switch( Mode )
 	 {
-	    case 1 : Fd = fopen( Name, BINARY_1 ); break;
-	    case 2 : Fd = fopen( Name, BINARY_2 ); break;
-	    case 3 : Fd = fopen( Name, BINARY_3 ); break;
-	    case 4 : Fd = fopen( Name, BINARY_4 ); break;
-	    case 5 : Fd = fopen( Name, BINARY_5 ); break;
-	    case 6 : Fd = fopen( Name, BINARY_6 ); break;
+	    case 1 : Fd = fopen( (char *)Name, BINARY_1 ); break;
+	    case 2 : Fd = fopen( (char *)Name, BINARY_2 ); break;
+	    case 3 : Fd = fopen( (char *)Name, BINARY_3 ); break;
+	    case 4 : Fd = fopen( (char *)Name, BINARY_4 ); break;
+	    case 5 : Fd = fopen( (char *)Name, BINARY_5 ); break;
+	    case 6 : Fd = fopen( (char *)Name, BINARY_6 ); break;
 	 }
    else
       switch( Mode )
 	 {
-	    case 1 : Fd = fopen( Name, TEXT_1 ); break;
-	    case 2 : Fd = fopen( Name, TEXT_2 ); break;
-	    case 3 : Fd = fopen( Name, TEXT_3 ); break;
-	    case 4 : Fd = fopen( Name, TEXT_4 ); break;
-	    case 5 : Fd = fopen( Name, TEXT_5 ); break;
-	    case 6 : Fd = fopen( Name, TEXT_6 ); break;
+	    case 1 : Fd = fopen( (char *)Name, TEXT_1 ); break;
+	    case 2 : Fd = fopen( (char *)Name, TEXT_2 ); break;
+	    case 3 : Fd = fopen( (char *)Name, TEXT_3 ); break;
+	    case 4 : Fd = fopen( (char *)Name, TEXT_4 ); break;
+	    case 5 : Fd = fopen( (char *)Name, TEXT_5 ); break;
+	    case 6 : Fd = fopen( (char *)Name, TEXT_6 ); break;
 	 }
 
    if( Fd == NULL )
@@ -168,7 +168,7 @@ PUBLIC VOID SpOpen()
 
    PUT_BYTE( SP_SUCCESS );
    PUT_FD( Fd )
-   DEBUG(( "fd %0X", (int)Fd ));
+   DEBUG(( "fd %0lX", (long)Fd ));
    REPLY;
 }
 
@@ -187,8 +187,8 @@ PUBLIC VOID SpClose()
    DEBUG(( "SP.CLOSE" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -223,8 +223,8 @@ PUBLIC VOID SpRead()
    DEBUG(( "SP.READ" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin;
 #ifdef SUN
@@ -262,8 +262,8 @@ PUBLIC VOID SpWrite()
    DEBUG(( "SP.WRITE" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -307,8 +307,8 @@ PUBLIC VOID SpGetBlock()
    DEBUG(( "SP.GETBLOCK" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin;
 #ifdef SUN
@@ -346,7 +346,7 @@ PUBLIC VOID SpPutBlock()
    DEBUG(( "SP.PUTBLOCK" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
    switch( (int)Fd )
       {
 	 case 0 : Fd = stdin; break;
@@ -390,8 +390,8 @@ PUBLIC VOID SpGets()
    DEBUG(( "SP.GETS" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin;
 #ifdef SUN
@@ -404,7 +404,8 @@ PUBLIC VOID SpGets()
    GET_INT16( Size ); DEBUG(( "limit %d", Size ));
 
    Data = &DataBuffer[0];   
-   while (fgets( Data, Size, Fd )==NULL);
+   while (fgets( (char *)Data, Size, Fd )==NULL)
+        ;
 /* MBH: fgets returns NULL if signal occurs; loop until data received */
 #ifdef COMMENT
    if ( fgets( Data, Size, Fd ) == NULL )
@@ -414,7 +415,7 @@ PUBLIC VOID SpGets()
    else 
 #endif COMMENT
       {
-	 Size = strlen( Data );
+	 Size = strlen( (char *)Data );
 	 if( *(Data+Size-1) == '\n')
 	    {
 	       *(Data+Size) = 0;
@@ -443,8 +444,8 @@ PUBLIC VOID SpPuts()
    DEBUG(( "SP.PUTS" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -455,7 +456,7 @@ PUBLIC VOID SpPuts()
    GET_SLICE( Size, Data ); DEBUG(( "%d bytes", Size ));
 
    *(Data+Size)=0;
-   if ( fputs( Data, Fd ) == EOF )
+   if ( fputs( (char *)Data, Fd ) == EOF )
       {
 	 PUT_BYTE( SP_ERROR );
       }
@@ -488,8 +489,8 @@ PUBLIC VOID SpFlush()
    DEBUG(( "SP.FLUSH" ));
    INIT_BUFFERS;
 
-   GET_FD( Fd ); DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   GET_FD( Fd ); DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -517,21 +518,21 @@ PUBLIC VOID SpSeek()
 {
    BUFFER_DECLARATIONS;
    FILE *Fd;
-   INT32 Offset, Origin;
+   long Offset, Origin;
    int origin;
 
    DEBUG(( "SP.SEEK" ));
    INIT_BUFFERS;
 
    GET_FD( Fd );
-   DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
 	 case 2 : Fd = stderr; break;
       }
-   GET_INT32( Offset ); DEBUG(( "offset %ld", Offset ));
+   GET_INT( Offset ); DEBUG(( "offset %ld", Offset ));
    GET_INT32( Origin ); DEBUG(( "origin %ld", Origin ));
 
 #ifdef SUN
@@ -577,8 +578,8 @@ PUBLIC VOID SpTell()
    INIT_BUFFERS;
 
    GET_FD( Fd );
-   DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -593,7 +594,7 @@ PUBLIC VOID SpTell()
    else
       {
 	 PUT_BYTE( SP_SUCCESS );
-	 PUT_INT32( Position );
+	 PUT_INT( Position );
       }
    REPLY;
 }
@@ -614,8 +615,8 @@ PUBLIC VOID SpEof()
    INIT_BUFFERS;
 
    GET_FD( Fd );
-   DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -650,8 +651,8 @@ PUBLIC VOID SpError()
    INIT_BUFFERS;
 
    GET_FD( Fd );
-   DEBUG(( "fd %0X", (int)Fd ));
-   switch( (int)Fd )
+   DEBUG(( "fd %0lX", (long)Fd ));
+   switch( (long)Fd )
       {
 	 case 0 : Fd = stdin; break;
 	 case 1 : Fd = stdout; break;
@@ -670,8 +671,8 @@ PUBLIC VOID SpError()
 	 strcpy( &String[0], strerror(errno));
 #endif
 	 DEBUG(( "error \"%s\"", &String[0]));
-	 Size = strlen(&String[0]);
-	 PUT_SLICE( Size, String[0] );
+	 Size = strlen( (char*)&String[0] );
+	 PUT_SLICE( Size, &String[0] );
 	 REPLY;
       }
    else
@@ -751,7 +752,7 @@ PUBLIC VOID SpRename()
 	    }
 	  else
 	    {
-	       if( rename( Oldname, Newname ) )
+	       if( rename( (char *)Oldname, (char *)Newname ) )
 		  {
 		     PUT_BYTE( SP_ERROR );
 		  }

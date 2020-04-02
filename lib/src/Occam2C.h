@@ -203,7 +203,6 @@ extern void seterr(char *M,int L,char *F);
 #undef BOOL
 #undef TEMPVAL
 
-#define INT   int
 #define INT32 int
 
 #ifndef NO_INT64
@@ -212,6 +211,12 @@ extern void seterr(char *M,int L,char *F);
 #else
 #define INT64 long
 #endif
+#endif
+
+#if __SIZEOF_POINTER__==8
+#define INT   INT64
+#else
+#define INT   INT32
 #endif
 
 #define INT16 short int
@@ -402,7 +407,39 @@ static void INLINE FailConvert(int V,int L, char *F)
 #endif
 /*}}}*/
 /*{{{  conversions involving INT*/
-#if (BYTES_PER_WORD==4)
+#if (BYTES_PER_WORD==8)
+#define MOSTPOSINT MOSTPOSINT64
+#define MOSTNEGINT MOSTNEGINT64
+
+#define INT16INT(v) INT16INT64(v)
+#define INT32INT(v) INT32INT64(v)
+
+#define INTINT(v)   INT64INT64(v)
+#define INTINT16(v) INT64INT16(v)
+#define INTINT32(v) INT64INT64(v)
+#define INTBOOL(v)  INT64BOOL(v)
+#define INTBYTE(v)  INT64BYTE(v)
+#define BYTEINT(v)  BYTEINT64(v)
+#define BOOLINT(v)  BOOLINT64(v)
+
+#ifndef NO_INT64
+#define INTINT64(v) INT64INT64(v)
+#define INT64INT(v) INT64INT64(v)
+#endif
+
+#define INTREAL32TRUNC(v) INT64REAL32TRUNC(v)
+#define REAL32INTTRUNC(v) REAL32INT64TRUNC(v)
+#define INTREAL32ROUND(v) INT64REAL32ROUND(v)
+#define REAL32INTROUND(v) REAL32INT64ROUND(v)
+
+#ifndef NO_REAL64
+#define INTREAL64TRUNC(v) INT64REAL64TRUNC(v)
+#define REAL64INTTRUNC(v) REAL64INT64TRUNC(v)
+#define INTREAL64ROUND(v) INT64REAL64ROUND(v)
+#define REAL64INTROUND(v) REAL64INT64ROUND(v)
+#endif
+
+#elif (BYTES_PER_WORD==4)
 #define MOSTPOSINT MOSTPOSINT32
 #define MOSTNEGINT MOSTNEGINT32
 

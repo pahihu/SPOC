@@ -48,7 +48,7 @@ typedef struct {
    union {
       int	vInteger;
       short	vShort;
-      int32_t	vLong;
+      long	vLong;
       float	vReal;
       bool	vBoolean;
       char	vCharacter;
@@ -63,7 +63,7 @@ static void WriteCode	ARGS((int ErrorCode));
 static void WriteInfo	ARGS((int InfoClass, char * Info));
 static void WriteMessage ARGS((bool IsErrorCode, int ErrorCode, int ErrorClass, tPosition Position, int InfoClass, char * Info));
 static void StoreMessage ARGS((bool IsErrorCode, int ErrorCode, int ErrorClass, tPosition Position, int InfoClass, char * Info));
-static int IsLess	ARGS((tError * i, tError * j));
+static int IsLess	ARGS((const void * i, const void * j));
 
 static tError	ErrorTable [MaxError + 1];
 static int	MessageCount;
@@ -170,7 +170,7 @@ static void WriteInfo
    switch (InfoClass) {
    case xxInteger	: (void) fprintf (Out, "%d", * (int *) Info); break;
    case xxShort		: i =  * (short *) Info; (void) fprintf (Out, "%d", i); break;
-   case xxLong		: (void) fprintf (Out, "%ld", * (int32_t *) Info); break;
+   case xxLong		: (void) fprintf (Out, "%ld", * (long *) Info); break;
    case xxReal		: (void) fprintf (Out, "%e", * (float *) Info); break;
    case xxBoolean	: (void) fprintf (Out, "%c", * (bool *) Info ? 'T' : 'F'); break;
    case xxCharacter	: (void) fprintf (Out, "%c", * Info); break;
@@ -251,7 +251,7 @@ bool IsErrorCode; int ErrorCode, ErrorClass; tPosition Position; int InfoClass; 
       switch (With->InfoClass) {
       case xxInteger	: With->Info.vInteger	= * (int	*) Info; break;
       case xxShort	: With->Info.vShort	= * (short	*) Info; break;
-      case xxLong	: With->Info.vLong	= * (int32_t	*) Info; break;
+      case xxLong	: With->Info.vLong	= * (long	*) Info; break;
       case xxReal	: With->Info.vReal	= * (float	*) Info; break;
       case xxBoolean	: With->Info.vBoolean	= * (bool	*) Info; break;
       case xxCharacter	: With->Info.vCharacter	= * (char	*) Info; break;
@@ -277,11 +277,12 @@ bool IsErrorCode; int ErrorCode, ErrorClass; tPosition Position; int InfoClass; 
 
 static int IsLess
 # if defined __STDC__ | defined __cplusplus
-   (tError * i, tError * j)
+   (const void * pi, const void * pj)
 # else
-   (i, j) tError * i, * j;
+   (i, j) const void * pi, * pj;
 # endif
 {
+  tError * i = (tError *) pi, * j = (tError *) pj;
   register int r = Compare (i->Position, j->Position);
   return r != 0 ? r : i->ErrorNumber - j->ErrorNumber;
 }

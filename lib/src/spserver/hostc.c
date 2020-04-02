@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
 
 #if (BOARD_ID == UDP)
 #include "udplink.h"
@@ -439,7 +440,7 @@ PUBLIC VOID SpGetenv()
       }
    else
       {
-	 if( ( Name=(BYTE *)getenv( Name ) ) == NULL )
+	 if( ( Name=(BYTE *)getenv( (char *)Name ) ) == NULL )
 	    {
 	       PUT_BYTE( SP_ERROR );
 	    }
@@ -447,7 +448,7 @@ PUBLIC VOID SpGetenv()
 	    {
 	       DEBUG(( "\"%s\"", Name ));
 	       PUT_BYTE( SP_SUCCESS );
-	       Size = strlen( Name );
+	       Size = strlen( (char *)Name );
 	       PUT_SLICE( Size, Name );
 	    }
       }
@@ -553,9 +554,9 @@ PUBLIC VOID SpSystem()
 #endif /* SUN */
    }
    else
-      Status = system( Command );
+      Status = system( (char *)Command );
 
-   DEBUG(( "status %ld", Status ));
+   DEBUG(( "status %d", Status ));
    PUT_BYTE( Result );
    PUT_INT32( Status );
    REPLY;

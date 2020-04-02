@@ -25,7 +25,7 @@
 --{{{  constants
 VAL UNIX  IS TRUE :
 VAL MSDOS IS FALSE :
-VAL NULL  IS 0 (INT32) :
+VAL NULL  IS 0 (INT) :
 VAL EOF   IS -1 (INT) :
 --}}}
 
@@ -82,7 +82,11 @@ PROC so.write.int (CHAN OF SP fs,ts, VAL INT n, field)
     field >= 0
       SEQ
 	so.mark.channels (fs,ts)
-	#C printf("%*d",$field,$n) ;
+        #C #if (BYTES_PER_WORD==8)
+	#C     printf("%*lld",(int)$field,$n) ;
+        #C #else
+	#C     printf("%*d",$field,$n) ;
+        #C #endif
 :
 --}}}
 
@@ -98,7 +102,11 @@ PROC so.write.hex.int (CHAN OF SP fs,ts, VAL INT n, field)
     field >= 0
       SEQ
 	so.mark.channels (fs,ts)
-	#C printf("#%0*X",$field,$n) ;
+        #C #if (BYTES_PER_WORD==8)
+	#C     printf("#%0*llX",(int)$field,$n) ;
+        #C #else
+	#C     printf("#%0*X",$field,$n) ;
+        #C #endif
 :
 --}}}
 
@@ -150,8 +158,8 @@ PROC so.write.hex.int64 (CHAN OF SP fs,ts, VAL INT64 r, VAL INT field)
 --}}}
 
 --{{{  file output
---{{{  PROC so.fwrite.char (CHAN OF SP fs,ts, VAL INT32 streamid, VAL BYTE ch, BYTE result)
-PROC so.fwrite.char (CHAN OF SP fs,ts, VAL INT32 streamid, VAL BYTE ch, BYTE result)
+--{{{  PROC so.fwrite.char (CHAN OF SP fs,ts, VAL INT streamid, VAL BYTE ch, BYTE result)
+PROC so.fwrite.char (CHAN OF SP fs,ts, VAL INT streamid, VAL BYTE ch, BYTE result)
   BOOL failed :
   SEQ
     so.mark.channels (fs,ts)
@@ -165,22 +173,22 @@ PROC so.fwrite.char (CHAN OF SP fs,ts, VAL INT32 streamid, VAL BYTE ch, BYTE res
 :  
 --}}}
 
---{{{  PROC so.fwrite.nl (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
-PROC so.fwrite.nl (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
+--{{{  PROC so.fwrite.nl (CHAN OF SP fs,ts, VAL INT streamid, BYTE result)
+PROC so.fwrite.nl (CHAN OF SP fs,ts, VAL INT streamid, BYTE result)
   so.fwrite.char (fs,ts,streamid,'*n',result)
 :  
 --}}}
 
---{{{  PROC so.fwrite.string (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE string, BYTE result)
-PROC so.fwrite.string (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE string, BYTE result)
+--{{{  PROC so.fwrite.string (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE string, BYTE result)
+PROC so.fwrite.string (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE string, BYTE result)
   SEQ
     SEQ i = 0 FOR SIZE string
       so.fwrite.char (fs,ts,streamid,string[i],result)
 :  
 --}}}
 
---{{{  PROC so.fwrite.string.nl (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE string, BYTE result)
-PROC so.fwrite.string.nl (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE string, BYTE result)
+--{{{  PROC so.fwrite.string.nl (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE string, BYTE result)
+PROC so.fwrite.string.nl (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE string, BYTE result)
   SEQ
     so.fwrite.string(fs,ts,streamid,string,result)
 
@@ -192,14 +200,18 @@ PROC so.fwrite.string.nl (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE strin
 :
 --}}}
 
---{{{  PROC so.fwrite.int (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT n, field, BYTE result)
-PROC so.fwrite.int (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT n, field, BYTE result)
+--{{{  PROC so.fwrite.int (CHAN OF SP fs,ts, VAL INT streamid, VAL INT n, field, BYTE result)
+PROC so.fwrite.int (CHAN OF SP fs,ts, VAL INT streamid, VAL INT n, field, BYTE result)
   IF
     field >= 0
       BOOL failed :
       SEQ
 	so.mark.channels (fs,ts)
-	#C $failed = (fprintf((FILE*)$streamid,"%*d",$field,$n) == EOF) ;
+        #C #if (BYTES_PER_WORD==8)
+	#C     $failed = (fprintf((FILE*)$streamid,"%*lld",(int)$field,$n) == EOF) ;
+        #C #else
+	#C     $failed = (fprintf((FILE*)$streamid,"%*d",$field,$n) == EOF) ;
+        #C #endif
 
 	IF
 	  failed
@@ -209,21 +221,25 @@ PROC so.fwrite.int (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT n, field, BYTE
 :
 --}}}
 
---{{{  PROC so.fwrite.int32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT32 n, VAL INT field, BYTE result)
-PROC so.fwrite.int32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT32 n, VAL INT field, BYTE result)
+--{{{  PROC so.fwrite.int32 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT32 n, VAL INT field, BYTE result)
+PROC so.fwrite.int32 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT32 n, VAL INT field, BYTE result)
   so.fwrite.int (fs,ts,streamid,INT n,field,result)
 :
 --}}}
 
 
---{{{  PROC so.fwrite.hex.int (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT n, field, BYTE result)
-PROC so.fwrite.hex.int (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT n, field, BYTE result)
+--{{{  PROC so.fwrite.hex.int (CHAN OF SP fs,ts, VAL INT streamid, VAL INT n, field, BYTE result)
+PROC so.fwrite.hex.int (CHAN OF SP fs,ts, VAL INT streamid, VAL INT n, field, BYTE result)
   IF
     field >= 0
       BOOL failed :
       SEQ
 	so.mark.channels (fs,ts)
-	#C $failed = (fprintf((FILE*)$streamid,"#%0*X",$field,$n) == EOF) ;
+        #C #if (BYTES_PER_WORD==8)
+	#C     $failed = (fprintf((FILE*)$streamid,"#%0*llX",(int)$field,$n) == EOF) ;
+        #C #else
+	#C     $failed = (fprintf((FILE*)$streamid,"#%0*X",$field,$n) == EOF) ;
+        #C #endif
 
 	IF
 	  failed
@@ -233,14 +249,14 @@ PROC so.fwrite.hex.int (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT n, field, 
 :
 --}}}
 
---{{{  PROC so.fwrite.hex.int32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT32 n, VAL INT field, BYTE result)
-PROC so.fwrite.hex.int32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT32 n, VAL INT field, BYTE result)
+--{{{  PROC so.fwrite.hex.int32 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT32 n, VAL INT field, BYTE result)
+PROC so.fwrite.hex.int32 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT32 n, VAL INT field, BYTE result)
   so.fwrite.hex.int (fs,ts,streamid,INT n,field,result)
 :
 --}}}
 
---{{{  PROC so.fwrite.real32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL REAL32 r, VAL INT Ip,Dp, BYTE result)
-PROC so.fwrite.real32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL REAL32 r, VAL INT Ip,Dp, BYTE result)
+--{{{  PROC so.fwrite.real32 (CHAN OF SP fs,ts, VAL INT streamid, VAL REAL32 r, VAL INT Ip,Dp, BYTE result)
+PROC so.fwrite.real32 (CHAN OF SP fs,ts, VAL INT streamid, VAL REAL32 r, VAL INT Ip,Dp, BYTE result)
   [24]BYTE buffer :
   INT len :
   SEQ
@@ -249,8 +265,8 @@ PROC so.fwrite.real32 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL REAL32 r, VAL I
 :    
 --}}}
 
---{{{  PROC so.fwrite.real64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL REAL64 r, VAL INT Ip,Dp, BYTE result)
-PROC so.fwrite.real64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL REAL64 r, VAL INT Ip,Dp, BYTE result)
+--{{{  PROC so.fwrite.real64 (CHAN OF SP fs,ts, VAL INT streamid, VAL REAL64 r, VAL INT Ip,Dp, BYTE result)
+PROC so.fwrite.real64 (CHAN OF SP fs,ts, VAL INT streamid, VAL REAL64 r, VAL INT Ip,Dp, BYTE result)
   [30]BYTE buffer :
   INT len :
   SEQ
@@ -259,8 +275,8 @@ PROC so.fwrite.real64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL REAL64 r, VAL I
 :    
 --}}}
 
---{{{  PROC so.fwrite.int64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT64 r, VAL INT field, BYTE result)
-PROC so.fwrite.int64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT64 r, VAL INT field, BYTE result)
+--{{{  PROC so.fwrite.int64 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT64 r, VAL INT field, BYTE result)
+PROC so.fwrite.int64 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT64 r, VAL INT field, BYTE result)
   [30]BYTE buffer :
   INT len :
   SEQ
@@ -269,8 +285,8 @@ PROC so.fwrite.int64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT64 r, VAL INT
 :    
 --}}}
 
---{{{  PROC so.fwrite.hex.int64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT64 r, VAL INT field, BYTE result)
-PROC so.fwrite.hex.int64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT64 r, VAL INT field, BYTE result)
+--{{{  PROC so.fwrite.hex.int64 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT64 r, VAL INT field, BYTE result)
+PROC so.fwrite.hex.int64 (CHAN OF SP fs,ts, VAL INT streamid, VAL INT64 r, VAL INT field, BYTE result)
   [30]BYTE buffer :
   INT len :
   SEQ
@@ -281,20 +297,20 @@ PROC so.fwrite.hex.int64 (CHAN OF SP fs,ts, VAL INT32 streamid, VAL INT64 r, VAL
 --}}}
 
 --{{{  internal functions
---{{{  PROC MALLOC (INT32 pointer, VAL INT size)
-PROC MALLOC (INT32 pointer, VAL INT size)
-  #C $pointer = (INT32) malloc ($size);
+--{{{  PROC MALLOC (INT pointer, VAL INT size)
+PROC MALLOC (INT pointer, VAL INT size)
+  #C $pointer = (INT) malloc ($size);
 :
 --}}}
 
---{{{  PROC FREE (INT32 pointer)
-PROC FREE (INT32 pointer)
+--{{{  PROC FREE (INT pointer)
+PROC FREE (INT pointer)
   #C free((void*)$pointer);
 :
 --}}}
 
---{{{  PROC STRING.OCCAM.TO.C (VAL []BYTE occam, VAL INT32 c)
-PROC STRING.OCCAM.TO.C (VAL []BYTE occam, VAL INT32 c)
+--{{{  PROC STRING.OCCAM.TO.C (VAL []BYTE occam, VAL INT c)
+PROC STRING.OCCAM.TO.C (VAL []BYTE occam, VAL INT c)
   VAL size IS SIZE occam :
   SEQ
     SEQ i = 0 FOR size
@@ -307,11 +323,11 @@ PROC STRING.OCCAM.TO.C (VAL []BYTE occam, VAL INT32 c)
 --{{{  file handling
 --{{{  PROC so.open (CHAN OF SP fs,ts, VAL []BYTE name, VAL BYTE type, mode,
 PROC so.open (CHAN OF SP fs,ts, VAL []BYTE name, VAL BYTE type, mode,
-	      INT32 streamid, BYTE result)
+	      INT streamid, BYTE result)
 
   VAL options.max IS 3 :
   INT options.cnt :
-  INT32 string :
+  INT string :
   [options.max+1]BYTE options.str :
   SEQ
     so.mark.channels (fs,ts)
@@ -396,7 +412,7 @@ PROC so.open (CHAN OF SP fs,ts, VAL []BYTE name, VAL BYTE type, mode,
 			  SEQ
 			    STRING.OCCAM.TO.C (name,string)
 			    
-			    #C $streamid = (INT32) fopen((char*)$string,(char*)$options.str);
+			    #C $streamid = (INT) fopen((char*)$string,(char*)$options.str);
 		      
 			    IF
 			      streamid = NULL
@@ -412,8 +428,8 @@ PROC so.open (CHAN OF SP fs,ts, VAL []BYTE name, VAL BYTE type, mode,
 :
 --}}}
 
---{{{  PROC so.close (CHAN OF SP fs,ts, INT32 streamid, BYTE result)
-PROC so.close (CHAN OF SP fs,ts, INT32 streamid, BYTE result)
+--{{{  PROC so.close (CHAN OF SP fs,ts, INT streamid, BYTE result)
+PROC so.close (CHAN OF SP fs,ts, INT streamid, BYTE result)
 
   INT r :
   SEQ
@@ -433,7 +449,7 @@ PROC so.close (CHAN OF SP fs,ts, INT32 streamid, BYTE result)
 PROC so.test.exists (CHAN OF SP fs,ts, VAL []BYTE name, BOOL exists)
 
   BYTE  result :
-  INT32 streamid :
+  INT streamid :
   SEQ
     so.open (fs,ts,name,spt.binary,spm.input,streamid,result)
 
@@ -450,7 +466,7 @@ PROC so.test.exists (CHAN OF SP fs,ts, VAL []BYTE name, BOOL exists)
 
 --{{{  PROC so.open.temp (CHAN OF SP fs,ts, VAL BYTE type, [so.temp.filename.length]BYTE filename,
 PROC so.open.temp (CHAN OF SP fs,ts, VAL BYTE type, [so.temp.filename.length]BYTE filename,
-		   INT32 streamid, BYTE result)
+		   INT streamid, BYTE result)
   INT num :
   BOOL searching :
   SEQ
@@ -497,15 +513,15 @@ PROC so.open.temp (CHAN OF SP fs,ts, VAL BYTE type, [so.temp.filename.length]BYT
 --{{{  PROC so.popen.read (CHAN OF SP fs,ts, VAL []BYTE filename, VAL []BYTE path.variable.name,
 PROC so.popen.read (CHAN OF SP fs,ts, VAL []BYTE filename, VAL []BYTE path.variable.name,
 		    VAL BYTE open.type, INT full.len, []BYTE full.name,
-		    INT32 streamid, BYTE result)
+		    INT streamid, BYTE result)
   SEQ                    
     so.write.string.nl(fs,ts,"so.popen.read not implemented")
     result := spr.notok
 :    
 --}}}
 
---{{{  PROC so.write (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE data, INT length)
-PROC so.write (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE data, INT length)
+--{{{  PROC so.write (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE data, INT length)
+PROC so.write (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE data, INT length)
 
   VAL size IS SIZE data :
   SEQ
@@ -515,8 +531,8 @@ PROC so.write (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE data, INT length
 :
 --}}}
 
---{{{  PROC so.read (CHAN OF SP fs,ts, VAL INT32 streamid, INT length, []BYTE data)
-PROC so.read (CHAN OF SP fs,ts, VAL INT32 streamid, INT length, []BYTE data)
+--{{{  PROC so.read (CHAN OF SP fs,ts, VAL INT streamid, INT length, []BYTE data)
+PROC so.read (CHAN OF SP fs,ts, VAL INT streamid, INT length, []BYTE data)
 
   VAL size IS SIZE data :
   SEQ
@@ -527,8 +543,8 @@ PROC so.read (CHAN OF SP fs,ts, VAL INT32 streamid, INT length, []BYTE data)
 --}}}
 
 
---{{{  PROC so.gets (CHAN OF SP fs,ts, VAL INT32 streamid, INT length, []BYTE data, BYTE result)
-PROC so.gets (CHAN OF SP fs,ts, VAL INT32 streamid, INT length, []BYTE data, BYTE result)
+--{{{  PROC so.gets (CHAN OF SP fs,ts, VAL INT streamid, INT length, []BYTE data, BYTE result)
+PROC so.gets (CHAN OF SP fs,ts, VAL INT streamid, INT length, []BYTE data, BYTE result)
 
   BOOL reading :
   SEQ
@@ -567,8 +583,8 @@ PROC so.gets (CHAN OF SP fs,ts, VAL INT32 streamid, INT length, []BYTE data, BYT
 
 --}}}
 
---{{{  PROC so.puts (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE data, BYTE result)
-PROC so.puts (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE data, BYTE result)
+--{{{  PROC so.puts (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE data, BYTE result)
+PROC so.puts (CHAN OF SP fs,ts, VAL INT streamid, VAL []BYTE data, BYTE result)
 
   BOOL writing :
   INT  length :
@@ -600,8 +616,8 @@ PROC so.puts (CHAN OF SP fs,ts, VAL INT32 streamid, VAL []BYTE data, BYTE result
 --}}}
 
 
---{{{  PROC so.flush (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
-PROC so.flush (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
+--{{{  PROC so.flush (CHAN OF SP fs,ts, VAL INT streamid, BYTE result)
+PROC so.flush (CHAN OF SP fs,ts, VAL INT streamid, BYTE result)
 
   INT r :
   SEQ
@@ -617,8 +633,8 @@ PROC so.flush (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
 :        
 --}}}
 
---{{{  PROC so.seek (CHAN OF SP fs,ts, VAL INT32 streamid, offset, origin, BYTE result)
-PROC so.seek (CHAN OF SP fs,ts, VAL INT32 streamid, offset, origin, BYTE result)
+--{{{  PROC so.seek (CHAN OF SP fs,ts, VAL INT streamid, offset, origin, BYTE result)
+PROC so.seek (CHAN OF SP fs,ts, VAL INT streamid, offset, origin, BYTE result)
 
   INT org :
   SEQ
@@ -652,17 +668,17 @@ PROC so.seek (CHAN OF SP fs,ts, VAL INT32 streamid, offset, origin, BYTE result)
 :        
 --}}}
 
---{{{  PROC so.tell (CHAN OF SP fs,ts, VAL INT32 streamid, INT32 position, BYTE result)
-PROC so.tell (CHAN OF SP fs,ts, VAL INT32 streamid, INT32 position, BYTE result)
+--{{{  PROC so.tell (CHAN OF SP fs,ts, VAL INT streamid, INT position, BYTE result)
+PROC so.tell (CHAN OF SP fs,ts, VAL INT streamid, INT position, BYTE result)
 
-  INT32 r :
+  INT r :
   SEQ
     so.mark.channels (fs,ts)
 
-    #C $r = (INT32) ftell ((FILE*)$streamid);
+    #C $r = (INT) ftell ((FILE*)$streamid);
 
     IF
-      r < (0(INT32))
+      r < (0(INT))
 	result := spr.operation.failed
       TRUE
 	SEQ
@@ -672,8 +688,8 @@ PROC so.tell (CHAN OF SP fs,ts, VAL INT32 streamid, INT32 position, BYTE result)
 --}}}
 
 
---{{{  PROC so.eof (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
-PROC so.eof (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
+--{{{  PROC so.eof (CHAN OF SP fs,ts, VAL INT streamid, BYTE result)
+PROC so.eof (CHAN OF SP fs,ts, VAL INT streamid, BYTE result)
 
   INT r :
   SEQ
@@ -689,8 +705,8 @@ PROC so.eof (CHAN OF SP fs,ts, VAL INT32 streamid, BYTE result)
 :        
 --}}}
 
---{{{  PROC so.ferror (CHAN OF SP fs,ts, VAL INT32 streamid, INT32 error.no,
-PROC so.ferror (CHAN OF SP fs,ts, VAL INT32 streamid, INT32 error.no,
+--{{{  PROC so.ferror (CHAN OF SP fs,ts, VAL INT streamid, INT32 error.no,
+PROC so.ferror (CHAN OF SP fs,ts, VAL INT streamid, INT32 error.no,
 		INT length, []BYTE message, BYTE result)
 
   INT32 r :
@@ -721,7 +737,7 @@ PROC so.remove (CHAN OF SP fs,ts, VAL []BYTE name, BYTE result)
       (SIZE name) = 0
 	result := spr.bad.name
       TRUE
-	INT32 string :
+	INT string :
 	SEQ
 	  MALLOC (string,(SIZE name)+1)
 
@@ -755,7 +771,7 @@ PROC so.rename (CHAN OF SP fs,ts, VAL []BYTE oldname, newname, BYTE result)
       ((SIZE oldname) = 0) OR ((SIZE newname) = 0)
 	result := spr.bad.name
       TRUE
-	INT32 old, new :
+	INT old, new :
 	SEQ
 	  MALLOC (old,(SIZE oldname)+1)
 	  MALLOC (new,(SIZE newname)+1)
@@ -845,7 +861,7 @@ PROC so.parse.command.line (CHAN OF SP fs,ts, VAL [][]BYTE option.strings,
 PROC so.getenv (CHAN OF SP fs,ts, VAL []BYTE name, INT length, []BYTE value, BYTE result)
 
   VAL strlen IS SIZE value:
-  INT32 string :
+  INT string :
   INT res :
   SEQ
     so.mark.channels (fs,ts)
@@ -1015,7 +1031,11 @@ PROC so.read.echo.int (CHAN OF SP fs,ts, INT n, BOOL error)
   SEQ
     so.mark.channels (fs,ts)
     so.read.echo.line(fs,ts,l,b,res)
-    #C $r = sscanf((char*)$b,"%d",& $n);
+    #C #if (BYTES_PER_WORD==8)
+    #C     $r = sscanf((char*)$b,"%lld",& $n);
+    #C #else
+    #C     $r = sscanf((char*)$b,"%d",& $n);
+    #C #endif
     error := NOT ((r=1) AND (res=spr.ok))
 :    
 --}}}

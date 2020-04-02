@@ -50,7 +50,7 @@ extern char * OSPOC;
   typedef unsigned long tUInt;
 #endif
 
-typedef long int  INT32;
+typedef int       INT32;
 typedef short int INT16;
 typedef unsigned char BYTE;
 

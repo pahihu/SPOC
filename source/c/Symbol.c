@@ -16,14 +16,15 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "DynArray.h"
 #include "Tree.h"
 #include "OccamOut.h"
 
 /* #define DEBUG */
 
-static unsigned long SymExtent = 100;
-static unsigned long ScopeExtent = 20;
+static uint32_t SymExtent = 100;
+static uint32_t ScopeExtent = 20;
 
 int SymSize = -1;
 int OccSymSize=0;

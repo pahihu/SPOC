@@ -151,7 +151,10 @@ static Show(tShowMode M, void *FP)
 } 
 
 /*{{{  ShowValues*/
-#if (BYTES_PER_WORD==4)
+#if (BYTES_PER_WORD==8)
+  #define ShowINT(v) ShowINT64(v)
+  #define ShowArrayINT(p,l) ShowArrayINT64(p,l)
+#elif (BYTES_PER_WORD==4)
   #define ShowINT(v) ShowINT32(v)
   #define ShowArrayINT(p,l) ShowArrayINT32(p,l)
 #elif (BYTES_PER_WORD==2)

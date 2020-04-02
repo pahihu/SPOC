@@ -41,6 +41,9 @@
  */
 
 #define PUT_BYTE(x) {*OutBuf++ = x; OutCount++;}
+#define OUT_CINC    *OutBuf++ = *c++
+#define OUT_CDEC    *OutBuf++ = *c--
+#define OUT_C       *OutBuf++ = *c
 
 /*
  *  pack lower 16 bits of int x into 2 bytes
@@ -67,11 +70,21 @@
 #endif
 
 /*
- *  pack FILE *x as 4 bytes
+ *  pack int64 into 8 bytes
  */
 
-#ifdef MSC
-#define PUT_FD(x) {BYTE *c; c=(BYTE *)&x; *OutBuf++ = *c++; *OutBuf++ = *c;*OutBuf++ = 0; *OutBuf++ = 0; OutCount += 4;}
+#if (defined BIG_AND_LITTLE || defined LITTLE_AND_BIG)
+#define PUT_INT64(x) {BYTE *c; c=(BYTE *)&x+7; OUT_CDEC; OUT_CDEC; OUT_CDEC; OUT_CDEC; OUT_CDEC; OUT_CDEC; OUT_CDEC; OUT_C; OutCount += 8;}
+#elif (defined LITTLE_AND_LITTLE || defined BIG_AND_BIG)
+#define PUT_INT64(x) {BYTE *c; c=(BYTE *)&x; OUT_CINC; OUT_CINC; OUT_CINC; OUT_CINC; OUT_CINC; OUT_CINC; OUT_CINC; OUT_C; OutCount += 8;}
+#endif
+
+/*
+ *  pack FILE *x as 4/8 bytes
+ */
+
+#if (__SIZEOF_POINTER__==8)
+#define PUT_FD(x) PUT_INT64(x)
 #else
 #define PUT_FD(x) PUT_INT32(x)
 #endif
@@ -118,6 +131,10 @@
  */
 
 #define GET_BYTE(x) x = *InBuf++
+#define CINC_IN     *c++ = *InBuf++
+#define CDEC_IN     *c-- = *InBuf++
+#define C_IN        *c   = *InBuf++
+
 /*
  *  unpack 2 bytes into int x
  */
@@ -144,11 +161,21 @@
 #endif
 
 /*
- *  unpack 4 bytes into FILE *x
+ *  unpack 8 bytes into int64 x
  */
 
-#ifdef MSC
-#define GET_FD(x) {BYTE *c; c=(BYTE *)&x; *c++ = *InBuf++; *c = *InBuf++; InBuf += 2; }
+#if (defined BIG_AND_LITTLE || defined LITTLE_AND_BIG)
+#define GET_INT64(x) {BYTE *c; c=((BYTE *)&x)+7; CDEC_IN; CDEC_IN; CDEC_IN; CDEC_IN; CDEC_IN; CDEC_IN; CDEC_IN; C_IN; }
+#elif (defined LITTLE_AND_LITTLE || defined BIG_AND_BIG)
+#define GET_INT64(x) {BYTE *c; c=(BYTE *)&x; CINC_IN; CINC_IN; CINC_IN; CINC_IN; CINC_IN; CINC_IN; CINC_IN; C_IN; }
+#endif
+
+/*
+ *  unpack 4/8 bytes into FILE *x
+ */
+
+#if (__SIZEOF_POINTER__==8)
+#define GET_FD(x) GET_INT64(x)
 #else
 #define GET_FD(x) GET_INT32(x)
 #endif
@@ -173,5 +200,13 @@
 #define GET_REAL32(x) {BYTE *c; c=((BYTE *)x)+3; *c-- = *InBuf++; *c-- = *InBuf++; *c-- = *InBuf++; *c = *InBuf++; }
 #elif (defined LITTLE_AND_LITTLE || defined BIG_AND_BIG)
 #define GET_REAL32(x) {BYTE *c; c=(BYTE *)x;     *c++ = *InBuf++; *c++ = *InBuf++; *c++ = *InBuf++; *c = *InBuf++; }
+#endif
+
+#if (__SIZEOF_POINTER__==8)
+#define GET_INT(x) GET_INT64(x)
+#define PUT_INT(x) PUT_INT64(x)
+#else
+#define GET_INT(x) GET_INT32(x)
+#define PUT_INT(x) PUT_INT32(x)
 #endif
 

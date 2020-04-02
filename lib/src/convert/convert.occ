@@ -432,11 +432,11 @@ PROC REAL32TOSTRING(INT l,[]BYTE string, VAL REAL32 r, VAL INT m,n)
           #C $len = strlen((char*)$tmp);
       (m>0) AND (n>=0)
         SEQ
-          #C sprintf((char*)$tmp,"%*.*f",$m+$n,$n,(REAL64)$r);
+          #C sprintf((char*)$tmp,"%*.*f",(int)($m+$n),(int)$n,(REAL64)$r);
           #C $len = strlen((char*)$tmp);
       (m=0) AND (n>=0)
         SEQ
-          #C sprintf((char*)$tmp,"%*.*E",$n+6,$n,(REAL64)$r);
+          #C sprintf((char*)$tmp,"%*.*E",(int)($n+6),(int)$n,(REAL64)$r);
           #C $len = strlen((char*)$tmp);
     IF
       (len<(SIZE tmp))AND((SIZE string)>=len)
@@ -456,11 +456,11 @@ PROC REAL64TOSTRING(INT l,[]BYTE string, VAL REAL64 r, VAL INT m,n)
           #C $len = strlen((char*)$tmp);
       (m>0) AND (n>=0)
         SEQ
-          #C sprintf((char*)$tmp,"%*.*f",$m+$n,$n,$r);
+          #C sprintf((char*)$tmp,"%*.*f",(int)($m+$n),(int)$n,$r);
           #C $len = strlen((char*)$tmp);
       (m=0) AND (n>=0)
         SEQ
-          #C sprintf((char*)$tmp,"%*.*E",$n+6,$n,$r);
+          #C sprintf((char*)$tmp,"%*.*E",(int)($n+6),(int)$n,$r);
           #C $len = strlen((char*)$tmp);
     IF
       (len<(SIZE tmp))AND((SIZE string)>=len)

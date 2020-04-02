@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 
 #include "Scanner.h"
 #include "Errors.h"
@@ -51,7 +52,7 @@ extern bool showinfo;
 /*}}}*/
 
 /*{{{  global variables*/
-static unsigned long lineExtent = STARTBUF;
+static uint32_t lineExtent = STARTBUF;
 static char *line = NULL;
 
 char yytext[MAXLINE];
