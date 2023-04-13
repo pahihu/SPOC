@@ -43,7 +43,7 @@
 #endif
 */
 
-#ifdef linux
+#if defined(linux)||defined(darwin)
   /* Little-endian iserver and little-endian protocol */
   #define LITTLE_AND_LITTLE
 #else

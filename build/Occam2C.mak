@@ -15,7 +15,7 @@
 #{{{  architecture and compiler
 S=/
 ARCH=darwin
-CC=gcc
+CC=gcc $(CCARCH)
 CFLAGS=-Wno-return-type $(CCOPTIONS) -DFULL -I. -I$(CSRC) -I$(GMDTOOLS)$(S)c -DYYDEBUG=1 -DSUPPORT_INT64 -DARCH=\"$(ARCH)\"
 MKDIR=mkdir -p
 #}}}
@@ -98,7 +98,7 @@ $(LIB)$(S)Occam2C.c: $(LIBSRC)$(S)Occam2C.c
 #{{{  reusable module rules
 $(GMDTOOLS)$(S)$(ARCH)$(S)libreuse.a:
 	@if [ ! -d $(GMDTOOLS)$(S)$(ARCH) ]; then $(MKDIR) $(GMDTOOLS)$(S)$(ARCH); fi;
-	( cd $(GMDTOOLS)$(S)c; make clean; make CC=$(CC); cp libreuse.a ..$(S)$(ARCH) )
+	( cd $(GMDTOOLS)$(S)c; make clean; make CC="$(CC)"; cp libreuse.a ..$(S)$(ARCH) )
 #}}}
 #{{{  object dependencies of generated C
 CoutAg.o:       CoutAg.h CoutAg.c $(TREE.H)

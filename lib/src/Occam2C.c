@@ -368,7 +368,7 @@ void DisableSocket (int socket)
     exit(-1);
   }
   #endif
-  #ifdef linux
+  #if defined(linux)||defined(darwin)
   if (fcntl(socket, F_SETFL, FASYNC) < 0)
   {
     fprintf(stderr,"Error - could not set synchronous socket\n");
@@ -427,16 +427,26 @@ void ServeSocket (void)
 /*{{{  void Init_Sockets()*/
 void Init_Sockets()
 {
+  #ifdef darwin
+  struct rlimit rl;
+  if (getrlimit(RLIMIT_NOFILE, &rl) < 0)
+  {
+    fprintf(stderr,"Error - getrlimit failed (%s).\n", strerror(errno));
+    return 1;
+  }
+  io_limit = rl.rlim_cur;
+  #else
   io_limit = ulimit (4,0);
+  #endif
 
   timerclear (&io_zerotime);
 
   signal (SOCKET_SIGNAL, SocketHandler);
-  #ifdef linux
+  #if defined(linux)||defined(darwin)
   {
     struct sigaction action;
     sigaction(SIGIO,NULL,&action);
-    action.sa_flags = (action.sa_flags & (~SA_ONESHOT));
+    action.sa_flags = (action.sa_flags & (~SA_RESETHAND));
     sigaction(SIGIO,&action,NULL);
   }
   #endif

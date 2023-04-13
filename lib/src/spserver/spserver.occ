@@ -73,7 +73,7 @@ PROC spoc.iserver (CHAN OF ANY fs, ts)
       #C   static int identity = -1;
       #C   if (identity < 0)
       #C   {
-      #C     #ifdef linux
+      #C     #if defined(linux)||defined(darwin)
       #C     if (socketpair(AF_UNIX,SOCK_STREAM,0,iserver_to_occam) < 0 || 
       #C         socketpair(AF_UNIX,SOCK_STREAM,0,occam_to_iserver) < 0)
       #C     #else

@@ -43,15 +43,15 @@ OCC2MOD=$(OCC2C) $(OCCOPT) -l
 
 C2OBJ-DEP=$(SPOCLIB)/Occam2C.h
 CCOPT=-I$(SPOCLIB) -DHOST=SUN4 -DOS=SUNOS -D$(ARCH) $(CCOPTIONS)
-C2OBJ=gcc -Wno-return-type -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
+C2OBJ=gcc $(CCARCH) -Wno-return-type -c $(CCOPT) $(XCCOPT) -DUSESIGTIMER
 
 C2PRO-DEP=$(SPOCLIB)/Occam2C.h
-C2PRO=gcc -Wno-return-type $(CCOPT) -DGENPROTO
+C2PRO=gcc $(CCARCH) -Wno-return-type $(CCOPT) -DGENPROTO
 
 CLINK-DEP=$(XCL-DEP)
 CLOPT=
 CLLIB=-lm $(CLOPTIONS) $(XCLLIB)
-CLINK=gcc -Wno-return-type $(CLOPT) 
+CLINK=gcc $(CCARCH) -Wno-return-type $(CLOPT) 
 
 INVOKE=exec
 AR=ar r

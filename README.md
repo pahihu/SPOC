@@ -10,6 +10,7 @@ Good luck!
 Changes
 =======
 
+* added CCARCH to specify 32/64bit builds, INMOS sources compatible with 32bit only
 * clean build on macOS Mojave 64bit and Ubuntu Linux 18.0.4
 * added compilation scripts
 * able to build on macOS Mojave 64bit using clang
